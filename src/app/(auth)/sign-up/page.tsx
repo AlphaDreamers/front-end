@@ -21,12 +21,9 @@ import {
   BadgeInfo,
 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
-import { Card, CardContent, CardFooter } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
-import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -58,8 +55,8 @@ import clsx from "clsx";
 import { drawContour } from "face-api.js/build/commonjs/draw";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList } from "@/app/components/ui/tabs";
-import { TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardFooter, Input } from "@/components/ui";
 
 const RegistrationSchema = z.object({
   firstName: z.string().min(3).max(50),
@@ -271,10 +268,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="max-w-md">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">Create Account</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
+    <main className="w-md">
+      <div className="mb-6 text-center">
+        <h1>Create Account</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Complete your profile to get started with our secure platform
         </p>
       </div>
