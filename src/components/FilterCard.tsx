@@ -148,7 +148,7 @@ const SliderButton = ({
   return (
     <Popover>
       <PopoverTrigger>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           {label}: {values[0]} - {values[1]}
         </Button>
       </PopoverTrigger>
@@ -217,6 +217,7 @@ const ComboboxButton = ({ id, label, options }: ComboboxButtonProps) => {
           role="combobox"
           aria-expanded={open}
           className="justify-between"
+          size="sm"
         >
           {label}:{" "}
           {value
@@ -292,6 +293,7 @@ const MultiComboboxButton = ({
           variant="outline"
           role="combobox"
           className="justify-between relative"
+          size="sm"
         >
           {label}: {value.length !== 0 && `(${value.length})`}
           <ChevronsUpDown className="opacity-50" />
@@ -399,7 +401,7 @@ const CheckboxButton = ({ id, label, options }: CheckboxButtonProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           {label}: {values.length ? `(${values.length})` : label}
         </Button>
       </DropdownMenuTrigger>
@@ -448,7 +450,7 @@ const RadioButton = ({ id, label, options = [] }: RadioButtonProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           {label}:{" "}
           {value
             ? options.find((option) => option.value === value)?.label
@@ -508,6 +510,7 @@ const DateButton = ({ id, label, min, max }: DateButtonProps) => {
             "justify-start text-left font-normal",
             !date && "text-muted-foreground"
           )}
+          size="sm"
         >
           <CalendarIcon />
           {date ? `${label}: ${format(date, "MMM dd, yyyy")}` : label}
@@ -576,6 +579,7 @@ const DateRangeButton = ({ id, label, min, max }: DateRangeButtonProps) => {
             "justify-start text-left font-normal",
             !date && "text-muted-foreground"
           )}
+          size="sm"
         >
           <CalendarIcon />
           {date && date.from

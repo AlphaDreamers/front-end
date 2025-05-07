@@ -35,8 +35,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen items-center justify-center p-4 sm:p-6 lg:p-8">
-            {children}
+          <div className="flex flex-col min-h-screen items-center justify-center p-4 sm:p-6 lg:p-8">
+            <main className="min-w-full min-h-full"> {children}</main>
           </div>
           <Toaster richColors />
         </ThemeProvider>
