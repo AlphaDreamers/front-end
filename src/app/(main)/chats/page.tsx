@@ -15,10 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OrderStatus } from "@/lib/types";
-import { getConversations, getConversationsCount } from "@/lib/actions";
 import Pagination from "@/components/Pagination";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const ITEMS_PER_PAGE = 10;
+
+const prisma = new PrismaClient();
 
 export default async function Page({
   searchParams,
@@ -34,12 +36,7 @@ export default async function Page({
   const filters = await searchParams;
 
   const [chats, count] = await Promise.all([
-    getConversations({
-      ...filters,
-      limit: ITEMS_PER_PAGE,
-      offset: (filters.page || 1) * ITEMS_PER_PAGE,
-    }),
-    getConversationsCount(filters),
+  
   ]);
 
   return (

@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   User,
   Mail,
@@ -58,46 +57,65 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardFooter, Input } from "@/components/ui";
 
-const RegistrationSchema = z.object({
-  firstName: z.string().min(3).max(50),
-  lastName: z.string().min(3).max(50),
-  email: z.string().email(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(32, "Password must be at most 32 characters")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(
-      /[^A-Za-z0-9]/,
-      "Password must contain at least one special character"
-    )
-    .refine((val) => !COMMON_PASSWORDS.includes(val), {
-      message: "Password is too common",
-    }),
-  country: z.enum(
-    COUNTRIES.map((country) => country.value) as [
-      CountryValue,
-      ...CountryValue[]
-    ]
-  ),
-  biometricHash: z.string(),
-});
+const RegistrationSchema = z
+  .object({
+    firstName: z.string().min(3).max(50),
+    lastName: z.string().min(3).max(50),
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .max(20, "Username must be at most 20 characters")
+      .regex(
+        /^[a-zA-Z0-9_]+$/,
+        "Username can only contain letters, numbers, and underscores"
+      ),
+    email: z.string().email(),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(32, "Password must be at most 32 characters")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "Password must contain at least one special character"
+      )
+      .refine((val) => !COMMON_PASSWORDS.includes(val), {
+        message: "Password is too common",
+      }),
+    confirmPassword: z.string(),
+    country: z.enum(
+      COUNTRIES.map((country) => country.value) as [
+        CountryValue,
+        ...CountryValue[]
+      ]
+    ),
+    biometricHash: z.string(),
+  })
+  .refine(
+    (schema) => {
+      return schema.password === schema.confirmPassword;
+    },
+    {
+      message: "Passwords do not match",
+    }
+  );
 
 const RegistrationFormDefaultValues: z.infer<typeof RegistrationSchema> = {
   firstName: "",
   lastName: "",
+  username: "",
   email: "",
   password: "",
-  country: "US",
+  confirmPassword: "",
+  country: COUNTRIES[0].value,
   biometricHash: "",
 };
 
 type Status = "idle" | "loading" | "scanning" | "success" | "error";
 
 export default function RegisterPage() {
-  const { push } = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -204,7 +222,7 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (values: z.infer<typeof RegistrationSchema>) => {
-    toast.promise(
+    return toast.promise(
       async () => {
         setIsLoading(true);
         try {
@@ -216,30 +234,32 @@ export default function RegisterPage() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify(values),
+              credentials: "include",
             }
           );
 
+          const data = await res.json();
+
           if (!res.ok) {
-            throw new Error("Registration failed");
+            throw new Error(data.message || "Failed to create account");
           }
 
-          push("/verify-email");
-
-          return res.json();
+          return data.user;
+        } catch (error) {
+          console.error("Registration error:", error);
+          throw new Error(
+            error && typeof error === "object" && "message" in error
+              ? (error as { message: string }).message
+              : "Failed to create account"
+          );
         } finally {
           setIsLoading(false);
         }
       },
       {
-        loading: <Loader2 className="animate-spin" />,
-        success: (data) => {
-          return "message" in data ? data.message : "Registration successful";
-        },
-        error: (data) => {
-          return "message" in data
-            ? data.message
-            : "Registration failed. Please try again.";
-        },
+        loading: "Creating account...",
+        success: "Account created successfully!",
+        error: (err) => err.message,
       }
     );
   };
@@ -330,6 +350,24 @@ export default function RegisterPage() {
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <User size={16} className="text-primary" />
+                          Username
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="johnson_123" {...field} />
+                        </FormControl>
+                        <FormDescription />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}
@@ -443,28 +481,52 @@ export default function RegisterPage() {
                             }}
                           />
                         </FormControl>
-                        <FormDescription className="mb-2">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between items-center text-xs">
-                              <span>Password Security</span>
-                              <span>
-                                {
-                                  [
-                                    "Very Weak",
-                                    "Weak",
-                                    "Moderate",
-                                    "Strong",
-                                    "Very Strong",
-                                    "Excellent",
-                                    "Excellent",
-                                    "Excellent",
-                                  ][Math.min(securityLevel, 7)]
-                                }
-                              </span>
-                            </div>
-                            <Progress max={8} value={securityLevel * 12.5} />
-                          </div>
+                        <FormDescription className="mb-2 flex flex-col gap-1">
+                          <span className="flex justify-between items-center text-xs">
+                            <span>Password Security</span>
+                            <span>
+                              {
+                                [
+                                  "Very Weak",
+                                  "Weak",
+                                  "Moderate",
+                                  "Strong",
+                                  "Very Strong",
+                                  "Excellent",
+                                  "Excellent",
+                                  "Excellent",
+                                ][Math.min(securityLevel, 7)]
+                              }
+                            </span>
+                          </span>
+                          <Progress max={8} value={securityLevel * 12.5} />
                         </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <Lock size={16} className="text-primary" />
+                          Confirm Password
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="*********"
+                            type="password"
+                            {...field}
+                            onChange={(e) => {
+                              validateSecurityLevel(e.target.value);
+                              field.onChange(e);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription />
                         <FormMessage />
                       </FormItem>
                     )}

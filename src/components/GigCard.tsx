@@ -1,115 +1,128 @@
-import { Star, Zap, Trophy, Hourglass, ArrowRight } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "./ui";
-import { buttonVariants } from "./ui/button";
-import Link from "next/link";
-import { Badge } from "./ui/badge";
+import { Star, ShoppingCart, Eye, Award } from "lucide-react";
+import { Prisma } from "@prisma/client";
 import Image from "next/image";
 
-interface GigCardProps {
-  title: string;
-  description: string;
-  level: string;
-  experience: string;
-  completedProjects: number;
-  deliveryTime: string;
-  startingPrice: number;
-  currency: string;
-  sellerName: string;
-  sellerAvatar: string;
-  popularityScore: number;
-}
+import { Card, CardContent, CardFooter, CardHeader } from "./ui";
+import { Button, buttonVariants } from "./ui/button";
+import { Badge } from "./ui/badge";
+import Link from "next/link";
 
-export default function GigCardDesign({
-  title,
-  description,
-  level,
-  experience,
-  completedProjects,
-  deliveryTime,
-  startingPrice,
-  currency,
-  sellerName,
-  sellerAvatar,
-  popularityScore,
-}: GigCardProps) {
+export default function GigCard(
+  gig: Prisma.GigGetPayload<{
+    include: {
+      seller: {
+        include: {
+          badges: {
+            include: {
+              badge: true;
+            };
+          };
+        };
+      };
+      packages: {
+        include: {
+          orders: {
+            include: {
+              review: true;
+            };
+          };
+        };
+      };
+      images: true;
+      tags: true;
+    };
+  }>
+) {
+  const feautedBadge = gig.seller.badges.find(
+    (badge) => badge.isFeatured === true
+  );
+
   return (
-    <Card className="max-w-sm">
-      {/* Header with Level Badge */}
-      <CardHeader>
-        <div className="flex items-center gap-4">
-          <Image
-            src={sellerAvatar}
-            alt="Seller Avatar"
-            width={64}
-            height={64}
-            className="rounded-full border-2 border-primary object-cover size-12"
-          />
-
-          <div>
-            <p className="font-bold text-lg mb-1">{sellerName}</p>
-
-            <div className="flex items-center gap-1">
-              <Badge variant="outline">
-                <Star size={12} className="text-primary fill-primary" />
-                <span>{popularityScore}% Positive</span>
-              </Badge>
-              <Badge variant="outline">
-                <Trophy size={12} className="text-chart-5 fill-chart-5" />
-                <span>{completedProjects} Projects</span>
-              </Badge>
+    <Card className="overflow-hidden hover:border-primary transition-all duration-300">
+      {/* Image with price overlay */}
+      <CardHeader className="relative">
+        <Image
+          src={gig.images[0].url}
+          width={200}
+          height={200}
+          alt={gig.title}
+          className="-mt-6 -mx-6 min-w-[calc(100%+48px)] h-48 object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">
+          <div className="flex items-center">
+            <Image
+              src={gig.seller.avatar || "/avatar-fallback.png"}
+              alt={gig.seller.firstName + " " + gig.seller.lastName}
+              width={32}
+              height={32}
+              className="w-8 h-8 rounded-full border-1 border-primary"
+            />
+            <div className="ml-2">
+              <p className="text-foreground text-sm font-medium">
+                {gig.seller.firstName + " " + gig.seller.lastName}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {gig.seller.username}
+              </p>
             </div>
+            {feautedBadge && (
+              <Badge className="ml-auto">
+                <Star />
+                {feautedBadge.badge.label}
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
 
-      {/* Body */}
+      {/* Content section */}
       <CardContent>
-        <h3 className="font-bold text-xl mb-3 text-primary">{title}</h3>
-        <p className="text-sm mb-4">{description}</p>
+        <div className="flex items-center mb-3 text-xs text-gray-400">
+          <div className="flex items-center mr-3">
+            <Star className="w-3 h-3 text-primary mr-1" />
+            <span>{gig.averageRating.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center mr-3">
+            <Award className="w-3 h-3 text-primary mr-1" />
+            <span className="text-muted-foreground">({gig.ratingCount})</span>
+          </div>
+          <div className="flex items-center mr-3 ml-auto">
+            <Eye className="w-3 h-3 mr-1" />
+            <span>{gig.viewCount}</span>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Card className="py-4">
-            <CardContent className="px-4 flex items-center gap-4">
-              <Hourglass className="bg-chart-2 rounded p-1.5 size-8 stroke-[1.5]" />
-              <div>
-                <p className="text-xs text-muted-foreground">Delivery Time</p>
-                <p className="text-sm font-medium">{deliveryTime}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <h3 className="font-medium mb-3 line-clamp-2">{gig.title}</h3>
 
-          <Card className="py-4">
-            <CardContent className="px-4 flex items-center gap-4">
-              <Zap
-                size={16}
-                className="bg-chart-4 rounded p-1.5 size-8 stroke-[1.5]"
-              />
-              <div>
-                <p className="text-xs text-muted-foreground">Experience</p>
-                <p className="text-sm font-medium">{experience}</p>
-              </div>
-            </CardContent>
-          </Card>
+        <p className="text-muted-foreground text-xs mb-4 line-clamp-3">
+          {gig.description}
+        </p>
+
+        <div className="flex flex-wrap gap-x-2 gap-y-1">
+          {gig.tags.map((tag, index) => (
+            <Badge variant="outline" key={index} className="text-chart-3">
+              {tag.label}
+            </Badge>
+          ))}
         </div>
       </CardContent>
 
-      <CardFooter>
-        <div>
-          <p className="text-xs text-muted-foreground">Starting at</p>
-          <p className="text-2xl font-bold">
-            {startingPrice} <span className="text-primary">{currency}</span>
-          </p>
+      <CardFooter className="justify-between mt-auto">
+        <div className="text-primary font-bold text-xl">
+          {gig.packages[0].price} SOL
         </div>
 
         <Link
-          href="/order"
           className={buttonVariants({
-            size: "lg",
-            className: "ml-auto",
+            variant: "outline",
+            size: "sm",
+            className: "flex items-center gap-2",
           })}
+          href={`/gigs/${gig.id}`}
         >
-          Order
-          <ArrowRight />
+          <Eye />
+          View
         </Link>
       </CardFooter>
     </Card>

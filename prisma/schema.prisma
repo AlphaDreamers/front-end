@@ -1,0 +1,322 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum BadgeTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+model Badge {
+  id    String @id @default(uuid())
+  label String @unique
+  icon  String
+
+  color      String
+  userBadges UserBadge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserBadge {
+  id         String    @id @default(uuid())
+  userId     String
+  badgeId    String
+  tier       BadgeTier @default(BRONZE)
+  isFeatured Boolean   @default(false)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, badgeId])
+}
+
+model User {
+  id        String  @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String  @unique
+  password  String
+  verified  Boolean @default(false)
+  username  String  @unique
+  avatar    String?
+
+  skills       UserSkill[]
+  biometrics   Biometrics[]
+  gigsOffered  Gig[]
+  ordersBought Order[]      @relation("BuyerOrders")
+  ordersSold   Order[]      @relation("SellerOrders")
+  sellerChats  Chat[]       @relation("SellerChats")
+  buyerChats   Chat[]       @relation("BuyerChats")
+  messages     Message[]    @relation("MessageSender")
+  reviews      Review[]     @relation("ReviewAuthor")
+  badges       UserBadge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  walletCreated     Boolean   @default(false)
+  walletCreatedTime DateTime?
+
+  @@index([email])
+  @@index([username])
+}
+
+model Skill {
+  id         String      @id @default(uuid())
+  label      String      @unique
+  userSkills UserSkill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GigTag {
+  id    String @id @default(uuid())
+  label String @unique
+
+  gigs Gig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserSkill {
+  level    Int     @default(1)
+  endorsed Boolean @default(false)
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skillId String
+  userId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([skillId, userId])
+  @@unique([skillId, userId])
+  @@map("user_skills")
+}
+
+model Biometrics {
+  id         String  @id @default(uuid())
+  type       String
+  value      String
+  isVerified Boolean @default(false)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+}
+
+model Gig {
+  id            String  @id @default(uuid())
+  title         String
+  description   String
+  isActive      Boolean @default(true)
+  viewCount     Int     @default(0)
+  averageRating Float   @default(0)
+  ratingCount   Int     @default(0)
+
+  packages   GigPackage[]
+  seller     User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  images     GigImage[]
+  categories Category[]
+  tags       GigTag[]
+
+  sellerId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([isActive])
+}
+
+model GigImage {
+  id        String  @id @default(uuid())
+  url       String
+  alt       String?
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  gig   Gig    @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  gigId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gigId, isPrimary])
+}
+
+model GigPackage {
+  id           String  @id @default(uuid())
+  title        String
+  description  String
+  price        Float
+  deliveryTime Int
+  revisions    Int     @default(1)
+  isActive     Boolean @default(true)
+
+  orders   Order[]
+  gig      Gig                 @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  features GigPackageFeature[]
+
+  gigId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gigId, isActive])
+}
+
+model GigPackageFeature {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  included    Boolean @default(true)
+
+  gigPackage   GigPackage @relation(fields: [gigPackageId], references: [id], onDelete: Cascade)
+  gigPackageId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id       String  @id @default(uuid())
+  title    String
+  content  String?
+  rating   Int     @default(5)
+  isPublic Boolean @default(true)
+
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  author   User   @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  authorId String
+  orderId  String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rating])
+}
+
+model Category {
+  id        String  @id @default(uuid())
+  label     String  @unique
+  slug      String  @unique
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+  gigs     Gig[]
+
+  parentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CRYPTOCURRENCY
+  CREDIT_CARD
+  PAYPAL
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  IN_PROGRESS
+  DELIVERED
+  REVISION
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  orderNumber   String        @unique @default(uuid())
+  price         Float
+  paymentMethod PaymentMethod
+  status        OrderStatus   @default(PENDING)
+  transactionId String?
+  requirements  String?
+
+  seller  User       @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
+  package GigPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  buyer   User       @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  review  Review?
+
+  packageId String
+  sellerId  String
+  buyerId   String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  dueDate     DateTime?
+
+  @@index([status])
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+}
+
+model Chat {
+  id           String   @id @default(uuid())
+  lastActivity DateTime @default(now())
+  isArchived   Boolean  @default(false)
+
+  seller   User      @relation("SellerChats", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyer    User      @relation("BuyerChats", fields: [buyerId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  buyerId  String
+  sellerId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sellerId, buyerId])
+  @@index([lastActivity])
+}
+
+model Message {
+  id       String  @id @default(uuid())
+  content  String
+  isRead   Boolean @default(false)
+  isEdited Boolean @default(false)
+
+  chat     Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String
+  chatId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chatId, createdAt])
+  @@index([isRead])
+}
