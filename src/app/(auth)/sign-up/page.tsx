@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   User,
   Mail,
@@ -19,11 +20,13 @@ import {
   Signature,
   BadgeInfo,
 } from "lucide-react";
-import Link from "next/link";
+import { useForm } from "react-hook-form";
+import * as faceapi from "face-api.js";
+import clsx from "clsx";
+import { drawContour } from "face-api.js/build/commonjs/draw";
 
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useForm } from "react-hook-form";
 import {
   Form,
   FormControl,
@@ -34,8 +37,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { COMMON_PASSWORDS } from "@/lib/common-passwords";
-import { COUNTRIES, CountryValue } from "@/lib/countries";
 import {
   Popover,
   PopoverContent,
@@ -49,69 +50,16 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import * as faceapi from "face-api.js";
-import clsx from "clsx";
-import { drawContour } from "face-api.js/build/commonjs/draw";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardFooter, Input } from "@/components/ui";
 
-const RegistrationSchema = z
-  .object({
-    firstName: z.string().min(3).max(50),
-    lastName: z.string().min(3).max(50),
-    username: z
-      .string()
-      .min(3, "Username must be at least 3 characters")
-      .max(20, "Username must be at most 20 characters")
-      .regex(
-        /^[a-zA-Z0-9_]+$/,
-        "Username can only contain letters, numbers, and underscores"
-      ),
-    email: z.string().email(),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(32, "Password must be at most 32 characters")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(
-        /[^A-Za-z0-9]/,
-        "Password must contain at least one special character"
-      )
-      .refine((val) => !COMMON_PASSWORDS.includes(val), {
-        message: "Password is too common",
-      }),
-    confirmPassword: z.string(),
-    country: z.enum(
-      COUNTRIES.map((country) => country.value) as [
-        CountryValue,
-        ...CountryValue[]
-      ]
-    ),
-    biometricHash: z.string(),
-  })
-  .refine(
-    (schema) => {
-      return schema.password === schema.confirmPassword;
-    },
-    {
-      message: "Passwords do not match",
-    }
-  );
-
-const RegistrationFormDefaultValues: z.infer<typeof RegistrationSchema> = {
-  firstName: "",
-  lastName: "",
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
-  country: COUNTRIES[0].value,
-  biometricHash: "",
-};
+import { COMMON_PASSWORDS } from "@/lib/common-passwords";
+import { COUNTRIES } from "@/lib/countries";
+import { SignUpFormDefaultValues, SignUpFormSchema } from "@/lib/schemas";
+import { signUp } from "@/lib/actions";
+import { useRouter } from "next/navigation";
 
 type Status = "idle" | "loading" | "scanning" | "success" | "error";
 
@@ -120,6 +68,7 @@ export default function RegisterPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [securityLevel, setSecurityLevel] = useState(0);
+  const { push } = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -221,52 +170,40 @@ export default function RegisterPage() {
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof RegistrationSchema>) => {
-    return toast.promise(
+  const onSubmit = async (values: z.infer<typeof SignUpFormSchema>) => {
+    toast.promise(
       async () => {
-        setIsLoading(true);
         try {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/register`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(values),
-              credentials: "include",
-            }
-          );
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            throw new Error(data.message || "Failed to create account");
-          }
-
-          return data.user;
-        } catch (error) {
-          console.error("Registration error:", error);
-          throw new Error(
-            error && typeof error === "object" && "message" in error
-              ? (error as { message: string }).message
-              : "Failed to create account"
-          );
+          await signUp(values);
+        } catch {
+          form.setError("root", {
+            type: "manual",
+            message: "An error occurred. Please try again.",
+          });
         } finally {
           setIsLoading(false);
         }
       },
       {
         loading: "Creating account...",
-        success: "Account created successfully!",
-        error: (err) => err.message,
+        success: () => {
+          push("/verify-email?email=" + values.email);
+
+          return "Account created successfully. Please check your email for verification.";
+        },
+        error: (err) => {
+          if (err instanceof Error) {
+            return err.message;
+          }
+          return "An error occurred. Please try again.";
+        },
       }
     );
   };
 
   const form = useForm({
-    resolver: zodResolver(RegistrationSchema),
-    defaultValues: RegistrationFormDefaultValues,
+    resolver: zodResolver(SignUpFormSchema),
+    defaultValues: SignUpFormDefaultValues,
   });
 
   const validateSecurityLevel = (password: string) => {
@@ -599,8 +536,8 @@ export default function RegisterPage() {
                               {status === "error"
                                 ? "Retry"
                                 : status === "success"
-                                ? "Retake"
-                                : "Begin Scan"}
+                                  ? "Retake"
+                                  : "Begin Scan"}
                             </Button>
                           </div>
                         </FormControl>

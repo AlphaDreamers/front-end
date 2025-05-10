@@ -32,6 +32,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { toast } from "sonner";
+import { verifyEmail } from "@/lib/actions";
 
 const VerificationSchema = z.object({
   email: z.string().email(),
@@ -53,58 +54,25 @@ export default function VerifyPage({
   const { email } = use(searchParams);
   const { push } = useRouter();
 
-  const [isLoading, setIsLoading] = useState(false);
-
   // Submit verification code
   const handleSubmit = async (values: z.infer<typeof VerificationSchema>) => {
-    setIsLoading(true);
-
-    toast.promise(
-      async () => {
-        try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/verify`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: "include",
-              body: JSON.stringify(values),
-            }
-          );
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.message || "Verification failed");
-          }
-
-          push("/sign-in");
-
-          return response.json();
-        } finally {
-          setIsLoading(false);
-        }
+    toast.promise(async () => verifyEmail(values), {
+      loading: <Loader2 className="animate-spin" />,
+      success: () => {
+        push("/sign-in");
+        return "Account verified successfully";
       },
-      {
-        loading: <Loader2 className="animate-spin" />,
-        success: (data) => {
-          return "message" in data ? data.message : "Verification successful";
-        },
-        error: (data) => {
-          return "message" in data
-            ? data.message
-            : "Verification failed. Please try again.";
-        },
-      }
-    );
+      error: (err) => {
+        if (err instanceof Error) {
+          return err.message;
+        }
+        return "Failed to verify account. Please try again.";
+      },
+    });
   };
 
   // Resend verification code
   const handleResend = async () => {
-    setIsLoading(true);
-
     toast.promise(
       async () => {
         try {
@@ -126,9 +94,7 @@ export default function VerifyPage({
           push("/sign-in");
 
           return res.json();
-        } finally {
-          setIsLoading(false);
-        }
+        } catch {}
       },
       {
         loading: <Loader2 className="animate-spin" />,
@@ -149,6 +115,8 @@ export default function VerifyPage({
       email: email || "",
     },
   });
+
+  const isLoading = form.formState.isSubmitting;
 
   return (
     <main className="max-w-md">

@@ -1,669 +1,704 @@
-import { PaymentMethod, OrderStatus, PrismaClient } from "@prisma/client";
+import {
+  PrismaClient,
+  BadgeTier,
+  PaymentMethod,
+  OrderStatus,
+} from "@prisma/client";
 import { hash } from "argon2";
-import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();
 
+// Helper to generate a random date within a range
+function randomDate(start, end) {
+  return new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime())
+  );
+}
+
+// Helper to pick a random item from an array
+function randomItem(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+// Helper to generate a random integer within a range (inclusive)
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Helper to generate a random float within a range with 2 decimal places
+function randomPrice(min, max) {
+  return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+}
+
+// Define country list
+const countries = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "Australia",
+  "Germany",
+  "France",
+  "Spain",
+  "India",
+  "Japan",
+  "Brazil",
+  "Mexico",
+  "South Africa",
+  "Nigeria",
+  "Egypt",
+  "Russia",
+  "China",
+  "Singapore",
+  "New Zealand",
+];
+
+// Define badge data
+const badges = [
+  { label: "Top Seller", icon: "trophy", color: "#FFD700" },
+  { label: "Rising Talent", icon: "star", color: "#87CEEB" },
+  { label: "Fast Delivery", icon: "rocket", color: "#32CD32" },
+  { label: "Quality Service", icon: "medal", color: "#9370DB" },
+  { label: "Customer Favorite", icon: "heart", color: "#FF69B4" },
+  { label: "Expert", icon: "certificate", color: "#FFA500" },
+  { label: "Verified Professional", icon: "check-circle", color: "#4169E1" },
+  { label: "Problem Solver", icon: "lightbulb", color: "#FFFF00" },
+];
+
+// Define skill data
+const skills = [
+  "JavaScript",
+  "Python",
+  "React",
+  "Node.js",
+  "GraphQL",
+  "TypeScript",
+  "UI/UX Design",
+  "Logo Design",
+  "Content Writing",
+  "Copywriting",
+  "SEO Optimization",
+  "Digital Marketing",
+  "Video Editing",
+  "Animation",
+  "Voice Over",
+  "Translation",
+  "Data Analysis",
+  "Machine Learning",
+  "WordPress Development",
+  "Mobile App Development",
+  "Illustration",
+];
+
+// Define gigTag data
+const gigTags = [
+  "Remote Work",
+  "Fast Delivery",
+  "Revisions Included",
+  "Top Rated",
+  "Beginner Friendly",
+  "Professional",
+  "Budget",
+  "Premium",
+  "Custom Work",
+  "Experienced",
+  "Certified",
+  "Portfolio Building",
+];
+
+// Define category data with hierarchy
+const categories = [
+  {
+    label: "Design & Creative",
+    slug: "design-creative",
+    children: [
+      { label: "Graphic Design", slug: "graphic-design" },
+      { label: "Logo Design", slug: "logo-design" },
+      { label: "UI/UX Design", slug: "ui-ux-design" },
+      { label: "Illustration", slug: "illustration" },
+    ],
+  },
+  {
+    label: "Digital Marketing",
+    slug: "digital-marketing",
+    children: [
+      { label: "Social Media", slug: "social-media" },
+      { label: "SEO", slug: "seo" },
+      { label: "Content Marketing", slug: "content-marketing" },
+    ],
+  },
+  {
+    label: "Programming & Tech",
+    slug: "programming-tech",
+    children: [
+      { label: "Web Development", slug: "web-development" },
+      { label: "Mobile Development", slug: "mobile-development" },
+      { label: "Game Development", slug: "game-development" },
+      { label: "Database Design", slug: "database-design" },
+    ],
+  },
+  {
+    label: "Writing & Translation",
+    slug: "writing-translation",
+    children: [
+      { label: "Content Writing", slug: "content-writing" },
+      { label: "Translation", slug: "translation" },
+      { label: "Proofreading", slug: "proofreading" },
+    ],
+  },
+];
+
 async function main() {
-  console.log("Starting database seeding...");
+  console.log("Starting seed process...");
 
-  // Clear existing data (optional - comment out if not needed)
-  await cleanDatabase();
+  // Clean up existing data
+  await prisma.$transaction([
+    prisma.message.deleteMany(),
+    prisma.chat.deleteMany(),
+    prisma.review.deleteMany(),
+    prisma.order.deleteMany(),
+    prisma.gigPackageFeature.deleteMany(),
+    prisma.gigPackage.deleteMany(),
+    prisma.gigImage.deleteMany(),
+    prisma.gig.deleteMany(),
+    prisma.biometrics.deleteMany(),
+    prisma.userSkill.deleteMany(),
+    prisma.userBadge.deleteMany(),
+    prisma.registrationToken.deleteMany(),
+    prisma.user.deleteMany(),
+    prisma.badge.deleteMany(),
+    prisma.skill.deleteMany(),
+    prisma.gigTag.deleteMany(),
+    prisma.category.deleteMany(),
+  ]);
 
-  // Create tags
-  const tags = await createTags();
-  console.log(`Created ${tags.length} tags`);
+  console.log("Cleaned up existing data");
 
   // Create badges
-  const badges = await createBadges();
-  console.log(`Created ${badges.length} badges`);
+  const createdBadges = await Promise.all(
+    badges.map((badge) =>
+      prisma.badge.create({
+        data: badge,
+      })
+    )
+  );
+  console.log(`Created ${createdBadges.length} badges`);
 
   // Create skills
-  const skills = await createSkills();
-  console.log(`Created ${skills.length} skills`);
+  const createdSkills = await Promise.all(
+    skills.map((skill) =>
+      prisma.skill.create({
+        data: { label: skill },
+      })
+    )
+  );
+  console.log(`Created ${createdSkills.length} skills`);
 
-  // Create categories
-  const categories = await createCategories();
-  console.log(`Created ${categories.length} categories`);
+  // Create gigTags
+  const createdGigTags = await Promise.all(
+    gigTags.map((tag) =>
+      prisma.gigTag.create({
+        data: { label: tag },
+      })
+    )
+  );
+  console.log(`Created ${createdGigTags.length} gig tags`);
 
-  // Create users
-  const users = await createUsers(50, badges);
-  console.log(`Created ${users.length} users`);
-
-  // Assign skills to users
-  await assignSkillsToUsers(users, skills);
-  console.log("Assigned skills to users");
-
-  // Create gigs
-  const gigs = await createGigs(users, categories, tags);
-  console.log(`Created ${gigs.length} gigs`);
-
-  // Create orders
-  const orders = await createOrders(users, gigs);
-  console.log(`Created ${orders.length} orders`);
-
-  // Create reviews for completed orders
-  await createReviews(orders);
-  console.log("Created reviews for completed orders");
-
-  // Create chats between buyers and sellers
-  await createChats(users);
-  console.log("Created chats between users");
-
-  console.log("Database seeding completed successfully!");
-}
-
-async function cleanDatabase() {
-  // Delete in correct order to respect foreign key constraints
-  await prisma.message.deleteMany({});
-  await prisma.chat.deleteMany({});
-  await prisma.review.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.gigPackageFeature.deleteMany({});
-  await prisma.gigPackage.deleteMany({});
-  await prisma.gigImage.deleteMany({});
-  await prisma.gig.deleteMany({});
-  await prisma.userSkill.deleteMany({});
-  await prisma.biometrics.deleteMany({});
-  await prisma.skill.deleteMany({});
-  await prisma.category.deleteMany({});
-  await prisma.user.deleteMany({});
-  await prisma.gigTag.deleteMany({});
-  await prisma.badge.deleteMany({});
-
-  console.log("Cleaned existing database records");
-}
-
-/**
- * 
-model Badge {
-  id    String @id @default(uuid())
-  label String @unique
-  icon  String
-
-  color      String
-  userBadges UserBadge[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model UserBadge {
-  id      String    @id @default(uuid())
-  userId  String
-  badgeId String
-  tier    BadgeTier @default(BRONZE)
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, badgeId])
-}
- */
-
-async function createBadges() {
-  const badgesList = [
-    { label: "Top Seller", icon: "star", color: "#FFD700" },
-    { label: "Rising Star", icon: "rocket", color: "#00BFFF" },
-    { label: "Expert", icon: "trophy", color: "#FF4500" },
-    { label: "Verified Seller", icon: "check-circle", color: "#32CD32" },
-    { label: "Newbie", icon: "newspaper", color: "#808080" },
-  ];
-
-  const badges = [];
-
-  for (const badge of badgesList) {
-    const createdBadge = await prisma.badge.create({
-      data: {
-        label: badge.label,
-        icon: badge.icon,
-        color: badge.color,
-      },
-    });
-    badges.push(createdBadge);
-  }
-
-  return badges;
-}
-
-async function createTags() {
-  const tagsList = [
-    "Logo Design",
-    "Web Development",
-    "SEO",
-    "Content Writing",
-    "Social Media Marketing",
-    "Video Editing",
-    "Graphic Design",
-    "Data Analysis",
-    "Mobile App Development",
-    "E-commerce",
-    "Digital Marketing",
-    "Photography",
-    "Translation",
-    "Voice Over",
-    "Animation",
-    "UI/UX Design",
-    "Copywriting",
-    "WordPress Development",
-    "3D Modeling",
-    "Music Production",
-  ];
-
-  const tags = [];
-
-  for (const label of tagsList) {
-    const tag = await prisma.gigTag.create({
-      data: { label },
-    });
-    tags.push(tag);
-  }
-
-  return tags;
-}
-
-async function createSkills() {
-  const skillsList = [
-    "Graphic Design",
-    "Web Development",
-    "Content Writing",
-    "Digital Marketing",
-    "Video Editing",
-    "Translation",
-    "Voice Over",
-    "Animation",
-    "Social Media Management",
-    "SEO Optimization",
-    "Logo Design",
-    "Illustration",
-    "Mobile App Development",
-    "Data Analysis",
-    "UI/UX Design",
-    "Copywriting",
-    "WordPress Development",
-    "Photography",
-    "3D Modeling",
-    "Music Production",
-  ];
-
-  const skills = [];
-
-  for (const label of skillsList) {
-    const skill = await prisma.skill.create({
-      data: { label },
-    });
-    skills.push(skill);
-  }
-
-  return skills;
-}
-
-async function createCategories() {
-  // Create main categories
-  const mainCategories = [
-    { label: "Graphic & Design", slug: "graphic-design" },
-    { label: "Digital Marketing", slug: "digital-marketing" },
-    { label: "Writing & Translation", slug: "writing-translation" },
-    { label: "Video & Animation", slug: "video-animation" },
-    { label: "Programming & Tech", slug: "programming-tech" },
-    { label: "Music & Audio", slug: "music-audio" },
-  ];
-
-  const categories = [];
-
-  // Create main categories
-  for (const cat of mainCategories) {
-    const mainCategory = await prisma.category.create({
-      data: {
-        label: cat.label,
-        slug: cat.slug,
-        isActive: true,
-        sortOrder: categories.length,
-      },
-    });
-    categories.push(mainCategory);
-
-    // Create 3-5 subcategories for each main category
-    const subCategoriesCount = faker.number.int({ min: 3, max: 5 });
-
-    for (let i = 0; i < subCategoriesCount; i++) {
-      const subLabel = `${cat.label} - ${faker.commerce.department()}`;
-      const subSlug = subLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-
-      const subCategory = await prisma.category.create({
+  // Create categories with parent-child relationships
+  const parentCategories = await Promise.all(
+    categories.map(async (category, index) => {
+      const parent = await prisma.category.create({
         data: {
-          label: subLabel,
-          slug: subSlug,
-          isActive: true,
-          sortOrder: i,
-          parentId: mainCategory.id,
+          label: category.label,
+          slug: category.slug,
+          sortOrder: index,
         },
       });
-      categories.push(subCategory);
-    }
-  }
 
-  return categories;
-}
+      // Create child categories
+      if (category.children && category.children.length > 0) {
+        await Promise.all(
+          category.children.map((child, childIndex) =>
+            prisma.category.create({
+              data: {
+                label: child.label,
+                slug: child.slug,
+                sortOrder: childIndex,
+                parentId: parent.id,
+              },
+            })
+          )
+        );
+      }
 
-async function createUsers(count, badges) {
+      return parent;
+    })
+  );
+  console.log(`Created ${parentCategories.length} parent categories`);
+
+  // Fetch all categories after creation
+  const allCategories = await prisma.category.findMany();
+  const childCategories = allCategories.filter((cat) => cat.parentId !== null);
+  console.log(`Total of ${allCategories.length} categories created`);
+
+  // Create users
+  const numUsers = 50;
   const users = [];
 
-  for (let i = 0; i < count; i++) {
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
+  const firstNames = [
+    "John",
+    "Jane",
+    "Alex",
+    "Sarah",
+    "Michael",
+    "Emma",
+    "David",
+    "Olivia",
+    "Daniel",
+    "Sophia",
+  ];
+  const lastNames = [
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Miller",
+    "Davis",
+    "Garcia",
+    "Rodriguez",
+    "Wilson",
+  ];
+
+  for (let i = 0; i < numUsers; i++) {
+    const firstName = randomItem(firstNames);
+    const lastName = randomItem(lastNames);
+    const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${randomInt(1, 999)}`;
+    const email = `${username}@example.com`;
     const hashedPassword = await hash("password123");
 
     const user = await prisma.user.create({
       data: {
         firstName,
         lastName,
-        email: faker.internet.email({ firstName, lastName }).toLowerCase(),
+        email,
         password: hashedPassword,
-        username: faker.internet.username({
-          firstName,
-          lastName,
-        }),
-        verified: faker.datatype.boolean(0.8), // 80% of users are verified
-        walletCreated: faker.datatype.boolean(0.7), // 70% have wallets
-        walletCreatedTime: faker.datatype.boolean(0.7)
-          ? faker.date.past({ years: 1 })
-          : null,
-        biometrics:
-          i < 10
-            ? {
-                // Only create biometrics for first 10 users
-                create: {
-                  type: "FINGERPRINT",
-                  value: faker.string.uuid(),
-                  isVerified: true,
-                },
-              }
-            : undefined,
+        username,
+        country: randomItem(countries),
+        verified: Math.random() > 0.1, // 90% of users are verified
         avatar:
-          Math.random() > 0.75
-            ? `https://picsum.photos/seed/${i}/200/200`
+          Math.random() > 0.3
+            ? `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "men" : "women"}/${randomInt(1, 99)}.jpg`
             : null,
-        badges: {
-          create: [
-            {
-              badgeId: faker.helpers.arrayElement(badges).id,
-              tier: faker.helpers.weightedArrayElement([
-                { value: "BRONZE", weight: 50 },
-                { value: "SILVER", weight: 30 },
-                { value: "GOLD", weight: 15 },
-                { value: "PLATINUM", weight: 4 },
-                { value: "DIAMOND", weight: 1 },
-              ]),
-              isFeatured: faker.datatype.boolean(0.1),
-            },
-          ],
-        },
+        walletCreated: Math.random() > 0.2, // 80% of users have wallets
       },
     });
 
     users.push(user);
-  }
 
-  return users;
-}
+    // Add biometrics for some users
+    if (Math.random() > 0.7) {
+      await prisma.biometrics.create({
+        data: {
+          value: `biometric-data-${randomInt(1000, 9999)}`,
+          userId: user.id,
+        },
+      });
+    }
 
-async function assignSkillsToUsers(users, skills) {
-  for (const user of users) {
-    // Assign 2-5 random skills to each user
-    const skillCount = faker.number.int({ min: 2, max: 5 });
-    const shuffledSkills = faker.helpers
-      .shuffle([...skills])
-      .slice(0, skillCount);
+    // Add skills to users
+    const numSkills = randomInt(2, 8);
+    const shuffledSkills = [...createdSkills].sort(() => 0.5 - Math.random());
+    const selectedSkills = shuffledSkills.slice(0, numSkills);
 
-    for (const skill of shuffledSkills) {
+    for (const skill of selectedSkills) {
       await prisma.userSkill.create({
         data: {
-          userId: user.id,
           skillId: skill.id,
-          level: faker.number.int({ min: 1, max: 5 }),
-          endorsed: faker.datatype.boolean(0.3), // 30% chance of being endorsed
+          userId: user.id,
+          level: randomInt(1, 5),
+          endorsed: Math.random() > 0.7,
+        },
+      });
+    }
+
+    // Add badges to some users
+    if (Math.random() > 0.4) {
+      const numBadges = randomInt(1, 4);
+      const shuffledBadges = [...createdBadges].sort(() => 0.5 - Math.random());
+      const selectedBadges = shuffledBadges.slice(0, numBadges);
+
+      for (const badge of selectedBadges) {
+        const badgeTiers = [
+          BadgeTier.BRONZE,
+          BadgeTier.SILVER,
+          BadgeTier.GOLD,
+          BadgeTier.PLATINUM,
+          BadgeTier.DIAMOND,
+        ];
+
+        await prisma.userBadge.create({
+          data: {
+            badgeId: badge.id,
+            userId: user.id,
+            tier: randomItem(badgeTiers),
+            isFeatured: Math.random() > 0.7,
+          },
+        });
+      }
+    }
+
+    // Create registration token for some unverified users
+    if (!user.verified && Math.random() > 0.5) {
+      await prisma.registrationToken.create({
+        data: {
+          code: `${randomInt(100000, 999999)}`,
+          email: user.email,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          userId: user.id,
         },
       });
     }
   }
-}
+  console.log(`Created ${users.length} users with skills and badges`);
 
-async function createGigs(users, categories, tags) {
+  // Create gigs
+  const numGigs = 100;
   const gigs = [];
-  const gigCount = Math.floor(users.length * 0.7); // About 70% of users create gigs
 
-  const sellerUsers = faker.helpers.shuffle([...users]).slice(0, gigCount);
+  const gigTitles = [
+    "Professional Logo Design",
+    "Custom Website Development",
+    "SEO Optimization Service",
+    "Content Writing and Editing",
+    "Social Media Management",
+    "Mobile App Development",
+    "Video Editing and Production",
+    "Graphic Design Services",
+    "Translation Services",
+    "Voice Over Recording",
+    "Data Analysis and Visualization",
+    "WordPress Website Creation",
+    "UI/UX Design Solutions",
+    "Digital Marketing Campaign",
+    "E-commerce Development",
+  ];
 
-  for (const user of sellerUsers) {
-    // Each seller creates 1-3 gigs
-    const userGigCount = faker.number.int({ min: 1, max: 3 });
+  const gigDescriptions = [
+    "I will create a professional and unique design tailored to your brand's identity and values. My approach focuses on simplicity, memorability, and effectiveness in conveying your brand message.",
+    "Get a custom-built website designed with modern technologies. I specialize in responsive design, ensuring your site looks great on all devices, with fast loading times and intuitive navigation.",
+    "I will optimize your content for search engines using proven techniques. My services include keyword research, on-page optimization, technical SEO audits, and regular performance reports.",
+    "High-quality content writing designed to engage your audience. Whether you need blog posts, articles, or website copy, I'll deliver compelling content that resonates with your readers.",
+    "Complete social media management package including content creation, posting schedule, engagement strategies, and performance analytics to grow your online presence.",
+    "Custom mobile application development for iOS and Android platforms. From concept to launch, I'll create a user-friendly app that meets your business objectives.",
+    "Professional video editing services including color correction, sound mixing, special effects, and motion graphics to make your videos stand out.",
+    "Creative graphic design solutions for all your marketing materials, including brochures, flyers, social media posts, and more.",
+    "Accurate and culturally sensitive translation services in multiple languages. I ensure your message maintains its meaning and impact across language barriers.",
+    "Professional voice over services for commercials, explainer videos, e-learning courses, and more, delivered with quick turnaround times.",
+    "Comprehensive data analysis services including data cleaning, visualization, and actionable insights to help you make informed business decisions.",
+    "Complete WordPress website development including custom themes, plugin integration, e-commerce functionality, and SEO optimization.",
+    "User-centered design services focused on creating intuitive and enjoyable user experiences. I create wireframes, prototypes, and final designs.",
+    "Strategic digital marketing campaigns across multiple channels to increase your brand visibility and drive conversions.",
+    "Full-featured e-commerce solutions including product setup, payment integration, inventory management, and a seamless checkout process.",
+  ];
 
-    for (let i = 0; i < userGigCount; i++) {
-      // Get 1-3 random categories for this gig (preferring subcategories)
-      const subcategories = categories.filter((c) => c.parentId !== null);
-      const selectedCategories = faker.helpers
-        .shuffle([...subcategories])
-        .slice(0, faker.number.int({ min: 1, max: 3 }));
+  // Create sellers (a subset of users who offer gigs)
+  const sellers = users.filter(() => Math.random() > 0.4);
 
-      const gig = await prisma.gig.create({
+  for (let i = 0; i < numGigs; i++) {
+    const seller = randomItem(sellers);
+    const category = randomItem(childCategories);
+
+    const gig = await prisma.gig.create({
+      data: {
+        title: randomItem(gigTitles),
+        description: randomItem(gigDescriptions),
+        viewCount: randomInt(10, 5000),
+        averageRating: parseFloat((3 + Math.random() * 2).toFixed(1)), // Rating between 3.0 and 5.0
+        ratingCount: randomInt(0, 100),
+        sellerId: seller.id,
+        categoryId: category.id,
+        tags: {
+          connect: Array(randomInt(2, 5))
+            .fill(0)
+            .map(() => ({
+              id: randomItem(createdGigTags).id,
+            })),
+        },
+      },
+    });
+
+    gigs.push(gig);
+
+    // Add images to gig
+    const numImages = randomInt(1, 5);
+    for (let j = 0; j < numImages; j++) {
+      await prisma.gigImage.create({
         data: {
-          title: faker.commerce.productName(),
-          description: faker.lorem.paragraphs({ min: 2, max: 5 }),
-          isActive: faker.datatype.boolean(0.9), // 90% of gigs are active
-          viewCount: faker.number.int({ min: 0, max: 50000 }),
-          sellerId: user.id,
-          categories: {
-            connect: selectedCategories.map((c) => ({ id: c.id })),
-          },
-          ratingCount: faker.number.int({ min: 1, max: 1000 }),
-          averageRating: faker.number.float({
-            min: 1,
-            max: 5,
-            precision: 0.1,
-          }),
-          tags: {
-            connect: faker.helpers
-              .shuffle([...tags])
-              .slice(0, faker.number.int({ min: 1, max: 8 }))
-              .map((t) => ({ id: t.id })),
-          },
+          url: `https://picsum.photos/seed/${gig.id}-${j}/800/600`,
+          alt: `${gig.title} image ${j + 1}`,
+          isPrimary: j === 0, // First image is primary
+          sortOrder: j,
+          gigId: gig.id,
+        },
+      });
+    }
+
+    // Create packages for each gig
+    const packageTiers = ["Basic", "Standard", "Premium"];
+
+    for (let k = 0; k < packageTiers.length; k++) {
+      const price = randomPrice(15 + k * 20, 35 + k * 50); // Price increases with tier
+      const deliveryTime = Math.max(1, 7 - k * 2); // Delivery time decreases with higher tiers
+      const revisions = k + 1; // More revisions with higher tiers
+
+      const gigPackage = await prisma.gigPackage.create({
+        data: {
+          title: `${packageTiers[k]} Package`,
+          description: `${packageTiers[k]} tier service for ${gig.title}`,
+          price,
+          deliveryTime,
+          revisions,
+          isActive: true,
+          gigId: gig.id,
         },
       });
 
-      // Create 2-5 images for the gig
-      const imageCount = faker.number.int({ min: 2, max: 5 });
-      for (let j = 0; j < imageCount; j++) {
-        const width = 800;
-        const height = 600;
-        const isPrimary = j === 0; // First image is primary
-
-        await prisma.gigImage.create({
-          data: {
-            url: `https://picsum.photos/${width}/${height}?random=${gig.id}-${j}`,
-            alt: `${gig.title} image ${j + 1}`,
-            isPrimary,
-            sortOrder: j,
-            gigId: gig.id,
-          },
-        });
-      }
-
-      // Create 3 packages for the gig (Basic, Standard, Premium)
-      const packages = [
+      // Create features for each package
+      const baseFeatures = [
         {
-          title: "Basic",
-          description: faker.lorem.paragraph(),
-          price: faker.number.float({ min: 15, max: 50, fractionDigits: 2 }),
-          deliveryTime: faker.number.int({ min: 1, max: 3 }),
-          revisions: faker.number.int({ min: 1, max: 2 }),
+          title: "Source File",
+          description: "Includes source files",
+          included: true,
         },
         {
-          title: "Standard",
-          description: faker.lorem.paragraph(),
-          price: faker.number.float({ min: 50, max: 100, fractionDigits: 2 }),
-          deliveryTime: faker.number.int({ min: 2, max: 5 }),
-          revisions: faker.number.int({ min: 2, max: 3 }),
+          title: "Responsive Design",
+          description: "Works on all devices",
+          included: k > 0,
         },
         {
-          title: "Premium",
-          description: faker.lorem.paragraph(),
-          price: faker.number.float({ min: 100, max: 200, fractionDigits: 2 }),
-          deliveryTime: faker.number.int({ min: 3, max: 7 }),
-          revisions: faker.number.int({ min: 3, max: 5 }),
+          title: "Commercial Use",
+          description: "Can be used commercially",
+          included: true,
+        },
+        {
+          title: "Express Delivery",
+          description: "24-hour delivery",
+          included: k === 2,
+        },
+        {
+          title: "Premium Support",
+          description: "Priority customer support",
+          included: k > 1,
         },
       ];
 
-      for (const pkg of packages) {
-        const gigPackage = await prisma.gigPackage.create({
+      for (const feature of baseFeatures) {
+        await prisma.gigPackageFeature.create({
           data: {
-            title: pkg.title,
-            description: pkg.description,
-            price: pkg.price,
-            deliveryTime: pkg.deliveryTime,
-            revisions: pkg.revisions,
-            isActive: true,
-            gigId: gig.id,
+            title: feature.title,
+            description: feature.description,
+            included: feature.included,
+            gigPackageId: gigPackage.id,
           },
         });
-
-        // Create 3-5 features for this package
-        const featureCount = faker.number.int({ min: 3, max: 5 });
-        for (let k = 0; k < featureCount; k++) {
-          await prisma.gigPackageFeature.create({
-            data: {
-              title: faker.commerce.productAdjective(),
-              description: faker.datatype.boolean(0.5)
-                ? faker.lorem.sentence()
-                : null,
-              included: pkg.title !== "Basic" || k < 2, // Basic package has fewer included features
-              gigPackageId: gigPackage.id,
-            },
-          });
-        }
       }
-
-      gigs.push(gig);
     }
   }
+  console.log(`Created ${gigs.length} gigs with packages and features`);
 
-  return gigs;
-}
-
-async function createOrders(users, gigs) {
+  // Create orders
+  const numOrders = 150;
   const orders = [];
-  const orderCount = Math.floor(gigs.length * 1.5); // Create approximately 1.5 orders per gig
+  const paymentMethods = [
+    PaymentMethod.BANK_TRANSFER,
+    PaymentMethod.CRYPTOCURRENCY,
+    PaymentMethod.CREDIT_CARD,
+    PaymentMethod.PAYPAL,
+  ];
 
   // Get all packages
-  const packages = await prisma.gigPackage.findMany({
+  const allPackages = await prisma.gigPackage.findMany({
     include: { gig: true },
   });
 
-  for (let i = 0; i < orderCount; i++) {
-    // Get a random package
-    const randomPackage = faker.helpers.arrayElement(packages);
+  for (let i = 0; i < numOrders; i++) {
+    const buyer = randomItem(users);
+    const gigPackage = randomItem(allPackages);
+    const seller = await prisma.user.findUniqueOrThrow({
+      where: { id: gigPackage.gig.sellerId },
+    });
 
-    // Get a random buyer (who is not the seller)
-    const possibleBuyers = users.filter(
-      (u) => u.id !== randomPackage.gig.sellerId
-    );
-    const buyer = faker.helpers.arrayElement(possibleBuyers);
+    // Ensure buyer is not the seller
+    if (buyer.id === seller.id) {
+      continue;
+    }
 
-    // Determine order status (weighted)
-    const statusOptions = [
-      { status: OrderStatus.PENDING, weight: 5 },
-      { status: OrderStatus.PAID, weight: 10 },
-      { status: OrderStatus.IN_PROGRESS, weight: 15 },
-      { status: OrderStatus.DELIVERED, weight: 10 },
-      { status: OrderStatus.REVISION, weight: 5 },
-      { status: OrderStatus.COMPLETED, weight: 40 },
-      { status: OrderStatus.CANCELLED, weight: 10 },
-      { status: OrderStatus.REFUNDED, weight: 3 },
-      { status: OrderStatus.DISPUTED, weight: 2 },
-    ];
+    // Generate random status with weighted distribution
+    let status;
+    const statusRand = Math.random();
+    if (statusRand < 0.05) status = OrderStatus.PENDING;
+    else if (statusRand < 0.1) status = OrderStatus.PAID;
+    else if (statusRand < 0.2) status = OrderStatus.IN_PROGRESS;
+    else if (statusRand < 0.3) status = OrderStatus.DELIVERED;
+    else if (statusRand < 0.4) status = OrderStatus.REVISION;
+    else if (statusRand < 0.8) status = OrderStatus.COMPLETED;
+    else if (statusRand < 0.9) status = OrderStatus.CANCELLED;
+    else if (statusRand < 0.95) status = OrderStatus.REFUNDED;
+    else status = OrderStatus.DISPUTED;
 
-    const weightedStatus = weightedRandom(statusOptions);
-
-    // Calculate appropriate dates
-    const createdAt = faker.date.past({ years: 1 });
+    const createdAt = randomDate(new Date("2023-01-01"), new Date());
     let completedAt = null;
     let dueDate = null;
 
     if (
-      weightedStatus === OrderStatus.COMPLETED ||
-      weightedStatus === OrderStatus.CANCELLED ||
-      weightedStatus === OrderStatus.REFUNDED
+      [
+        OrderStatus.DELIVERED,
+        OrderStatus.REVISION,
+        OrderStatus.COMPLETED,
+      ].includes(status)
     ) {
-      completedAt = faker.date.between({ from: createdAt, to: new Date() });
+      completedAt = new Date(
+        createdAt.getTime() + randomInt(1, 14) * 24 * 60 * 60 * 1000
+      );
     }
 
-    if (
-      weightedStatus !== OrderStatus.CANCELLED &&
-      weightedStatus !== OrderStatus.REFUNDED &&
-      weightedStatus !== OrderStatus.PENDING
-    ) {
-      const deliveryDays = randomPackage.deliveryTime;
-      dueDate = new Date(createdAt);
-      dueDate.setDate(dueDate.getDate() + deliveryDays);
+    if ([OrderStatus.PAID, OrderStatus.IN_PROGRESS].includes(status)) {
+      dueDate = new Date(
+        createdAt.getTime() + gigPackage.deliveryTime * 24 * 60 * 60 * 1000
+      );
     }
 
     const order = await prisma.order.create({
       data: {
-        price: randomPackage.price,
-        paymentMethod: faker.helpers.arrayElement(Object.values(PaymentMethod)),
-        status: weightedStatus,
+        orderNumber: `ORD-${randomInt(100000, 999999)}`,
+        price: gigPackage.price,
+        paymentMethod: randomItem(paymentMethods),
+        status,
         transactionId:
-          weightedStatus !== OrderStatus.PENDING
-            ? faker.string.alphanumeric(16)
+          Math.random() > 0.2 ? `TXN-${randomInt(100000, 999999)}` : null,
+        requirements:
+          Math.random() > 0.3
+            ? "These are the specific requirements for this order. Please follow them carefully."
             : null,
-        requirements: faker.lorem.paragraphs({ min: 1, max: 3 }),
-        packageId: randomPackage.id,
-        sellerId: randomPackage.gig.sellerId,
+        packageId: gigPackage.id,
+        sellerId: seller.id,
         buyerId: buyer.id,
         createdAt,
-        updatedAt: faker.date.between({ from: createdAt, to: new Date() }),
         completedAt,
         dueDate,
       },
     });
 
     orders.push(order);
-  }
 
-  return orders;
-}
+    // Create reviews for completed orders
+    if (status === OrderStatus.COMPLETED && Math.random() > 0.3) {
+      const rating = randomInt(3, 5); // Most completed orders get good ratings
 
-async function createReviews(orders) {
-  // Create reviews for completed orders (about 80% of completed orders get reviews)
-  const completedOrders = orders.filter(
-    (o) => o.status === OrderStatus.COMPLETED
-  );
-
-  for (const order of completedOrders) {
-    if (faker.datatype.boolean(0.8)) {
       await prisma.review.create({
         data: {
-          title: faker.lorem.sentence(),
-          content: faker.lorem.paragraphs({ min: 1, max: 2 }),
-          rating: faker.helpers.weightedArrayElement([
-            { value: 5, weight: 50 },
-            { value: 4, weight: 30 },
-            { value: 3, weight: 15 },
-            { value: 2, weight: 3 },
-            { value: 1, weight: 2 },
-          ]),
-          isPublic: faker.datatype.boolean(0.95), // 95% of reviews are public
+          title: `Review for ${gigPackage.gig.title}`,
+          content: `Great experience working with this seller. ${Math.random() > 0.5 ? "The delivery was prompt and the quality exceeded my expectations." : "I would definitely recommend this service to others looking for similar work."}`,
+          rating,
+          isPublic: true,
+          authorId: buyer.id,
           orderId: order.id,
-          authorId: order.buyerId,
-        },
-      });
-    }
-  }
-}
-
-async function createChats(users) {
-  // Create chats between users (about 30% of possible buyer-seller combinations)
-  const chatCount = Math.floor(users.length * 0.3);
-
-  for (let i = 0; i < chatCount; i++) {
-    // Pick two different random users
-    const userIndices = faker.helpers.uniqueArray(
-      () => faker.number.int({ min: 0, max: users.length - 1 }),
-      2
-    );
-
-    const seller = users[userIndices[0]];
-    const buyer = users[userIndices[1]];
-
-    // Check if a chat already exists between these users
-    const existingChat = await prisma.chat.findUnique({
-      where: {
-        sellerId_buyerId: {
-          sellerId: seller.id,
-          buyerId: buyer.id,
-        },
-      },
-    });
-
-    if (!existingChat) {
-      const chat = await prisma.chat.create({
-        data: {
-          sellerId: seller.id,
-          buyerId: buyer.id,
-          lastActivity: faker.date.recent(),
-          isArchived: faker.datatype.boolean(0.1), // 10% of chats are archived
         },
       });
 
-      // Create 1-15 messages in this chat
-      const messageCount = faker.number.int({ min: 1, max: 15 });
-      const baseDate = faker.date.past({ years: 1 });
-
-      for (let j = 0; j < messageCount; j++) {
-        // Calculate a progressive timestamp for each message
-        const messageDate = new Date(baseDate);
-        messageDate.setHours(messageDate.getHours() + j * 2); // 2 hours between messages
-
-        // Determine sender (alternating with some randomness)
-        const senderId =
-          j % 2 === 0
-            ? faker.datatype.boolean(0.8)
-              ? buyer.id
-              : seller.id
-            : faker.datatype.boolean(0.8)
-            ? seller.id
-            : buyer.id;
-
-        await prisma.message.create({
-          data: {
-            content: faker.lorem.paragraph(),
-            isRead: j < messageCount - 2 || faker.datatype.boolean(0.7),
-            isEdited: faker.datatype.boolean(0.1),
-            chatId: chat.id,
-            senderId,
-            createdAt: messageDate,
-            updatedAt: faker.datatype.boolean(0.1)
-              ? new Date(messageDate.getTime() + 1000 * 60 * 10) // 10 minutes later if edited
-              : messageDate,
-          },
-        });
-      }
-
-      // Update lastActivity to match the last message
-      await prisma.chat.update({
-        where: { id: chat.id },
+      // Update gig rating
+      await prisma.gig.update({
+        where: { id: gigPackage.gig.id },
         data: {
-          lastActivity: new Date(
-            baseDate.getTime() + (messageCount - 1) * 2 * 60 * 60 * 1000
+          ratingCount: { increment: 1 },
+          averageRating: parseFloat(
+            (
+              (gigPackage.gig.averageRating * gigPackage.gig.ratingCount +
+                rating) /
+              (gigPackage.gig.ratingCount + 1)
+            ).toFixed(1)
           ),
         },
       });
     }
   }
-}
+  console.log(`Created ${orders.length} orders with reviews`);
 
-// Helper function for weighted random selection
-function weightedRandom(options) {
-  const totalWeight = options.reduce((acc, option) => acc + option.weight, 0);
-  let random = faker.number.int({ min: 1, max: totalWeight });
+  // Create chats between buyers and sellers
+  const numChats = 80;
+  const chats = [];
 
-  for (const option of options) {
-    random -= option.weight;
-    if (random <= 0) {
-      return option.status;
+  for (let i = 0; i < numChats; i++) {
+    const buyer = randomItem(users);
+    let seller;
+
+    // Find a seller that's not the buyer
+    do {
+      seller = randomItem(sellers);
+    } while (seller.id === buyer.id);
+
+    const chatExists = await prisma.chat.findFirst({
+      where: {
+        buyerId: buyer.id,
+        sellerId: seller.id,
+      },
+    });
+
+    if (chatExists) {
+      continue;
     }
-  }
 
-  return options[0].status; // Fallback
+    const chat = await prisma.chat.create({
+      data: {
+        buyerId: buyer.id,
+        sellerId: seller.id,
+        lastActivity: randomDate(new Date("2023-06-01"), new Date()),
+        isArchived: Math.random() > 0.8,
+      },
+    });
+
+    chats.push(chat);
+
+    // Add messages to chat
+    const numMessages = randomInt(3, 15);
+    const startDate = new Date(chat.lastActivity);
+    startDate.setDate(startDate.getDate() - numMessages);
+
+    for (let j = 0; j < numMessages; j++) {
+      const sender = Math.random() > 0.5 ? buyer : seller;
+      const messageDate = new Date(startDate);
+      messageDate.setHours(messageDate.getHours() + j * randomInt(1, 8));
+
+      await prisma.message.create({
+        data: {
+          content: `Message ${j + 1} in the conversation. ${Math.random() > 0.7 ? "Looking forward to working with you!" : "Let me know if you have any questions."}`,
+          isRead: Math.random() > 0.3,
+          isEdited: Math.random() > 0.9,
+          senderId: sender.id,
+          chatId: chat.id,
+          createdAt: messageDate,
+          updatedAt:
+            Math.random() > 0.9
+              ? new Date(messageDate.getTime() + 30 * 60 * 1000)
+              : messageDate,
+        },
+      });
+    }
+
+    // Update lastActivity
+    await prisma.chat.update({
+      where: { id: chat.id },
+      data: { lastActivity: randomDate(startDate, new Date()) },
+    });
+  }
+  console.log(`Created ${chats.length} chats with messages`);
+
+  console.log("Seeding completed successfully!");
 }
 
-// Run the seed function
 main()
   .catch((e) => {
-    console.error("Error during seeding:", e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

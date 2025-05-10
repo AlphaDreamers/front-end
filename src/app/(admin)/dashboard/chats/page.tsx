@@ -35,9 +35,7 @@ export default async function Page({
 }>) {
   const filters = await searchParams;
 
-  const [chats, count] = await Promise.all([
-  
-  ]);
+  const [chats, count] = await Promise.all([]);
 
   return (
     <main className="flex flex-col gap-4">

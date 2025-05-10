@@ -1,8 +1,12 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +17,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -23,76 +26,46 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const formSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
+import { signInFormDefaultValues, SignInFormSchema } from "@/lib/schemas";
+import { logIn } from "@/lib/actions";
 
-const formSchemaDefaultValues: z.infer<typeof formSchema> = {
-  email: "",
-  password: "",
-};
-
-export default function LoginPage() {
+export default function SignIn() {
   const { push } = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+
+  const callbackUrl = searchParams.get("callback-url") || "/";
 
   const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: formSchemaDefaultValues,
+    resolver: zodResolver(SignInFormSchema),
+    defaultValues: signInFormDefaultValues,
   });
 
-  const onSubmit = (formValues: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
-
+  const onSubmit = async (values: z.infer<typeof SignInFormSchema>) =>
     toast.promise(
       async () => {
-        try {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-            {
-              method: "POST",
-              credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(formValues),
-            }
-          );
-
-          if (!res.ok) {
-            throw new Error("Login failed");
-          }
-
-          const data = await res.json();
-
-          if (!data.user_account_wallet) {
-            console.log(data);
-
-            push("/key");
-          } else {
-            push("/sign-up");
-          }
-        } finally {
-          setIsLoading(false);
-        }
+        await logIn(values);
+        push(callbackUrl);
       },
       {
         loading: "Logging in...",
-        success: "Logged in successfully",
-        error: (error) => {
-          return `Login failed: ${error}`;
+        success: "Logged in successfully!",
+        error: (err) => {
+          const message =
+            err instanceof Error ? err.message : String(err ?? "Unknown error");
+
+          form.setError("root", {
+            message,
+          });
+
+          return message;
         },
       }
     );
-  };
+
+  const isLoading = form.formState.isSubmitting;
 
   return (
     <main className="max-w-md">
@@ -103,7 +76,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <Card>
+      <Card className="min-w-xs">
         <CardHeader>
           <CardTitle> Login</CardTitle>
           <CardDescription>Enter your credentials to continue</CardDescription>
