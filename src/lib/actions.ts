@@ -573,3 +573,11 @@ export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
 
   return refreshedGig!;
 };
+
+export const getUserBadges = async () => {
+  return prisma.badge.findMany({
+    include: {
+      userBadges: true,
+    },
+  });
+};

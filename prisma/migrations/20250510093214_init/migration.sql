@@ -4,8 +4,20 @@ CREATE TABLE "Badge" (
     "label" TEXT NOT NULL,
     "icon" TEXT NOT NULL,
     "color" TEXT NOT NULL,
+    "conditionMetric" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "UserBadgeTier" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "badgeId" TEXT NOT NULL,
+    "tier" TEXT NOT NULL,
+    "threshold" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "UserBadgeTier_badgeId_fkey" FOREIGN KEY ("badgeId") REFERENCES "Badge" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -13,8 +25,9 @@ CREATE TABLE "UserBadge" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "badgeId" TEXT NOT NULL,
-    "tier" TEXT NOT NULL DEFAULT 'BRONZE',
+    "tier" TEXT NOT NULL,
     "isFeatured" BOOLEAN NOT NULL DEFAULT false,
+    "progress" INTEGER NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "UserBadge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -58,7 +71,6 @@ CREATE TABLE "GigTag" (
 -- CreateTable
 CREATE TABLE "user_skills" (
     "level" INTEGER NOT NULL DEFAULT 1,
-    "endorsed" BOOLEAN NOT NULL DEFAULT false,
     "skillId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -72,9 +84,7 @@ CREATE TABLE "user_skills" (
 -- CreateTable
 CREATE TABLE "Biometrics" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "type" TEXT NOT NULL,
     "value" TEXT NOT NULL,
-    "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "userId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -86,7 +96,6 @@ CREATE TABLE "Gig" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "viewCount" INTEGER NOT NULL DEFAULT 0,
     "averageRating" REAL NOT NULL DEFAULT 0,
     "ratingCount" INTEGER NOT NULL DEFAULT 0,
@@ -113,7 +122,6 @@ CREATE TABLE "RegistrationToken" (
 CREATE TABLE "GigImage" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "url" TEXT NOT NULL,
-    "alt" TEXT,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "gigId" TEXT NOT NULL,
@@ -130,7 +138,6 @@ CREATE TABLE "GigPackage" (
     "price" REAL NOT NULL,
     "deliveryTime" INTEGER NOT NULL,
     "revisions" INTEGER NOT NULL DEFAULT 1,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "gigId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -141,7 +148,6 @@ CREATE TABLE "GigPackage" (
 CREATE TABLE "GigPackageFeature" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
-    "description" TEXT,
     "included" BOOLEAN NOT NULL DEFAULT true,
     "gigPackageId" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -169,8 +175,6 @@ CREATE TABLE "Category" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "label" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "parentId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
@@ -237,6 +241,9 @@ CREATE TABLE "_GigToGigTag" (
 CREATE UNIQUE INDEX "Badge_label_key" ON "Badge"("label");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "UserBadgeTier_badgeId_tier_key" ON "UserBadgeTier"("badgeId", "tier");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "UserBadge_userId_badgeId_key" ON "UserBadge"("userId", "badgeId");
 
 -- CreateIndex
@@ -261,22 +268,13 @@ CREATE UNIQUE INDEX "GigTag_label_key" ON "GigTag"("label");
 CREATE UNIQUE INDEX "user_skills_skillId_userId_key" ON "user_skills"("skillId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Biometrics_userId_type_key" ON "Biometrics"("userId", "type");
-
--- CreateIndex
 CREATE INDEX "Gig_sellerId_idx" ON "Gig"("sellerId");
-
--- CreateIndex
-CREATE INDEX "Gig_isActive_idx" ON "Gig"("isActive");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RegistrationToken_email_key" ON "RegistrationToken"("email");
 
 -- CreateIndex
 CREATE INDEX "GigImage_gigId_isPrimary_idx" ON "GigImage"("gigId", "isPrimary");
-
--- CreateIndex
-CREATE INDEX "GigPackage_gigId_isActive_idx" ON "GigPackage"("gigId", "isActive");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Review_orderId_key" ON "Review"("orderId");
@@ -289,9 +287,6 @@ CREATE UNIQUE INDEX "Category_label_key" ON "Category"("label");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
-
--- CreateIndex
-CREATE INDEX "Category_isActive_sortOrder_idx" ON "Category"("isActive", "sortOrder");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Order_orderNumber_key" ON "Order"("orderNumber");

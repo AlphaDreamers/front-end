@@ -16,23 +16,41 @@ enum BadgeTier {
 }
 
 model Badge {
-  id    String @id @default(uuid())
-  label String @unique
-  icon  String
+  id              String @id @default(uuid())
+  label           String @unique
+  icon            String
+  color           String
+  conditionMetric String // e.g., "consecutive_five_star_reviews"
+  description     String
 
-  color      String
+  tiers      UserBadgeTier[] // Relates to BadgeTier model
   userBadges UserBadge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model UserBadgeTier {
+  id        String    @id @default(uuid())
+  badgeId   String
+  tier      BadgeTier // BRONZE, SILVER, etc.
+  threshold Int // e.g., 5 for Bronze, 20 for Silver
+
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([badgeId, tier])
+}
+
 model UserBadge {
   id         String    @id @default(uuid())
   userId     String
   badgeId    String
-  tier       BadgeTier @default(BRONZE)
+  tier       BadgeTier // Highest tier achieved, e.g., BRONZE
   isFeatured Boolean   @default(false)
+  progress   Int // Current progress towards the next tier
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
@@ -64,7 +82,7 @@ model User {
   buyerChats   Chat[]       @relation("BuyerChats")
   messages     Message[]    @relation("MessageSender")
   reviews      Review[]     @relation("ReviewAuthor")
-  badges       UserBadge[]
+  badges       UserBadge[] // Achieved badges
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
