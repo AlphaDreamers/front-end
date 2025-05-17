@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id String @id @default(uuid())
+
+  username   String  @unique
+  email      String  @unique
+  password   String
+  isVerified Boolean @default(false)
+  avatar     String?
+
+  verificationToken VerificationToken?
+  gigs              Gig[]              @relation("Seller")
+  bookmarked        Gig[]              @relation("Bookmarked")
+  reviews           Review[]
+  skills            UserSkill[]
+  buyerChats        Chat[]             @relation("BuyerChat")
+  sellerChats       Chat[]             @relation("SellerChat")
+  messages          Message[]
+}
+
+model Order {
+  id String @id @default(uuid())
+
+  package Package @relation(fields: [packageId], references: [id])
+  review  Review?
+  chat    Chat?
+
+  packageId String
+}
+
+model VerificationToken {
+  id String @id @default(uuid())
+
+  code      String   @unique
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  userId String @unique
+}
+
+model Gig {
+  id String @id @default(uuid())
+
+  title       String
+  description String
+
+  images    Image[]
+  packages  Package[]
+  seller    User         @relation(name: "Seller", fields: [sellerId], references: [id])
+  bookmarks User[]       @relation("Bookmarked")
+  category  Category     @relation(fields: [categoryId], references: [id])
+  tags      Tag[]
+  features  GigFeature[]
+  reviews   Review[]
+
+  categoryId String
+  sellerId   String
+}
+
+model Image {
+  id String @id @default(uuid())
+
+  url       String
+  isPrimary Boolean @default(false)
+
+  gig Gig @relation(fields: [gigId], references: [id])
+
+  gigId String
+}
+
+model Package {
+  id String @id @default(uuid())
+
+  title        String
+  price        Float
+  revisions    Int
+  deliveryTime Int
+
+  gig      Gig              @relation(fields: [gigId], references: [id])
+  features PackageFeature[]
+  orders   Order[]
+
+  gigId String
+}
+
+model GigFeature {
+  id String @id @default(uuid())
+
+  label String
+
+  gig             Gig              @relation(fields: [gigId], references: [id])
+  packageFeatures PackageFeature[]
+
+  gigId String
+}
+
+model PackageFeature {
+  id String @id @default(uuid())
+
+  isIncluded Boolean
+
+  gigPackage Package    @relation(fields: [gigPackageId], references: [id])
+  feature    GigFeature @relation(fields: [featureId], references: [id])
+
+  gigPackageId String
+  featureId    String
+}
+
+model Tag {
+  id String @id @default(uuid())
+
+  label String
+  slug  String @unique
+
+  gigs Gig[]
+}
+
+model Category {
+  id String @id @default(uuid())
+
+  label String
+  slug  String @unique
+
+  gigs     Gig[]
+  children Category[] @relation("CategoryParent")
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+
+  parentId String?
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  rating      Int
+  title       String
+  description String
+
+  author User  @relation(fields: [authorId], references: [id])
+  order  Order @relation(fields: [orderId], references: [id])
+  gig    Gig   @relation(fields: [gigId], references: [id])
+
+  orderId  String @unique
+  authorId String
+  gigId    String
+}
+
+model Skill {
+  id String @id @default(uuid())
+
+  label String
+
+  userSkills UserSkill[]
+}
+
+model UserSkill {
+  id String @id @default(uuid())
+
+  level Int @default(0)
+
+  user  User  @relation(fields: [userId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  userId  String
+  skillId String
+
+  @@unique([userId, skillId])
+}
+
+model Chat {
+  id String @id @default(uuid())
+
+  buyer    User      @relation(name: "BuyerChat", fields: [buyerId], references: [id])
+  seller   User      @relation(name: "SellerChat", fields: [sellerId], references: [id])
+  messages Message[]
+
+  sellerId String
+  buyerId  String
+  orderId  String? @unique
+  order    Order?  @relation(fields: [orderId], references: [id])
+}
+
+model Message {
+  id      String      @id @default(uuid())
+  type    MessageType
+  content Json // { "text": "Hello" } or { "images": ["url1", "url2"] } or { "files": ["url1", "url2"] }
+
+  isRead Boolean @default(false)
+
+  chat     Chat   @relation(fields: [chatId], references: [id])
+  sender   User   @relation(fields: [senderId], references: [id])
+  chatId   String
+  senderId String
+
+  createdAt DateTime @default(now())
+}
+
+enum MessageType {
+  TEXT
+  IMAGES
+  FILES
+}
