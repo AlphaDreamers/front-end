@@ -50,9 +50,10 @@ interface FilterCardProps {
     | (DateButtonProps & { type: "date" })
     | (DateRangeButtonProps & { type: "daterange" })
   )[];
+  className?: string;
 }
 
-const FilterCard = ({ config }: FilterCardProps) => {
+const FilterCard = ({ config, className }: FilterCardProps) => {
   const filterButtons = config.map((filterConfig) => {
     switch (filterConfig.type) {
       case "slider":
@@ -77,7 +78,7 @@ const FilterCard = ({ config }: FilterCardProps) => {
   });
 
   return (
-    <Card className="py-2">
+    <Card className={cn("py-2", className)}>
       <CardContent className="flex flex-wrap gap-2 items-center px-2">
         <ClearAllFiltersButton
           ids={config.map((filterConfig) => filterConfig.id)}

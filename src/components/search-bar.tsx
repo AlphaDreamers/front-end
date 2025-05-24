@@ -2,17 +2,24 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
-import { Button } from "./ui/button";
 import { Search } from "lucide-react";
+
+import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
+import React from "react";
 
-interface SearchBarProps {
+interface SearchBarProps extends React.ComponentProps<typeof Input> {
   id?: string;
-  className?: string;
+  containerClassName?: string;
 }
 
-const SearchBar = ({ id = "query", className }: SearchBarProps) => {
+const SearchBar = ({
+  id = "query",
+  containerClassName,
+  className,
+  ...props
+}: SearchBarProps) => {
   const searchParams = useSearchParams();
   const path = usePathname();
   const { replace } = useRouter();
@@ -30,13 +37,16 @@ const SearchBar = ({ id = "query", className }: SearchBarProps) => {
   const query = searchParams.get(id) || "";
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", containerClassName)}>
       <Button
-        className="absolute left-px top-px rounded-[4.5px] rounded-r-none size-[34px]"
+        className="absolute left-px top-px rounded-[4.5px] rounded-r-none size-[38px]"
         variant="secondary"
         size="icon"
+        onClick={() => {
+          handleSearch.flush();
+        }}
       >
-        <Search className="text-muted-foreground" />
+        <Search className="text-muted-foreground size-5" />
       </Button>
 
       <Input
@@ -44,7 +54,8 @@ const SearchBar = ({ id = "query", className }: SearchBarProps) => {
         placeholder="Search..."
         defaultValue={query}
         onChange={(e) => handleSearch(e.target.value)}
-        className="pl-12"
+        className={cn("pl-14 h-10 text-xl", className)}
+        {...props}
       />
     </div>
   );

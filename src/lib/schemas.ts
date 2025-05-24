@@ -1,7 +1,30 @@
 import { z } from "zod";
 
+export const CreateNewWalletFormSchema = z
+  .object({
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const ImportWalletFormSchema = z
+  .object({
+    mnemonic: z.string().min(12, "Mnemonic must be at least 12 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const SignUpFormSchema = z
   .object({
+    firstName: z.string(),
+    lastName: z.string(),
     username: z.string(),
     email: z.string().email(),
     password: z.string(),
@@ -266,3 +289,65 @@ export const UpdateGigFormSchema = z
       path: ["packages"],
     }
   );
+
+export const SendMessageFormSchema = z.object({
+  text: z.string().optional(),
+  attachments: z.array(z.instanceof(File)).optional(),
+});
+
+export const ContactSellerFormSchema = z.object({
+  message: z.string().min(1, "Message is required"),
+  recipientId: z.string().min(1, "Recipient ID is required"),
+});
+
+export const UpdateProfileFormSchema = z.object({
+  username: z.string(),
+  avatar: z.string(),
+  banner: z.string(),
+  headline: z.string(),
+  bio: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  skills: z.array(
+    z.object({
+      id: z.string().uuid().optional(),
+      level: z.number().min(1).max(5, "Skill level must be between 1 and 5"),
+      skillId: z.string().uuid(),
+    })
+  ),
+  socialLinks: z.array(
+    z.object({
+      id: z.string().uuid().optional(),
+      url: z.string().url("Must be a valid URL"),
+      type: z.enum([
+        "WEBSITE",
+        "GITHUB",
+        "LINKEDIN",
+        "INSTAGRAM",
+        "FACEBOOK",
+        "TIKTOK",
+        "YOUTUBE",
+        "DISCORD",
+        "TELEGRAM",
+        "WHATSAPP",
+        "EMAIL",
+      ]),
+    })
+  ),
+  portfolioItems: z.array(
+    z.object({
+      id: z.string().uuid().optional(),
+      title: z.string().min(1, "Title is required").max(100, "Title too long"),
+      description: z.string().max(500, "Description too long"),
+      url: z.string().url("Must be a valid URL"),
+      images: z.array(
+        z.object({
+          id: z.string().uuid().optional(),
+          url: z.string().url("Must be a valid URL"),
+          isPrimary: z.boolean(),
+        })
+      ),
+    })
+  ),
+  featuredBadge: z.string().uuid(),
+});

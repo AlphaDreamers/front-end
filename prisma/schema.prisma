@@ -13,33 +13,125 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+enum SocialLinkType {
+  X
+  GITHUB
+  LINKEDIN
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  YOUTUBE
+  DISCORD
+  TELEGRAM
+  WHATSAPP
+  WEBSITE
+  EMAIL
+}
+
+model PortfolioItem {
+  id String @id @default(uuid())
+
+  title       String
+  description String?
+  url         String?
+  images      Image[]
+
+  user User @relation(fields: [userId], references: [id])
+
+  userId String
+}
+
+model SocialLink {
+  id     String         @id @default(uuid())
+  type   SocialLinkType
+  url    String
+  user   User           @relation(fields: [userId], references: [id])
+  userId String
+}
+
 model User {
   id String @id @default(uuid())
 
-  username   String  @unique
-  email      String  @unique
-  password   String
-  isVerified Boolean @default(false)
-  avatar     String?
+  username      String  @unique
+  email         String  @unique
+  password      String
+  isVerified    Boolean @default(false)
+  avatar        String?
+  banner        String?
+  headline      String?
+  bio           String?
+  firstName     String
+  lastName      String
+  isKycVerified Boolean @default(false)
 
   verificationToken VerificationToken?
-  gigs              Gig[]              @relation("Seller")
-  bookmarked        Gig[]              @relation("Bookmarked")
+  gigs              Gig[]               @relation("Seller")
+  bookmarked        Gig[]               @relation("Bookmarked")
   reviews           Review[]
   skills            UserSkill[]
-  buyerChats        Chat[]             @relation("BuyerChat")
-  sellerChats       Chat[]             @relation("SellerChat")
+  buyerChats        Chat[]              @relation("BuyerChat")
+  sellerChats       Chat[]              @relation("SellerChat")
   messages          Message[]
+  badgeProgress     UserBadgeProgress[]
+  ordersAsBuyer     Order[]             @relation("Buyer")
+  ordersAsSeller    Order[]             @relation("Seller")
+  notifications     Notification[]      @relation("Recipient")
+  notificationsSent Notification[]      @relation("Sender")
+  socialLinks       SocialLink[]
+  portfolioItems    PortfolioItem[]
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 model Order {
   id String @id @default(uuid())
 
+  deadline DateTime
+  status   OrderStatus @default(PENDING)
+
   package Package @relation(fields: [packageId], references: [id])
   review  Review?
   chat    Chat?
+  buyer   User    @relation(name: "Buyer", fields: [buyerId], references: [id])
+  seller  User    @relation(name: "Seller", fields: [sellerId], references: [id])
 
   packageId String
+  buyerId   String
+  sellerId  String
+
+  createdAt DateTime @default(now())
+  Gig       Gig?     @relation(fields: [gigId], references: [id])
+  gigId     String?
+}
+
+model Transaction {
+  id String @id @default(uuid())
+}
+
+enum NotificationType {
+  CONTACT
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  type NotificationType
+
+  title       String
+  description String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  recipient User @relation(name: "Recipient", fields: [recipientId], references: [id])
+  sender    User @relation(name: "Sender", fields: [senderId], references: [id])
+
+  recipientId String
+  senderId    String
 }
 
 model VerificationToken {
@@ -67,6 +159,8 @@ model Gig {
   tags      Tag[]
   features  GigFeature[]
   reviews   Review[]
+  faqs      GigFaq[]
+  orders    Order[]
 
   categoryId String
   sellerId   String
@@ -78,9 +172,11 @@ model Image {
   url       String
   isPrimary Boolean @default(false)
 
-  gig Gig @relation(fields: [gigId], references: [id])
+  gig           Gig?           @relation(fields: [gigId], references: [id])
+  portfolioItem PortfolioItem? @relation(fields: [portfolioItemId], references: [id])
 
-  gigId String
+  gigId           String?
+  portfolioItemId String?
 }
 
 model Package {
@@ -157,6 +253,8 @@ model Review {
   orderId  String @unique
   authorId String
   gigId    String
+
+  createdAt DateTime @default(now())
 }
 
 model Skill {
@@ -182,35 +280,88 @@ model UserSkill {
 }
 
 model Chat {
-  id String @id @default(uuid())
-
+  id       String    @id @default(uuid())
   buyer    User      @relation(name: "BuyerChat", fields: [buyerId], references: [id])
   seller   User      @relation(name: "SellerChat", fields: [sellerId], references: [id])
   messages Message[]
-
   sellerId String
   buyerId  String
-  orderId  String? @unique
-  order    Order?  @relation(fields: [orderId], references: [id])
+  orderId  String?   @unique
+  order    Order?    @relation(fields: [orderId], references: [id])
 }
 
 model Message {
-  id      String      @id @default(uuid())
-  type    MessageType
-  content Json // { "text": "Hello" } or { "images": ["url1", "url2"] } or { "files": ["url1", "url2"] }
-
-  isRead Boolean @default(false)
-
-  chat     Chat   @relation(fields: [chatId], references: [id])
-  sender   User   @relation(fields: [senderId], references: [id])
-  chatId   String
-  senderId String
-
-  createdAt DateTime @default(now())
+  id        String      @id @default(uuid())
+  type      MessageType
+  content   Json // { "text": "Hello" } or { "attachments": [{ "type": "image", "data": "base64..." }] }
+  isRead    Boolean     @default(false)
+  chat      Chat        @relation(fields: [chatId], references: [id])
+  sender    User        @relation(fields: [senderId], references: [id])
+  chatId    String
+  senderId  String
+  createdAt DateTime    @default(now())
 }
 
 enum MessageType {
   TEXT
-  IMAGES
-  FILES
+  ATTACHMENTS
+}
+
+model Badge {
+  id String @id @default(uuid())
+
+  title       String
+  description String // A description of what the badge represents
+  condition   String // Different badge calculation types eg. "consecutive response time under 5 minutes", "5-star reviews", etc.
+
+  userBadges UserBadgeProgress[]
+  milestones BadgeMilestone[]
+}
+
+enum Tier {
+  NONE
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+model BadgeMilestone {
+  id String @id @default(uuid())
+
+  threshold Int // e.g., 10, 25, 50, 100, 200
+
+  tier  Tier // The tier awarded at this threshold
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  badgeId String
+}
+
+model UserBadgeProgress {
+  id String @id @default(uuid())
+
+  isFeatured Boolean @default(false)
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  userId  String
+  badgeId String
+
+  currentProgress Int  @default(0) // Current count (resets for consecutive badges)
+  highestTier     Tier @default(NONE) // Highest tier achieved (never decreases)
+
+  @@unique([userId, badgeId]) // Each user can have only one progress record per badge
+}
+
+model GigFaq {
+  id String @id @default(uuid())
+
+  question String
+  answer   String
+
+  gig Gig @relation(fields: [gigId], references: [id])
+
+  gigId String
 }

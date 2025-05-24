@@ -1,0 +1,35 @@
+import SearchBar from "../search-bar";
+
+const HeroSection = () => {
+  return (
+    <section className="relative py-20 md:py-32">
+      <div className="absolute inset-0 z-0 opacity-20">
+        <div className="absolute top-20 left-1/4 h-64 w-64 rounded-full bg-primary blur-[100px]"></div>
+        <div className="absolute bottom-20 right-1/4 h-64 w-64 rounded-full bg-primary/75 blur-[100px]"></div>
+      </div>
+
+      <div className="mx-auto px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="mb-6 text-4xl font-extrabold tracking-tight md:text-6xl">
+            Hire Top Freelancers with{" "}
+            <span className="bg-gradient-to-r from-primary to-primary/75 bg-clip-text text-transparent">
+              Solana
+            </span>
+          </h1>
+
+          <p className="mb-8 text-lg text-muted-foreground md:text-xl">
+            Secure, anonymous, and lightning-fast transactions with the power of
+            blockchain technology. Connect with the best talent globally without
+            the middleman.
+          </p>
+
+          <SearchBar
+            containerClassName="mx-auto max-w-2xl backdrop-blur-sm"
+            placeholder="Search for services (e.g., logo design, web development)"
+          />
+        </div>
+      </div>
+    </section>
+  );
+};
+export default HeroSection;
