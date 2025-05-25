@@ -247,14 +247,14 @@ const AuthenticatedControls = async ({
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            <Link href="/profile/wallet">
+            <Link href="/dashboard">
               <LayoutDashboardIcon />
               Dashboard
             </Link>
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            <Link href="/profile/wallet">
+            <Link href="/wallet">
               <Wallet />
               Wallet
             </Link>

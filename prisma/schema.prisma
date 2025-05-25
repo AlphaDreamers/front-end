@@ -63,6 +63,7 @@ model User {
   firstName     String
   lastName      String
   isKycVerified Boolean @default(false)
+  publicKey     String?
 
   verificationToken VerificationToken?
   gigs              Gig[]               @relation("Seller")
@@ -75,13 +76,13 @@ model User {
   badgeProgress     UserBadgeProgress[]
   ordersAsBuyer     Order[]             @relation("Buyer")
   ordersAsSeller    Order[]             @relation("Seller")
-  notifications     Notification[]      @relation("Recipient")
-  notificationsSent Notification[]      @relation("Sender")
+  notifications     Notification[]
   socialLinks       SocialLink[]
   portfolioItems    PortfolioItem[]
 }
 
 enum OrderStatus {
+  WAITING_FOR_PAYMENT
   PENDING
   IN_PROGRESS
   COMPLETED
@@ -105,8 +106,8 @@ model Order {
   sellerId  String
 
   createdAt DateTime @default(now())
-  Gig       Gig?     @relation(fields: [gigId], references: [id])
-  gigId     String?
+  gig       Gig      @relation(fields: [gigId], references: [id])
+  gigId     String
 }
 
 model Transaction {
@@ -114,24 +115,26 @@ model Transaction {
 }
 
 enum NotificationType {
-  CONTACT
+  ORDER_UPDATE
+  MESSAGE
+  PAYMENT
+  SYSTEM
+  REVIEW
 }
 
 model Notification {
   id String @id @default(uuid())
 
-  type NotificationType
-
+  type        NotificationType
   title       String
   description String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isRead      Boolean          @default(false)
 
-  recipient User @relation(name: "Recipient", fields: [recipientId], references: [id])
-  sender    User @relation(name: "Sender", fields: [senderId], references: [id])
+  recipient User @relation(fields: [recipientId], references: [id])
 
   recipientId String
-  senderId    String
+
+  createdAt DateTime @default(now())
 }
 
 model VerificationToken {

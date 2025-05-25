@@ -1276,3 +1276,77 @@ export const updateProfile = async (
     }
   }
 };
+export const orderPackage = async (packageId: string) => {
+  const user = await getCurrentUser();
+  if (!user?.isVerified) throw new Error("User not authenticated");
+
+  const gigPackage = await prisma.package.findUnique({
+    where: { id: packageId },
+    include: {
+      gig: {
+        select: {
+          id: true,
+          title: true,
+          sellerId: true,
+        },
+      },
+    },
+  });
+
+  if (!gigPackage) throw new Error("Package not found");
+
+  await prisma.order.create({
+    data: {
+      status: "WAITING_FOR_PAYMENT",
+      buyerId: user.id,
+      sellerId: gigPackage.gig.sellerId,
+      packageId: gigPackage.id,
+      deadline: new Date(
+        Date.now() + gigPackage.deliveryTime * 24 * 60 * 60 * 1000 // Convert delivery time to milliseconds
+      ),
+      chat: {
+        create: {
+          buyerId: user.id,
+          sellerId: gigPackage.gig.sellerId,
+        },
+      },
+    },
+  });
+};
+
+export const confirmPayment = async (orderId: string) => {
+  const user = await getCurrentUser();
+  if (!user?.isVerified) throw new Error("User not authenticated");
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+  });
+
+  if (!order) throw new Error("Order not found");
+  if (order.buyerId !== user.id)
+    throw new Error("You are not the buyer of this order");
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "IN_PROGRESS",
+    },
+  });
+
+  return order;
+};
+
+export const addWallet = async (publicKey: string) => {
+  const user = await getCurrentUser();
+  if (!user?.isVerified) throw new Error("User not authenticated");
+  if (user.publicKey) {
+    throw new Error("Wallet already added");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      publicKey,
+    },
+  });
+};

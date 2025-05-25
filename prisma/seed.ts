@@ -453,6 +453,7 @@ async function main() {
       const user = await prisma.user.create({
         data: {
           id: faker.string.uuid(),
+          publicKey: "AuSRiNVFTXeBoUxBD1Uj5dvtRgkU5Rqoz5s7W4vvX4BW",
           username,
           email: faker.internet.email({ firstName, lastName }).toLowerCase(),
           password: faker.internet.password(),

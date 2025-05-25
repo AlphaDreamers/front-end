@@ -1,12 +1,7 @@
 "use client";
 
 import { encode, decode } from "bs58";
-import type React from "react";
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Lock,
   Key,
@@ -21,13 +16,19 @@ import {
   Download,
   UserPlus,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { Keypair } from "@solana/web3.js";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -37,8 +38,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { addWallet } from "@/lib/actions";
 
 const CreateNewWalletFormSchema = z
   .object({
@@ -63,7 +64,7 @@ const createNewWalletFormDefaultValues: z.infer<
 
 const ImportWalletFormSchema = z
   .object({
-    mnemonic: z.string(),
+    secretKey: z.string(),
     password: z.string(),
     confirmPassword: z.string(),
   })
@@ -77,7 +78,7 @@ const ImportWalletFormSchema = z
   );
 
 const importWalletFormDefaultValues: z.infer<typeof ImportWalletFormSchema> = {
-  mnemonic: "",
+  secretKey: "",
   password: "",
   confirmPassword: "",
 };
@@ -87,7 +88,7 @@ export default function Wallet() {
 
   const [data, setData] = useState<{
     solana: string;
-    mnemonic: string;
+    secretKey: string;
   } | null>(null);
 
   const createForm = useForm({
@@ -110,9 +111,11 @@ export default function Wallet() {
           })
         );
 
+        await addWallet(keyPair.publicKey.toBase58());
+
         return {
           solana: keyPair.publicKey.toBase58(),
-          mnemonic: encode(keyPair.secretKey),
+          secretKey: encode(keyPair.secretKey),
         };
       },
       {
@@ -137,7 +140,7 @@ export default function Wallet() {
   ) => {
     toast.promise(
       async () => {
-        const importSecretKeyBase58 = values.mnemonic;
+        const importSecretKeyBase58 = values.secretKey;
         const importedKeypair = Keypair.fromSecretKey(
           decode(importSecretKeyBase58)
         );
@@ -149,9 +152,11 @@ export default function Wallet() {
           })
         );
 
+        await addWallet(importedKeypair.publicKey.toBase58());
+
         return {
           solana: importedKeypair.publicKey.toBase58(),
-          mnemonic: importSecretKeyBase58,
+          secretKey: importSecretKeyBase58,
         };
       },
       {
@@ -262,7 +267,7 @@ export default function Wallet() {
                 </Form>
               ) : (
                 <div className="space-y-6">
-                  <Alert className="bg-amber-50">
+                  <Alert>
                     <AlertTriangle size={24} className="text-amber-500" />
                     <AlertTitle>Important Security Notice</AlertTitle>
                     <AlertDescription>
@@ -274,7 +279,7 @@ export default function Wallet() {
                   <HiddenField
                     label="Recovery Phrase"
                     icon={Key}
-                    value={data?.mnemonic}
+                    value={data?.secretKey}
                     variant={1}
                   />
 
@@ -304,16 +309,16 @@ export default function Wallet() {
                   >
                     <FormField
                       control={importForm.control}
-                      name="mnemonic"
+                      name="secretKey"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
                             <Lock size={16} className="text-primary" />
-                            Mnemonic
+                            secretKey
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Enter your mnemonic"
+                              placeholder="Enter your secretKey"
                               {...field}
                             />
                           </FormControl>
@@ -399,7 +404,7 @@ export default function Wallet() {
                   <HiddenField
                     label="Recovery Phrase"
                     icon={Key}
-                    value={data.mnemonic}
+                    value={data.secretKey}
                     variant={1}
                   />
 

@@ -1,96 +1,84 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { ShoppingBag, CheckCircle, Clock, AlertTriangle, ArrowUpRight } from "lucide-react"
+"use client";
 
-interface StatsSummaryProps {
-  stats: {
-    inProgress: number
-    completed: number
-    pending: number
-    disputed: number
-  }
-  userType: "buyer" | "seller"
+import { Clock, CheckCircle, ShoppingBag, AlertTriangle } from "lucide-react";
+import { StatCard } from "./stat-card";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const STATS_CONFIG: ((...args: any[]) => StatCardProps)[] = [
+  (ordersInProgress: number) => ({
+    variant: "purple" as const,
+    type: "link" as const,
+    size: "default" as const,
+    config: {
+      label: "In Progress",
+      text: "Active orders",
+      icon: Clock,
+      value: ordersInProgress,
+      href: "/dashboard/orders/in-progress",
+    },
+  }),
+  (completedOrders: number) => ({
+    variant: "green" as const,
+    size: "default" as const,
+    type: "link" as const,
+    config: {
+      label: "Completed",
+      text: "Finished orders",
+      value: completedOrders,
+      href: "/dashboard/orders/completed",
+      icon: CheckCircle,
+    },
+  }),
+  (pendingOrders: number) => ({
+    variant: "blue" as const,
+    size: "default" as const,
+    type: "link" as const,
+    config: {
+      label: "Pending",
+      text: "Awaiting action",
+      value: pendingOrders,
+      href: "/dashboard/orders/pending",
+      icon: ShoppingBag,
+    },
+  }),
+  (disputedOrders: number) => ({
+    variant: "orange" as const,
+    size: "default" as const,
+    type: "link" as const,
+    config: {
+      label: "Disputed",
+      text: "Needs resolution",
+      value: disputedOrders,
+      href: "/dashboard/orders/disputed",
+      icon: AlertTriangle,
+    },
+  }),
+];
+
+interface StatCardProps {
+  ordersInProgress?: number;
+  completedOrders?: number;
+  pendingOrders?: number;
+  disputedOrders?: number;
 }
 
-export function StatsSummary({ stats, userType }: StatsSummaryProps) {
-  const orderLabel = userType === "seller" ? "Orders" : "Purchases"
-
+export function StatsSummary({
+  ordersInProgress = 0,
+  completedOrders = 0,
+  pendingOrders = 0,
+  disputedOrders = 0,
+}: StatCardProps) {
+  const values = [
+    [ordersInProgress],
+    [completedOrders],
+    [pendingOrders],
+    [disputedOrders],
+  ];
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <Card className="bg-gradient-to-br from-purple-900/40 to-black border-purple-800/30 hover:border-purple-700/50 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-              <h3 className="text-2xl font-bold mt-2">{stats.inProgress}</h3>
-              <p className="text-sm text-muted-foreground mt-1">Active {orderLabel.toLowerCase()}</p>
-            </div>
-            <div className="p-3 rounded-full bg-purple-500/10 text-purple-400">
-              <Clock className="h-6 w-6" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-xs text-green-400">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            <span>View all</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-green-900/40 to-black border-green-800/30 hover:border-green-700/50 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Completed</p>
-              <h3 className="text-2xl font-bold mt-2">{stats.completed}</h3>
-              <p className="text-sm text-muted-foreground mt-1">Finished {orderLabel.toLowerCase()}</p>
-            </div>
-            <div className="p-3 rounded-full bg-green-500/10 text-green-400">
-              <CheckCircle className="h-6 w-6" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-xs text-green-400">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            <span>View all</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-blue-900/40 to-black border-blue-800/30 hover:border-blue-700/50 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <h3 className="text-2xl font-bold mt-2">{stats.pending}</h3>
-              <p className="text-sm text-muted-foreground mt-1">Awaiting action</p>
-            </div>
-            <div className="p-3 rounded-full bg-blue-500/10 text-blue-400">
-              <ShoppingBag className="h-6 w-6" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-xs text-green-400">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            <span>View all</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-orange-900/40 to-black border-orange-800/30 hover:border-orange-700/50 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Disputed</p>
-              <h3 className="text-2xl font-bold mt-2">{stats.disputed}</h3>
-              <p className="text-sm text-muted-foreground mt-1">Needs resolution</p>
-            </div>
-            <div className="p-3 rounded-full bg-orange-500/10 text-orange-400">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-xs text-green-400">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            <span>View all</span>
-          </div>
-        </CardContent>
-      </Card>
+      {STATS_CONFIG.map((item, index) => (
+        <StatCard key={index} {...item(...values[index])} />
+      ))}
     </div>
-  )
+  );
 }
