@@ -290,11 +290,6 @@ export const UpdateGigFormSchema = z
     }
   );
 
-export const SendMessageFormSchema = z.object({
-  text: z.string().optional(),
-  attachments: z.array(z.instanceof(File)).optional(),
-});
-
 export const ContactSellerFormSchema = z.object({
   message: z.string().min(1, "Message is required"),
   recipientId: z.string().min(1, "Recipient ID is required"),
@@ -350,4 +345,14 @@ export const UpdateProfileFormSchema = z.object({
     })
   ),
   featuredBadge: z.string().uuid(),
+});
+
+export const KycFormSchema = z.object({
+  id: z.instanceof(File),
+  selfie: z.instanceof(File),
+});
+
+export const SendMessageFormSchema = z.object({
+  attachments: z.instanceof(File).array().optional(),
+  text: z.string().optional(),
 });

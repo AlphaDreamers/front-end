@@ -11,11 +11,9 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 
 import "./globals.css";
 
-//TODO replace with real data
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "Blue frog - Solana Services Marketplace",
+  description: "A Solana services marketplace for developers and creators",
 };
 
 const spaceGrotesk = Ubuntu_Sans({

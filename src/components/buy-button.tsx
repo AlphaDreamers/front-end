@@ -18,7 +18,7 @@ const BuyButton = ({ packageId }: BuyButtonProps) => {
         toast.promise(async () => orderPackage(packageId), {
           loading: "Processing your order...",
           success: () => {
-            push("/orders");
+            push("/dashboard/orders");
 
             return "Order placed successfully!";
           },

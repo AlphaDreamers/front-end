@@ -1,43 +1,32 @@
-import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/actions";
-import { ChatArea } from "@/components/messages/chat-area";
+import ChatArea from "./chat-area";
+import { getChatById, me } from "@/lib/actions";
 
-export default async function SingleChatPage({
+export default async function ChatPage({
   params,
 }: {
-  params: Promise<{ chatId: string }>;
+  params: Promise<{
+    chatId: string;
+  }>;
 }) {
   const { chatId } = await params;
-  const user = await getCurrentUser();
+
+  const user = await me();
+
   if (!user?.isVerified) {
-    redirect(`/sign-in?callback-url=/chats/${chatId}`);
+    redirect(`/sign-in?callback-url=/dashboard/chats/${chatId}`);
   }
 
-  const chat = await prisma.chat.findFirst({
-    where: {
-      id: chatId,
-    },
-    include: {
-      messages: {
-        include: {
-          sender: true,
-        },
-      },
-      buyer: true,
-      seller: true,
-      order: true,
-    },
-  });
+  const chat = await getChatById(chatId);
 
   if (!chat) {
     return notFound();
   }
 
-  if (chat.sellerId !== user.id && chat.buyerId !== user.id) {
-    throw new Error("You are not authorized to view this chat");
+  if (chat.seller.id !== user.id && chat.buyer.id !== user.id) {
+    throw new Error("Unauthorized access to chat");
   }
 
-  return <ChatArea chat={chat} user={user} />;
+  return <ChatArea chat={chat} currentUserId={user.id} />;
 }

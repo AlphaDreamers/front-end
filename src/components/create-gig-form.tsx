@@ -33,8 +33,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
+  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -56,13 +57,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { buttonVariants } from "../ui/button";
-import { Form } from "../ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Checkbox } from "../ui/checkbox";
 
 import { createGig } from "@/lib/actions";
 import { CreateGigFormSchema } from "@/lib/schemas";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Checkbox } from "./ui/checkbox";
 
 interface CreateGigFormProps {
   categories: Prisma.CategoryGetPayload<{
@@ -167,25 +166,8 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
     }
   };
 
-  const isTabCompleted = (tab: TabType) => {
-    switch (tab) {
-      case "basic-info": {
-        return Math.random() > 0.5; // Replace with actual validation logic
-      }
-      case "features": {
-        return Math.random() > 0.5; // Replace with actual validation logic
-      }
-      case "packages": {
-        return Math.random() > 0.5; // Replace with actual validation logic
-      }
-      case "images": {
-        return Math.random() > 0.5; // Replace with actual validation logic
-      }
-    }
-  };
-
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold">Create New Gig</h1>
@@ -202,36 +184,20 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
             value={tab}
             onValueChange={(val) => setTab(val as TabType)}
           >
-            <TabsList className="w-full flex flex-row lg:flex-col lg:w-64">
+            <TabsList className="w-full flex flex-row lg:flex-col lg:w-64 min-h-fit">
               {sections.map((section) => {
-                const isCompleted = isTabCompleted(section.id);
                 return (
                   <TabsTrigger
                     key={section.id}
                     value={section.id}
-                    className={cn(
-                      "flex items-center w-full",
-                      isCompleted && "text-emerald-500 font-medium"
-                    )}
+                    className="flex items-center w-full lg:min-h-10"
                   >
                     <div className="flex-1 flex items-center gap-2">
-                      <section.icon
-                        className={cn(isCompleted && "text-emerald-500")}
-                      />
-                      <span
-                        className={cn(
-                          "text-sm font-medium",
-                          isCompleted && "text-emerald-500"
-                        )}
-                      >
+                      <section.icon />
+                      <span className={"text-sm font-medium"}>
                         {section.label}
                       </span>
                     </div>
-                    {isCompleted && (
-                      <Check className="ml-auto text-emerald-500">
-                        Completed
-                      </Check>
-                    )}
                   </TabsTrigger>
                 );
               })}
@@ -659,6 +625,11 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
                                                 type="number"
                                                 min="1"
                                                 {...field}
+                                                onChange={(e) =>
+                                                  field.onChange(
+                                                    e.target.valueAsNumber
+                                                  )
+                                                }
                                               />
                                             </FormControl>
                                             <FormDescription>
@@ -680,6 +651,11 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
                                                 type="number"
                                                 min="0"
                                                 {...field}
+                                                onChange={(e) =>
+                                                  field.onChange(
+                                                    e.target.valueAsNumber
+                                                  )
+                                                }
                                               />
                                             </FormControl>
                                             <FormDescription>
@@ -704,6 +680,11 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
                                               min="0.01"
                                               step="0.01"
                                               {...field}
+                                              onChange={(e) =>
+                                                field.onChange(
+                                                  e.target.valueAsNumber
+                                                )
+                                              }
                                             />
                                           </FormControl>
                                           <FormDescription>

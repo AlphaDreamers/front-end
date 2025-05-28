@@ -1,4 +1,3 @@
-import React, { Suspense } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -10,7 +9,15 @@ import {
   Settings,
   LogOut,
   LayoutDashboardIcon,
+  Search,
+  X,
+  Menu,
+  ListOrdered,
+  Bookmark,
+  ShoppingBag,
 } from "lucide-react";
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "./ui/button";
 import {
@@ -21,7 +28,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "./ui/dropdown-menu";
-import { getCurrentUser, signOut } from "@/lib/actions";
 import {
   Sidebar,
   SidebarContent,
@@ -34,48 +40,44 @@ import {
   SidebarMenuItem,
 } from "./ui/sidebar";
 import { Collapsible } from "./ui/collapsible";
+import { Skeleton } from "./ui/skeleton";
+
 import CategoryItem from "./category-item";
-import { prisma } from "@/lib/prisma";
 import {
   SearchDialogContextProvider,
-  MobileSearchToggle,
-  DesktopSearchToggle,
   SidebarClose,
   SidebarToggle,
   ThemeToggle,
+  SearchToggle,
 } from "./navbar-utils";
-import Image from "next/image";
+import { getCategoryTree, me, signOut } from "@/lib/actions";
+import Async from "./async";
 
-// Constants
 const NAVBAR_HEIGHT = 58;
+const SIDEBAR_NAV_ITEMS = [
+  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
+  { href: "/dashboard/gigs", icon: <ShoppingBag />, label: "My Gigs" },
+  { href: "/gigs", icon: <Grid />, label: "Gigs" },
+  { href: "/dashboard/orders", icon: <ListOrdered />, label: "Orders" },
+  {
+    href: "/dashboard/chats",
+    icon: <MessageSquare />,
+    label: "Messages",
+  },
+  {
+    href: "/bookmarks",
+    icon: <Bookmark />,
+    label: "Bookmarks",
+  },
+];
 
-// Props interface
-interface NavbarProps {
-  search?: string;
-}
-
-export default async function Navbar({ search }: NavbarProps) {
-  // Authentication state
-  const user = await getCurrentUser();
+export default async function Navbar() {
+  const user = await me();
   const isAuth = user?.isVerified === true;
   const notificationCnt = user?._count.notifications || 0;
 
-  // Fetch gigs data for search
-  const gigs = await prisma.gig.findMany({
-    where: {
-      title: {
-        contains: search,
-      },
-    },
-    select: {
-      id: true,
-      title: true,
-    },
-  });
-
   return (
-    <SearchDialogContextProvider gigs={gigs}>
-      {/* Main Navigation Bar */}
+    <SearchDialogContextProvider>
       <nav
         className="fixed w-full top-0 z-50 bg-background border-b"
         style={{ height: `${NAVBAR_HEIGHT}px` }}
@@ -83,11 +85,27 @@ export default async function Navbar({ search }: NavbarProps) {
         <div className="h-full max-w-7xl mx-auto px-4 flex items-center justify-between">
           {/* Left Section - Logo and Mobile Menu */}
           <div className="flex items-center gap-2">
-            <SidebarToggle />
-            <Link href="/" className="text-xl font-semibold text-primary">
-              FreelanceCrypto
+            <SidebarToggle>
+              <Button className="md:hidden" variant="ghost" size="icon">
+                <Menu />
+              </Button>
+            </SidebarToggle>
+            <Link href="/" className="text-2xl font-semibold">
+              <span className="text-blue-500">Blue</span>
+              <span>Frog</span>
             </Link>
-            <DesktopSearchToggle className="hidden md:inline-flex" />
+
+            <SearchToggle>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="relative rounded-xl text-muted-foreground hidden md:inline-flex"
+              >
+                <Search className="size-4 opacity-50" />
+                <div>Search...</div>
+                <div className="w-24" />
+              </Button>
+            </SearchToggle>
           </div>
 
           {/* Center Section - Desktop Navigation */}
@@ -103,7 +121,7 @@ export default async function Navbar({ search }: NavbarProps) {
             {!isAuth && (
               <>
                 <Link
-                  href="/messages"
+                  href="/dashboard/chats"
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   <MessageSquare />
@@ -116,7 +134,7 @@ export default async function Navbar({ search }: NavbarProps) {
                 </Link>
 
                 <Link
-                  href=""
+                  href="/dashboard"
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   <LayoutDashboard />
@@ -128,12 +146,42 @@ export default async function Navbar({ search }: NavbarProps) {
 
           {/* Right Section - User Profile or Auth Links */}
           <div className="flex items-center gap-2">
-            <MobileSearchToggle className="md:hidden" />
+            <SearchToggle>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden rounded-full"
+              >
+                <Search />
+              </Button>
+            </SearchToggle>
+            <SearchToggle>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="hidden md:inline-flex rounded-xl"
+              >
+                <Search className="size-4 opacity-50" />
+              </Button>
+            </SearchToggle>
 
             {isAuth ? (
               <AuthenticatedControls notificationCnt={notificationCnt} />
             ) : (
-              <AuthLinks />
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/sign-in"
+                  className={cn(buttonVariants({ variant: "ghost" }))}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className={cn(buttonVariants({ variant: "ghost" }))}
+                >
+                  Sign Up
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -143,10 +191,15 @@ export default async function Navbar({ search }: NavbarProps) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center justify-between w-full px-2">
-            <Link href="/" className="text-2xl font-semibold">
-              FreelanceCrypto
+            <Link href="/" className="text-4xl font-semibold">
+              <span className="text-blue-500">Blue</span>
+              <span>Frog</span>
             </Link>
-            <SidebarClose />
+            <SidebarClose>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <X />
+              </Button>
+            </SidebarClose>
           </div>
         </SidebarHeader>
 
@@ -154,14 +207,33 @@ export default async function Navbar({ search }: NavbarProps) {
           {/* Main Navigation Items */}
           <SidebarGroup>
             <SidebarMenu>
-              <NavigationItems />
+              {SIDEBAR_NAV_ITEMS.map((item) => (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton asChild>
+                    <Link href={item.href}>
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroup>
 
-          {/* Categories Section with Loading State */}
-          <Suspense fallback={<div>Loading...</div>}>
-            <CategoriesSection />
-          </Suspense>
+          <SidebarGroup>
+            <SidebarGroupLabel>Categories</SidebarGroupLabel>
+            <SidebarMenu>
+              <Async fallback={<CategoriesSkeletion />} fetch={getCategoryTree}>
+                {(categories) =>
+                  categories.map((item) => (
+                    <Collapsible key={item.label} className="group/collapsible">
+                      <CategoryItem item={item} />
+                    </Collapsible>
+                  ))
+                }
+              </Async>
+            </SidebarMenu>
+          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter>
@@ -169,7 +241,7 @@ export default async function Navbar({ search }: NavbarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link href="/settings">
+                  <Link href="/dashboard/settings">
                     <Settings />
                     Settings
                   </Link>
@@ -197,7 +269,11 @@ const AuthenticatedControls = async ({
 }: {
   notificationCnt: number;
 }) => {
-  const user = await getCurrentUser();
+  const user = await me();
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <>
@@ -279,97 +355,24 @@ const AuthenticatedControls = async ({
   );
 };
 
-// Component for authentication links
-const AuthLinks = () => (
-  <div className="flex items-center gap-2">
-    <Link href="/sign-in" className={cn(buttonVariants({ variant: "ghost" }))}>
-      Sign In
-    </Link>
-    <Link href="/sign-up" className={cn(buttonVariants({ variant: "ghost" }))}>
-      Sign Up
-    </Link>
-  </div>
-);
-
-// Component for navigation items in sidebar
-const NavigationItems = () => {
-  const items = [
-    { href: "/gigs", icon: <Grid />, label: "Browse Gigs" },
-    { href: "/gigs", icon: <Grid />, label: "Orders" },
-    { href: "/gigs", icon: <Grid />, label: "Messages" },
-    { href: "/gigs", icon: <Grid />, label: "Bookmarks" },
-    { href: "/gigs", icon: <Grid />, label: "Dashboard" },
-  ];
-
+const CategoriesSkeletion = () => {
   return (
-    <>
-      {items.map((item) => (
-        <SidebarMenuItem key={item.label}>
-          <SidebarMenuButton asChild>
-            <Link href={item.href}>
-              {item.icon}
-              {item.label}
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
-    </>
-  );
-};
-
-// Categories section component
-const CategoriesSection = async () => {
-  // Fetch nested categories from database
-  const categories = await prisma.category.findMany({
-    where: {
-      parentId: null,
-    },
-    select: {
-      id: true,
-      label: true,
-      children: {
-        select: {
-          id: true,
-          label: true,
-          children: {
-            select: {
-              id: true,
-              label: true,
-              children: {
-                select: {
-                  id: true,
-                  label: true,
-                  children: {
-                    select: {
-                      id: true,
-                      label: true,
-                      children: {
-                        select: {
-                          id: true,
-                          label: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Categories</SidebarGroupLabel>
-      <SidebarMenu>
-        {categories.map((item) => (
-          <Collapsible key={item.label} className="group/collapsible">
-            <CategoryItem item={item} />
-          </Collapsible>
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+    <div className="flex flex-col gap-2">
+      <Skeleton className="ml-4 mr-4 h-6" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="mr-4 ml-8 h-6" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="mr-4 ml-12 h-6" />
+          <Skeleton className="mr-4 ml-12 h-6" />
+        </div>
+        <Skeleton className="mr-4 ml-8 h-6" />
+      </div>
+      <Skeleton className="ml-4 mr-4 h-6" />
+      <Skeleton className="ml-4 mr-4 h-6" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="mr-4 ml-8 h-6" />
+        <Skeleton className="mr-4 ml-8 h-6" />
+      </div>
+    </div>
   );
 };

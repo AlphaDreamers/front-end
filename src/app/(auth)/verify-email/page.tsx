@@ -104,7 +104,7 @@ export default function VerifyEmailPage() {
       <CardHeader className="text-center">
         <CardTitle>Verify your email</CardTitle>
         <CardDescription className="text-center">
-          We've sent a verification code to your email
+          We&apos;ve sent a verification code to your email
         </CardDescription>
       </CardHeader>
 

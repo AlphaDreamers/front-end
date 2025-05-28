@@ -1,6 +1,5 @@
 "use client";
 
-import { User } from "@prisma/client";
 import {
   createContext,
   PropsWithChildren,
@@ -9,12 +8,21 @@ import {
   useState,
 } from "react";
 
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions";
 
-interface Session {
-  user: User | null;
-  status: "loading" | "authenticated" | "unauthenticated";
-}
+type Session =
+  | {
+      user: null;
+      status: "loading";
+    }
+  | {
+      user: Awaited<ReturnType<typeof me>>;
+      status: "authenticated";
+    }
+  | {
+      user: null;
+      status: "unauthenticated";
+    };
 
 const SessionContext = createContext<Session | null>(null);
 
@@ -26,7 +34,7 @@ const SessionProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const fetchSession = async () => {
-      const user = await getCurrentUser();
+      const user = await me();
 
       if (user) {
         setSession({

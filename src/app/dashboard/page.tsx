@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import ActiveItemsCard from "@/components/dashboard/active-items-card";
 import WalletCard from "@/components/dashboard/wallet-card";
 import RecentActivityCard from "@/components/dashboard/recent-activity-card";
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions";
 import { StatsSummary } from "@/components/dashboard/stats-summary";
 import { EarningsSummary } from "@/components/dashboard/earnings-summary";
 import { PerformanceStats } from "@/components/dashboard/performance-stats";
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
+  const user = await me();
 
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/dashboard");

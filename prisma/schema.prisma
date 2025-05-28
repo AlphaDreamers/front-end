@@ -66,19 +66,39 @@ model User {
   publicKey     String?
 
   verificationToken VerificationToken?
-  gigs              Gig[]               @relation("Seller")
-  bookmarked        Gig[]               @relation("Bookmarked")
+  gigs              Gig[]              @relation("Seller")
+  bookmarked        Gig[]              @relation("Bookmarked")
   reviews           Review[]
   skills            UserSkill[]
-  buyerChats        Chat[]              @relation("BuyerChat")
-  sellerChats       Chat[]              @relation("SellerChat")
-  messages          Message[]
-  badgeProgress     UserBadgeProgress[]
-  ordersAsBuyer     Order[]             @relation("Buyer")
-  ordersAsSeller    Order[]             @relation("Seller")
-  notifications     Notification[]
-  socialLinks       SocialLink[]
-  portfolioItems    PortfolioItem[]
+  buyerChats        Chat[]             @relation("BuyerChat")
+  sellerChats       Chat[]             @relation("SellerChat")
+
+  badgeProgress  UserBadgeProgress[]
+  ordersAsBuyer  Order[]             @relation("Buyer")
+  ordersAsSeller Order[]             @relation("Seller")
+  notifications  Notification[]
+  socialLinks    SocialLink[]
+  portfolioItems PortfolioItem[]
+
+  messages     UserMessage[]
+  readMessages Message[]     @relation("MessageReadBy")
+}
+
+model UserMessage {
+  id String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  textMessageId    String? @unique
+  fileMessageId    String? @unique
+  imageMessageId   String? @unique
+  linkMessageId    String? @unique
+  paymentMessageId String? @unique
+
+  textMessage  TextContent?
+  mediaContent MediaContent?
+  MediaFile    MediaFile[]
 }
 
 enum OrderStatus {
@@ -234,6 +254,7 @@ model Category {
 
   label String
   slug  String @unique
+  depth Int    @default(0)
 
   gigs     Gig[]
   children Category[] @relation("CategoryParent")
@@ -293,21 +314,81 @@ model Chat {
   order    Order?    @relation(fields: [orderId], references: [id])
 }
 
-model Message {
-  id        String      @id @default(uuid())
-  type      MessageType
-  content   Json // { "text": "Hello" } or { "attachments": [{ "type": "image", "data": "base64..." }] }
-  isRead    Boolean     @default(false)
-  chat      Chat        @relation(fields: [chatId], references: [id])
-  sender    User        @relation(fields: [senderId], references: [id])
-  chatId    String
-  senderId  String
-  createdAt DateTime    @default(now())
-}
-
 enum MessageType {
   TEXT
-  ATTACHMENTS
+  MEDIA
+  SYSTEM
+}
+
+model Message {
+  id     String      @id @default(uuid())
+  type   MessageType
+  readBy User[]      @relation("MessageReadBy")
+  chat   Chat        @relation(fields: [chatId], references: [id])
+
+  chatId    String
+  createdAt DateTime @default(now())
+
+  textContent   TextContent?
+  mediaContent  MediaContent?
+  systemContent SystemContent?
+}
+
+model TextContent {
+  id   String @id @default(uuid())
+  text String
+
+  messageId     String      @unique
+  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
+  userMessageId String      @unique
+}
+
+model MediaContent {
+  id String @id @default(uuid())
+
+  urls MediaUrl[]
+
+  messageId     String      @unique
+  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
+  userMessageId String      @unique
+}
+
+model MediaUrl {
+  id  String @id @default(uuid())
+  url String
+
+  mediaContent   MediaContent @relation(fields: [mediaContentId], references: [id])
+  mediaContentId String
+}
+
+model MediaFile {
+  id String @id @default(uuid())
+
+  url      String
+  fileType String // e.g., "image/png", "video/mp4", etc.
+
+  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
+  userMessageId String
+}
+
+enum SystemContentType {
+  WELCOME
+}
+
+model SystemContent {
+  id        String            @id @default(uuid())
+  content   String
+  type      SystemContentType
+  messageId String            @unique
+  message   Message           @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 model Badge {

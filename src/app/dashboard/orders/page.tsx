@@ -9,7 +9,6 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Fragment } from "react";
 import { OrderStatus } from "@prisma/client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +21,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger, 
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 import SearchBar from "@/components/search-bar";
 import FilterCard from "@/components/filter-card";
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import SolanaBuyButton from "@/components/solana-pay-button";
 
@@ -40,7 +39,7 @@ export default async function OrdersPage({}: {
     query?: string;
   }>;
 }) {
-  const user = await getCurrentUser();
+  const user = await me();
 
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/orders");
@@ -52,6 +51,11 @@ export default async function OrdersPage({}: {
     },
     select: {
       id: true,
+      chat: {
+        select: {
+          id: true,
+        },
+      },
       package: {
         select: {
           gig: {
@@ -239,7 +243,7 @@ export default async function OrdersPage({}: {
                     )}
 
                     <Link
-                      href={`/orders/${order.id}/deliver`}
+                      href={`/dashoard/chats/${order.chat?.id}`}
                       className={cn(
                         buttonVariants({
                           variant: "outline",

@@ -19,181 +19,126 @@ interface SearchParams {
   "deliveryTime-max"?: string;
 }
 
-const select: Prisma.GigSelect = {
-  title: true,
-  seller: {
-    select: {
-      avatar: true,
-      username: true,
-      badgeProgress: {
-        select: {
-          isFeatured: true,
-          badge: {
-            select: {
-              title: true,
-            },
-          },
-        },
-      },
-    },
-  },
-  images: {
-    select: {
-      url: true,
-    },
-  },
-  reviews: {
-    select: {
-      rating: true,
-    },
-  },
-  tags: {
-    select: {
-      label: true,
-    },
-  },
-  packages: {
-    select: {
-      title: true,
-      price: true,
-      orders: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  },
-  description: true,
-  id: true,
-};
-
-const getCategories = async () => {
-  return await prisma.category.findMany({
-    where: {
-      parentId: null, // Top-level categories only
-    },
-    select: {
-      id: true,
-      label: true,
-    },
-  });
-};
-
-const getTags = async () => {
-  return await prisma.tag.findMany({
-    select: {
-      id: true,
-      label: true,
-    },
-  });
-};
-
-const buildWhere = (params: SearchParams): Prisma.GigWhereInput => {
-  const where: Prisma.GigWhereInput = {};
-
-  if (params.query) {
-    where.title = {
-      contains,
-    };
-  }
-
-  if (params.category) {
-    where.categoryId = params.category;
-  }
-
-  if (params.tags) {
-    where.tags = {
-      some: {
-        id: { in: params.tags },
-      },
-    };
-  }
-
-  const packageConditions: Prisma.PackageWhereInput[] = [];
-
-  if (params["price-min"]) {
-    packageConditions.push({ price: { gte: Number(params["price-min"]) } });
-  }
-
-  if (params["price-max"]) {
-    packageConditions.push({ price: { lte: Number(params["price-max"]) } });
-  }
-
-  if (params["deliveryTime-max"]) {
-    packageConditions.push({
-      deliveryTime: { lte: Number(params["deliveryTime-max"]) },
-    });
-  }
-
-  if (packageConditions.length > 0) {
-    where.packages = {
-      some: {
-        AND: packageConditions,
-      },
-    };
-  }
-
-  return where;
-};
-
-const getGigs = async (params: SearchParams) => {
-  const where = buildWhere(params);
-  return await prisma.gig.findMany({
-    where,
-    select,
-    take: ITEMS_PER_PAGE,
-    skip: (Number(params.page || 1) - 1) * ITEMS_PER_PAGE,
-  });
-};
-
-const getCnt = async (params: SearchParams) => {
-  const where = buildWhere(params);
-  return await prisma.gig.count({
-    where,
-  });
-};
-
 export default async function BrowseGigsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const params = await searchParams;
+  const { query } = await searchParams;
 
-  const categories = await getCategories();
-  const tags = await getTags();
-  const [gigs, cnt] = await Promise.all([getGigs(params), getCnt(params)]);
-
-  const filterConfig = [
-    {
-      type: "combobox",
-      id: "category",
-      label: "Category",
-      options: categories.map((cat) => ({ value: cat.id, label: cat.label })),
-    },
-    {
-      type: "multicombobox",
-      id: "tags",
-      label: "Tags",
-      options: tags.map((tag) => ({ value: tag.id, label: tag.label })),
-    },
-    {
-      type: "slider",
-      id: "price",
-      label: "Price Range",
-      min: 0,
-      max: 1000,
-      step: 10,
-    },
-    {
-      type: "slider",
-      id: "deliveryTime",
-      label: "Max Delivery Time (days)",
-      min: 1,
-      max: 30,
-      step: 1,
-    },
-  ];
+  const [gigs, cnt] = await Promise.all([
+    prisma.gig.findMany({
+      select: {
+        title: true,
+        seller: {
+          select: {
+            avatar: true,
+            username: true,
+            badgeProgress: {
+              select: {
+                isFeatured: true,
+                badge: {
+                  select: {
+                    title: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        images: {
+          select: {
+            url: true,
+          },
+        },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
+        tags: {
+          select: {
+            label: true,
+          },
+        },
+        packages: {
+          select: {
+            title: true,
+            price: true,
+            orders: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+        description: true,
+        id: true,
+      },
+      where: {
+        OR: [
+          {
+            title: {
+              contains: query,
+            },
+          },
+          {
+            seller: {
+              OR: [
+                {
+                  username: {
+                    contains: query,
+                  },
+                },
+                {
+                  firstName: {
+                    contains: query,
+                  },
+                },
+                {
+                  lastName: {
+                    contains: query,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    }),
+    prisma.gig.count({
+      where: {
+        OR: [
+          {
+            title: {
+              contains: query,
+            },
+          },
+          {
+            seller: {
+              OR: [
+                {
+                  username: {
+                    contains: query,
+                  },
+                },
+                {
+                  firstName: {
+                    contains: query,
+                  },
+                },
+                {
+                  lastName: {
+                    contains: query,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    }),
+  ]);
 
   return (
     <div className="space-y-2 lg:space-y-8">
@@ -205,7 +150,7 @@ export default async function BrowseGigsPage({
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        <FilterCard config={filterConfig} className="lg:w-64 h-fit w-full" />
+        <FilterCard config={[]} className="lg:w-64 h-fit w-full" />
 
         <div className="flex-1">
           <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">

@@ -1,102 +1,190 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { Button } from "./ui/button";
-import { Prisma } from "@prisma/client";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useDebouncedCallback } from "use-debounce";
 import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "./ui/command";
+  ComponentProps,
+  createContext,
+  PropsWithChildren,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import Link from "next/link";
-import { Computer, Menu, Moon, Search, Sun, X } from "lucide-react";
-import { useSidebar } from "./ui/sidebar";
+import {
+  AlertCircle,
+  Computer,
+  Loader2,
+  Moon,
+  Search,
+  Sun,
+} from "lucide-react";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+
+import { Button } from "./ui/button";
+import { useSidebar } from "./ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Type definitions
+import { getFilteredGigsList } from "@/lib/actions";
+import { Slot } from "@radix-ui/react-slot";
+import { useDebounce } from "use-debounce";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Dialog, DialogContent } from "./ui/dialog";
+import { Input } from "./ui/input";
+import { ScrollArea } from "./ui/scroll-area";
+
 interface SearchDialogContextType {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-interface SearchDialogContextProviderProps {
-  children: React.ReactNode;
-  gigs: Prisma.GigGetPayload<{
-    select: {
-      id: true;
-      title: true;
-    };
-  }>[];
-  param?: string;
-}
-
-interface SearchToggleProps {
-  className?: string;
-}
-
-// Create context for search dialog state
 const SearchDialogContext = createContext<SearchDialogContextType | null>(null);
-
-/**
- * Provider component for search dialog context
- * Manages search state and URL parameters
- */
 export const SearchDialogContextProvider = ({
   children,
-  gigs,
-  param = "search",
-}: SearchDialogContextProviderProps) => {
+}: PropsWithChildren) => {
   const [open, setOpen] = useState(false);
-  const searchParams = useSearchParams();
-  const path = usePathname();
-  const { replace } = useRouter();
+  const [query, setQuery] = useState("");
 
-  // Debounced search handler to update URL parameters
-  const handleSearch = useDebouncedCallback((term: string) => {
-    const params = new URLSearchParams(searchParams);
+  const [debouncedQuery] = useDebounce(query, 300, {
+    leading: true,
+    trailing: true,
+  });
+  const [data, setData] = useState<
+    {
+      id: string;
+      title: string;
+    }[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-    if (term) {
-      params.set(param, term);
-    } else {
-      params.delete(param);
+  useEffect(() => {
+    const fetchData = async () => {
+      if (debouncedQuery.length < 2) {
+        setData([]);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const gigs = await getFilteredGigsList({
+          query: debouncedQuery,
+        });
+        setData(gigs);
+      } catch (err) {
+        setError(err as Error);
+        setData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [debouncedQuery]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setData([]);
+      setError(null);
     }
+  }, [open]);
 
-    replace(`${path}?${params.toString()}`);
-  }, 300);
+  const handleLinkClick = () => {
+    setOpen(false);
+  };
 
   return (
     <SearchDialogContext.Provider value={{ open, setOpen }}>
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput
-          placeholder="Search..."
-          defaultValue={searchParams.get(param) || ""}
-          onValueChange={handleSearch}
-        />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Suggestions">
-            {gigs.map((gig) => (
-              <CommandItem key={gig.id} asChild>
-                <Link href={`/gigs/${gig.id}`}>{gig.title}</Link>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="p-0 max-h-[80vh] gap-0">
+          <div className="relative border-b">
+            <Search className="absolute left-0 translate-x-1/2 top-1/2 -translate-y-1/2 text-muted-foreground size-5" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search gigs..."
+              className="rounded-b-none h-12 pl-10"
+              autoFocus
+            />
+          </div>
 
+          <div className="flex-1">
+            {error ? (
+              <div className="p-4">
+                <Alert variant="destructive">
+                  <AlertCircle />
+                  <AlertTitle>Search Error</AlertTitle>
+                  <AlertDescription>
+                    {error.message ||
+                      "Failed to search gigs. Please try again."}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="animate-spin size-8 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Searching...</p>
+              </div>
+            ) : query.length < 2 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                  Start Searching
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Type at least 2 characters to search for gigs
+                </p>
+              </div>
+            ) : data.length > 0 ? (
+              <div className="flex flex-col h-full">
+                <div className="px-4 py-3 border-b bg-muted/30">
+                  <p className="text-sm text-muted-foreground">
+                    {data.length} result{data.length === 1 ? "" : "s"} for
+                    &quot;
+                    {query}&quot;
+                  </p>
+                </div>
+                <ScrollArea className="max-h-[50vh]">
+                  <div className="p-2">
+                    {data.map((gig) => (
+                      <Link
+                        key={gig.id}
+                        href={`/gigs/${gig.id}`}
+                        onClick={handleLinkClick}
+                        className="flex items-center px-3 py-3 rounded-md hover:bg-accent transition-colors"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{gig.title}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Search className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">No Results Found</h3>
+                <p className="text-sm text-muted-foreground">
+                  No gigs found for &ldquo;{query}&ldquo;. Try different
+                  keywords.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       {children}
     </SearchDialogContext.Provider>
   );
 };
 
-// Custom hook for accessing search dialog context
 const useSearchDialog = () => {
   const context = useContext(SearchDialogContext);
 
@@ -109,51 +197,15 @@ const useSearchDialog = () => {
   return context;
 };
 
-/**
- * Search toggle button component
- * Shows different variants for mobile and desktop
- */
-export const MobileSearchToggle = ({ className }: SearchToggleProps) => {
+export const SearchToggle = ({ ...props }: ComponentProps<typeof Slot>) => {
   const { setOpen } = useSearchDialog();
 
   const toggleSearch = () => setOpen((prev) => !prev);
 
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleSearch}
-      className={cn(className)}
-    >
-      <Search />
-    </Button>
-  );
+  return <Slot onClick={toggleSearch} {...props} />;
 };
 
-export const DesktopSearchToggle = ({ className }: SearchToggleProps) => {
-  const { setOpen } = useSearchDialog();
-
-  const toggleSearch = () => setOpen((prev) => !prev);
-
-  return (
-    <Button
-      variant="secondary"
-      size="sm"
-      className={cn("relative rounded-xl text-muted-foreground", className)}
-      onClick={toggleSearch}
-    >
-      <Search className="size-4 opacity-50" />
-      <div>Search...</div>
-      <div className="w-24" />
-    </Button>
-  );
-};
-
-/**
- * Sidebar close button component
- * Used for closing mobile sidebar
- */
-export const SidebarClose = () => {
+export const SidebarClose = ({ ...props }: ComponentProps<typeof Slot>) => {
   const { toggleSidebar, setOpen } = useSidebar();
   const isMobile = useIsMobile();
 
@@ -163,41 +215,15 @@ export const SidebarClose = () => {
     }
   }, [isMobile, setOpen]);
 
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleSidebar}
-      className="md:hidden"
-    >
-      <X />
-    </Button>
-  );
+  return <Slot onClick={toggleSidebar} {...props} />;
 };
 
-/**
- * Sidebar toggle button component
- * Used for opening mobile sidebar
- */
-export const SidebarToggle = () => {
+export const SidebarToggle = ({ ...props }: ComponentProps<typeof Slot>) => {
   const { toggleSidebar } = useSidebar();
 
-  return (
-    <Button
-      className="md:hidden"
-      variant="ghost"
-      size="icon"
-      onClick={toggleSidebar}
-    >
-      <Menu />
-    </Button>
-  );
+  return <Slot onClick={toggleSidebar} {...props} />;
 };
 
-/**
- * Theme toggle component
- * Cycles between light, dark, and system themes
- */
 export const ThemeToggle = () => {
   const { setTheme, theme, systemTheme } = useTheme();
 

@@ -12,6 +12,7 @@ import {
   ContactSellerFormSchema,
   CreateGigFormSchema,
   ForgotPasswordFormSchema,
+  KycFormSchema,
   ResetPasswordFormSchema,
   SignInFormSchema,
   SignUpFormSchema,
@@ -22,37 +23,43 @@ import {
 import VerificationEmailTemplate from "@/components/email-templates/verification-email";
 import WelcomeEmailTemplate from "@/components/email-templates/welcome-email";
 import PasswordResetEmailTemplate from "@/components/email-templates/password-reset-email";
+import {
+  Chat,
+  CLODUINARY_CONFIG,
+  JWTToken,
+  Message,
+  UploadPreset,
+} from "./types";
+import { MessageType, Prisma } from "@prisma/client";
 
-// Email templates
-
-// Initialize Resend email client
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// Default email configuration
 const DEFAULT_FROM_EMAIL = "Acme <onboarding@resend.dev>";
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-/**
- * User registration function
- * Creates a user account and sends verification email
- */
 export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
   const { username, email, password, firstName, lastName } = values;
 
-  // Check if user already exists
   const existingUser = await prisma.user.findUnique({
     where: { email },
+    select: {
+      isVerified: true,
+    },
   });
 
   if (existingUser) {
-    throw new Error("An account with this email already exists");
+    if (existingUser.isVerified) {
+      throw new Error("Email is already registered and verified");
+    } else {
+      throw new Error("Email is already registered but not verified");
+    }
   }
 
-  // Generate verification code
-  const verificationCode = generateVerificationCode();
+  const verificationCode = Math.floor(
+    100000 + Math.random() * 900000
+  ).toString();
 
-  try {
-    // Create user with verification token
+  await prisma.$transaction(async () => {
     await prisma.user.create({
       data: {
         username,
@@ -69,20 +76,21 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
       },
     });
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationCode);
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email],
+      subject: "Verify your email address",
+      react: await VerificationEmailTemplate({ code: verificationCode }),
+    });
 
-    return { success: true };
-  } catch (error) {
-    console.error("Sign up error:", error);
-    throw new Error("Failed to create account. Please try again later.");
-  }
+    if (error) {
+      throw new Error(
+        "Failed to send verification email. Please try again later."
+      );
+    }
+  });
 }
 
-/**
- * Email verification function
- * Verifies user's email using the provided code
- */
 export async function verifyEmail(
   values: z.infer<typeof VerifyEmailFormSchema>
 ) {
@@ -106,37 +114,41 @@ export async function verifyEmail(
     throw new Error("Verification code has expired");
   }
 
-  try {
-    // Update user as verified
+  await prisma.$transaction(async () => {
     await prisma.user.update({
       where: { id: token.user.id },
       data: { isVerified: true },
     });
 
-    // Delete the used verification token
     await prisma.verificationToken.delete({
       where: { id: token.id },
     });
 
-    // Send welcome email
-    await sendWelcomeEmail(email, token.user.username);
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email],
+      subject: "Welcome to our platform!",
+      react: await WelcomeEmailTemplate({ username: token.user.username }),
+    });
 
-    return { success: true };
-  } catch (error) {
-    console.error("Email verification error:", error);
-    throw new Error("Failed to verify email. Please try again later.");
-  }
+    if (error) {
+      throw new Error("Failed to send welcome email. Please try again later.");
+    }
+  });
 }
 
-/**
- * Resend verification email
- * Generates new verification code and sends it to user
- */
 export async function resendVerificationEmail(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: {
-      verificationToken: true,
+    select: {
+      id: true,
+      isVerified: true,
+      verificationToken: {
+        select: {
+          code: true,
+          expiresAt: true,
+        },
+      },
     },
   });
 
@@ -148,12 +160,17 @@ export async function resendVerificationEmail(email: string) {
     throw new Error("Email is already verified");
   }
 
-  try {
-    // Generate new verification code
-    const verificationCode = generateVerificationCode();
+  // Generate new verification code
+  const verificationCode = Math.floor(
+    100000 + Math.random() * 900000
+  ).toString();
 
-    // Update or create verification token
-    if (user.verificationToken) {
+  await prisma.$transaction(async () => {
+    if (
+      user.verificationToken &&
+      user.verificationToken.expiresAt > new Date()
+    ) {
+      // Update existing token if it hasn't expired
       await prisma.verificationToken.update({
         where: { userId: user.id },
         data: {
@@ -162,6 +179,7 @@ export async function resendVerificationEmail(email: string) {
         },
       });
     } else {
+      // Create new token if it doesn't exist or has expired
       await prisma.verificationToken.create({
         data: {
           userId: user.id,
@@ -172,21 +190,21 @@ export async function resendVerificationEmail(email: string) {
     }
 
     // Send verification email
-    await sendVerificationEmail(email, verificationCode);
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email],
+      subject: "Verify your email address",
+      react: await VerificationEmailTemplate({ code: verificationCode }),
+    });
 
-    return { success: true };
-  } catch (error) {
-    console.error("Resend verification email error:", error);
-    throw new Error(
-      "Failed to send verification email. Please try again later."
-    );
-  }
+    if (error) {
+      throw new Error(
+        "Failed to send verification email. Please try again later."
+      );
+    }
+  });
 }
 
-/**
- * User sign in function
- * Authenticates user and sets JWT cookie
- */
 export async function signIn(values: z.infer<typeof SignInFormSchema>) {
   const { email, password } = values;
 
@@ -208,33 +226,24 @@ export async function signIn(values: z.infer<typeof SignInFormSchema>) {
     throw new Error("Invalid email or password");
   }
 
-  try {
-    // Create authentication token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, {
-      expiresIn: "1d",
-    });
+  const tokenPayload: JWTToken = {
+    id: user.id,
+  };
 
-    // Set HTTP-only cookie
-    const cookieStore = await cookies();
-    cookieStore.set("token", token, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60, // 1 day in seconds
-      path: "/",
-    });
+  const token = jwt.sign(tokenPayload, process.env.JWT_SECRET!, {
+    expiresIn: "1d",
+  });
 
-    return { success: true };
-  } catch (error) {
-    console.error("Sign in error:", error);
-    throw new Error("Authentication failed. Please try again later.");
-  }
+  const cookieStore = await cookies();
+  cookieStore.set("token", token, {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60, // 1 day in seconds
+    path: "/",
+  });
 }
 
-/**
- * Forgot password function
- * Sends password reset email with verification code
- */
 export async function forgotPassword(
   values: z.infer<typeof ForgotPasswordFormSchema>
 ) {
@@ -242,53 +251,54 @@ export async function forgotPassword(
 
   const user = await prisma.user.findUnique({
     where: { email },
-    include: {
-      verificationToken: true,
+    select: {
+      id: true,
+      isVerified: true,
+      verificationToken: {
+        select: {
+          code: true,
+          expiresAt: true,
+        },
+      },
     },
   });
 
   if (!user) {
-    // Don't reveal if user exists for security
-    return { success: true };
+    throw new Error("User not found");
   }
 
   if (!user.isVerified) {
     throw new Error("Please verify your email first");
   }
 
-  try {
-    // Generate reset code
-    const resetCode = generateVerificationCode();
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Update or create verification token
+  await prisma.$transaction(async () => {
     if (user.verificationToken) {
-      await prisma.verificationToken.update({
+      await prisma.verificationToken.delete({
         where: { userId: user.id },
-        data: {
-          code: resetCode,
-          expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-        },
-      });
-    } else {
-      await prisma.verificationToken.create({
-        data: {
-          userId: user.id,
-          code: resetCode,
-          expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-        },
       });
     }
 
-    // Send password reset email
-    await sendPasswordResetEmail(email, resetCode);
+    await prisma.verificationToken.create({
+      data: {
+        userId: user.id,
+        code: resetCode,
+        expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+      },
+    });
 
-    return { success: true };
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    throw new Error(
-      "Failed to process password reset. Please try again later."
-    );
-  }
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email],
+      subject: "Reset your password",
+      react: await PasswordResetEmailTemplate({ code: resetCode }),
+    });
+
+    if (error) {
+      throw new Error("Failed to send password reset email");
+    }
+  });
 }
 
 /**
@@ -338,10 +348,6 @@ export async function verifyPasswordResetCode(email: string, code: string) {
   }
 }
 
-/**
- * Reset password function
- * Updates user password after verification
- */
 export async function resetPassword(
   values: z.infer<typeof ResetPasswordFormSchema>
 ) {
@@ -389,29 +395,13 @@ export async function resetPassword(
   }
 }
 
-/**
- * Sign out function
- * Clears authentication cookie
- */
 export async function signOut() {
   const cookieStore = await cookies();
 
-  cookieStore.set("token", "", {
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: -1,
-    path: "/",
-  });
-
-  return { success: true };
+  cookieStore.delete("token");
 }
 
-/**
- * Current user function
- * Returns the currently authenticated user or null
- */
-export async function getCurrentUser() {
+export async function me() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
@@ -420,13 +410,19 @@ export async function getCurrentUser() {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      id: string;
-    };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTToken;
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: {
+      select: {
+        id: true,
+        isVerified: true,
+        publicKey: true,
+        avatar: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
         _count: {
           select: {
             notifications: true,
@@ -437,186 +433,127 @@ export async function getCurrentUser() {
 
     return user;
   } catch {
-    // Token invalid or expired
     return null;
   }
 }
 
-// Helper functions
-
-/**
- * Generates a random 6-digit verification code
- */
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-/**
- * Sends verification email
- */
-async function sendVerificationEmail(email: string, code: string) {
-  const { error } = await resend.emails.send({
-    from: DEFAULT_FROM_EMAIL,
-    to: [email],
-    subject: "Verify your email address",
-    react: await VerificationEmailTemplate({ code }),
-  });
-
-  if (error) {
-    console.error("Email sending error:", error);
-    throw new Error("Failed to send verification email");
-  }
-}
-
-/**
- * Sends welcome email after successful verification
- */
-async function sendWelcomeEmail(email: string, username: string) {
-  const { error } = await resend.emails.send({
-    from: DEFAULT_FROM_EMAIL,
-    to: [email],
-    subject: "Welcome to our platform!",
-    react: await WelcomeEmailTemplate({ username }),
-  });
-
-  if (error) {
-    console.error("Welcome email error:", error);
-    // Don't throw error as this is not critical
-  }
-}
-
-/**
- * Sends password reset email
- */
-async function sendPasswordResetEmail(email: string, code: string) {
-  const { error } = await resend.emails.send({
-    from: DEFAULT_FROM_EMAIL,
-    to: [email],
-    subject: "Reset your password",
-    react: await PasswordResetEmailTemplate({ code }),
-  });
-
-  if (error) {
-    console.error("Password reset email error:", error);
-    throw new Error("Failed to send password reset email");
-  }
-}
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
 ) => {
-  try {
-    // Authenticate the user
-    const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const user = await me();
 
-    const { title, description, categoryId, tags, packages, images, features } =
-      values;
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
 
-    // Create the gig with all related data in a transaction
-    const gig = await prisma.$transaction(async (tx) => {
-      // 1. Create the base gig first
-      const newGig = await tx.gig.create({
-        data: {
-          title,
-          description,
-          category: {
-            connect: {
-              id: categoryId,
-            },
-          },
-          tags: {
-            connect: tags.map((tag) => ({
-              id: tag.id,
-            })),
-          },
-          seller: {
-            connect: {
-              id: user.id,
-            },
-          },
-          images: {
-            create: images.map((image) => ({
-              url:
-                "https://picsum.photos/200/300/" +
-                Math.floor(Math.random() * 1000),
-              isPrimary: image.isPrimary,
-            })),
-          },
-        },
-      });
+  const { title, description, categoryId, tags, packages, images, features } =
+    values;
 
-      // 2. Create all gig features
-      const createdFeatures = await Promise.all(
-        features.map(async (feature) => {
-          return await tx.gigFeature.create({
-            data: {
-              label: feature.label,
-              gigId: newGig.id,
-            },
-          });
-        })
-      );
+  await prisma.$transaction(async (tx) => {
+    const cloudinaryImages = await Promise.all(
+      images.map(async ({ file }) => {
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", "gig_images");
+          formData.append("folder", "gigs/images");
 
-      // 3. Create packages with their feature connections
-      await Promise.all(
-        packages.map(async (pkg) => {
-          // Create the package
-          const newPackage = await tx.package.create({
-            data: {
-              title: pkg.title,
-              deliveryTime: pkg.deliveryTime,
-              revisions: pkg.revisions,
-              price: pkg.price,
-              gigId: newGig.id,
-            },
-          });
+          // Log the cloud name to verify it's correct
+          console.log("Uploading to cloud:", process.env.CLOUDINARY_CLOUD_NAME);
 
-          // Create package features with connections to gig features
-          await Promise.all(
-            features.map(async (feature, featureIndex) => {
-              await tx.packageFeature.create({
-                data: {
-                  isIncluded: pkg.featureInclusions[featureIndex],
-                  gigPackageId: newPackage.id,
-                  featureId: createdFeatures[featureIndex].id,
-                },
-              });
-            })
+          const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+            {
+              method: "POST",
+              body: formData,
+            }
           );
-        })
-      );
 
-      // Return the completed gig with relationships
-      return await tx.gig.findUnique({
-        where: { id: newGig.id },
-        include: {
-          category: true,
-          tags: true,
-          features: true,
-          packages: {
-            include: {
-              features: {
-                include: {
-                  feature: true,
-                },
-              },
-            },
+          const result = await response.json();
+
+          // Log the full response for debugging
+          console.log("Cloudinary response:", result);
+
+          if (!response.ok) {
+            throw new Error(
+              `Cloudinary upload failed: ${JSON.stringify(result)}`
+            );
+          }
+
+          return result;
+        } catch (error) {
+          console.error("Upload error:", error);
+          return { error: { message: error.message } };
+        }
+      })
+    );
+
+    const newGig = await tx.gig.create({
+      data: {
+        title,
+        description,
+        category: {
+          connect: {
+            id: categoryId,
           },
-          images: true,
         },
-      });
+        tags: {
+          connect: tags.map((tag) => ({
+            id: tag.id,
+          })),
+        },
+        seller: {
+          connect: {
+            id: user.id,
+          },
+        },
+        images: {
+          create: images.map((image, index) => ({
+            url:
+              cloudinaryImages[index].secure_url || cloudinaryImages[index].url,
+            isPrimary: image.isPrimary,
+          })),
+        },
+      },
     });
 
-    return { success: true, data: gig };
-  } catch (error) {
-    console.error("Error creating gig:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create gig",
-    };
-  }
+    const createdFeatures = await Promise.all(
+      features.map(async (feature) => {
+        return await tx.gigFeature.create({
+          data: {
+            label: feature.label,
+            gigId: newGig.id,
+          },
+        });
+      })
+    );
+
+    await Promise.all(
+      packages.map(async (pkg) => {
+        const newPackage = await tx.package.create({
+          data: {
+            title: pkg.title,
+            deliveryTime: pkg.deliveryTime,
+            revisions: pkg.revisions,
+            price: pkg.price,
+            gigId: newGig.id,
+          },
+        });
+
+        await Promise.all(
+          features.map(async (feature, featureIndex) => {
+            await tx.packageFeature.create({
+              data: {
+                isIncluded: pkg.featureInclusions[featureIndex],
+                gigPackageId: newPackage.id,
+                featureId: createdFeatures[featureIndex].id,
+              },
+            });
+          })
+        );
+      })
+    );
+  });
 };
 
 export const updateGig = async (
@@ -624,7 +561,8 @@ export const updateGig = async (
 ) => {
   try {
     // Authenticate the user
-    const user = await getCurrentUser();
+    const user = await me();
+
     if (!user) {
       throw new Error("User not authenticated");
     }
@@ -896,116 +834,27 @@ export const updateGig = async (
 };
 
 export const deleteGig = async (gigId: string) => {
-  try {
-    // Authenticate the user
-    const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const user = await me();
 
-    // Verify the gig exists and belongs to the current user
-    const existingGig = await prisma.gig.findUnique({
-      where: { id: gigId },
-      include: {
-        packages: true,
-        features: true,
-        images: true,
-      },
-    });
-
-    if (!existingGig) {
-      throw new Error("Gig not found");
-    }
-
-    if (existingGig.sellerId !== user.id) {
-      throw new Error("You do not have permission to delete this gig");
-    }
-
-    // Delete everything in a transaction
-    await prisma.$transaction(async (tx) => {
-      // 1. Delete all package features
-      await tx.packageFeature.deleteMany({
-        where: {
-          gigPackageId: { in: existingGig.packages.map((pkg) => pkg.id) },
-        },
-      });
-
-      // 2. Delete all packages
-      await tx.package.deleteMany({
-        where: { gigId: gigId },
-      });
-
-      // 3. Delete all images
-      await tx.image.deleteMany({
-        where: { gigId: gigId },
-      });
-
-      // 4. Delete all gig features
-      await tx.gigFeature.deleteMany({
-        where: { gigId: gigId },
-      });
-
-      // 5. Finally, delete the gig itself
-      await tx.gig.delete({
-        where: { id: gigId },
-      });
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error deleting gig:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to delete gig",
-    };
-  }
-};
-
-export const getCategories = async () => {
-  return await prisma.category.findMany({
-    select: {
-      id: true,
-      label: true,
-    },
-  });
-};
-
-export const getTags = async () => {
-  return await prisma.tag.findMany({
-    select: {
-      id: true,
-      label: true,
-    },
-  });
-};
-
-export const contactSeller = async (
-  values: z.infer<typeof ContactSellerFormSchema>
-) => {
-  const user = await getCurrentUser();
   if (!user) {
     throw new Error("User not authenticated");
   }
-  const { message, recipientId } = values;
 
-  try {
-    await prisma.notification.create({
-      data: {
-        title: "New message from buyer",
-        description: message,
-        type: "CONTACT",
-        senderId: user.id,
-        recipientId,
-      },
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Error sending message:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to send message",
-    };
+  const existingGig = await prisma.gig.findUnique({
+    where: { id: gigId },
+  });
+
+  if (!existingGig) {
+    throw new Error("Gig not found");
   }
+
+  if (existingGig.sellerId !== user.id) {
+    throw new Error("You do not have permission to delete this gig");
+  }
+
+  await prisma.gig.delete({
+    where: { id: gigId },
+  });
 };
 
 export const getSimilarSellers = async () => {
@@ -1080,7 +929,7 @@ export const updateProfile = async (
     portfolioItems,
     featuredBadge,
   } = values;
-  const user = await getCurrentUser();
+  const user = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -1276,8 +1125,9 @@ export const updateProfile = async (
     }
   }
 };
+
 export const orderPackage = async (packageId: string) => {
-  const user = await getCurrentUser();
+  const user = await me();
   if (!user?.isVerified) throw new Error("User not authenticated");
 
   const gigPackage = await prisma.package.findUnique({
@@ -1304,6 +1154,7 @@ export const orderPackage = async (packageId: string) => {
       deadline: new Date(
         Date.now() + gigPackage.deliveryTime * 24 * 60 * 60 * 1000 // Convert delivery time to milliseconds
       ),
+      gigId: gigPackage.gig.id,
       chat: {
         create: {
           buyerId: user.id,
@@ -1315,7 +1166,7 @@ export const orderPackage = async (packageId: string) => {
 };
 
 export const confirmPayment = async (orderId: string) => {
-  const user = await getCurrentUser();
+  const user = await me();
   if (!user?.isVerified) throw new Error("User not authenticated");
 
   const order = await prisma.order.findUnique({
@@ -1337,8 +1188,10 @@ export const confirmPayment = async (orderId: string) => {
 };
 
 export const addWallet = async (publicKey: string) => {
-  const user = await getCurrentUser();
+  const user = await me();
+
   if (!user?.isVerified) throw new Error("User not authenticated");
+
   if (user.publicKey) {
     throw new Error("Wallet already added");
   }
@@ -1349,4 +1202,230 @@ export const addWallet = async (publicKey: string) => {
       publicKey,
     },
   });
+};
+
+export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
+  const user = await me();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      isKycVerified: true,
+    },
+  });
+};
+
+export const getChatById = async (chatId: string): Promise<Chat | null> => {
+  const currentUser = await me();
+
+  if (!currentUser) {
+    throw new Error("User not authenticated");
+  }
+
+  const chat = await prisma.chat.findUnique({
+    where: {
+      id: chatId,
+    },
+    select: {
+      id: true,
+      buyer: {
+        select: {
+          id: true,
+          username: true,
+          avatar: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      seller: {
+        select: {
+          id: true,
+          username: true,
+          avatar: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      messages: {
+        select: {
+          id: true,
+          type: true,
+          readBy: {
+            select: {
+              id: true,
+            },
+          },
+          systemContent: {
+            select: {
+              type: true,
+              content: true,
+            },
+          },
+          textContent: {
+            select: {
+              text: true,
+              userMessage: {
+                select: {
+                  userId: true,
+                },
+              },
+            },
+          },
+          mediaContent: {
+            select: {
+              urls: {
+                select: {
+                  url: true,
+                },
+              },
+              userMessage: {
+                select: {
+                  userId: true,
+                },
+              },
+            },
+          },
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  if (!chat) {
+    return null;
+  }
+
+  return {
+    ...chat,
+    messages: chat.messages.map((ms) => ({
+      id: ms.id,
+      createdAt: ms.createdAt,
+      isRead: ms.readBy.some((user) => user.id === currentUser.id),
+      type: ms.type,
+    })),
+  } as Chat;
+};
+
+export const getFilteredGigsList = async ({ query }: { query: string }) => {
+  if (!query || query.trim().length === 0) {
+    return [];
+  }
+
+  // Convert query to lowercase for case-insensitive matching
+  const lowerQuery = query.toLowerCase();
+
+  const where: Prisma.GigWhereInput = {
+    OR: [
+      {
+        title: {
+          contains: lowerQuery,
+        },
+      },
+      {
+        seller: {
+          username: {
+            contains: lowerQuery,
+          },
+        },
+      },
+      {
+        seller: {
+          firstName: {
+            contains: lowerQuery,
+          },
+        },
+      },
+      {
+        seller: {
+          lastName: {
+            contains: lowerQuery,
+          },
+        },
+      },
+    ],
+  };
+
+  return prisma.gig.findMany({
+    where,
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+};
+
+type CategoryWithChildren = {
+  id: string;
+  label: string;
+  children?: CategoryWithChildren[];
+};
+
+const constructSelectQuery = (depth: number): Prisma.CategorySelect => {
+  const baseSelect: Prisma.CategorySelect = {
+    id: true,
+    label: true,
+  };
+
+  if (depth <= 0) {
+    return baseSelect;
+  }
+
+  return {
+    ...baseSelect,
+    children: {
+      select: constructSelectQuery(depth - 1),
+    },
+  };
+};
+
+export const getCategoryTree = async (): Promise<CategoryWithChildren[]> => {
+  const {
+    _max: { depth = 0 },
+  } = await prisma.category.aggregate({
+    _max: {
+      depth: true,
+    },
+  });
+
+  const selectQuery = constructSelectQuery(depth);
+
+  const categories = await prisma.category.findMany({
+    where: {
+      parentId: null,
+    },
+    select: selectQuery,
+  });
+
+  return categories as CategoryWithChildren[];
+};
+
+export const uploadFileToCloudinary = async (
+  file: File,
+  preset: UploadPreset
+): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", preset);
+  formData.append("folder", CLODUINARY_CONFIG[preset]);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Cloudinary upload failed: ${JSON.stringify(result)}`);
+  }
+
+  return result.secure_url as string;
 };

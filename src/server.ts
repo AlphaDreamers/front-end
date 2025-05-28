@@ -2,7 +2,9 @@ import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
 import { Server } from "socket.io";
-import { type Message } from "./lib/types.js";
+
+import { type Message } from "./lib/types";
+import { MessageType } from "@prisma/client";
 import { prisma } from "./lib/prisma";
 
 const port = parseInt(process.env.PORT || "3000", 10);
@@ -24,97 +26,180 @@ app.prepare().then(() => {
 
   const io = new Server(server);
   io.on("connection", (socket) => {
-    console.log("FLAG 1 - from server (client connected)");
-
-    socket.on(SocketEvent.JOIN_ROOM, ({ chatId }) => {
-      console.log("FLAG 2 - server joining room", chatId);
+    socket.on("join-chat", ({ chatId }) => {
+      console.log(`User joined chat: ${chatId}`);
       socket.join(chatId);
-      socket.emit(SocketEvent.JOIN_ROOM, { chatId }); // Notify client
-    });
-
-    socket.on(SocketEvent.LEAVE_ROOM, ({ chatId }) => {
-      console.log("FLAG 3 - server leaving room", chatId);
-      socket.leave(chatId);
     });
 
     socket.on(
-      SocketEvent.MESSAGE,
-      async ({ chatId, messages }: { chatId: string; messages: Message[] }) => {
+      "message",
+      async ({ message, chatId }: { message: Message; chatId: string }) => {
+        console.log("Received message:", message);
+        socket.to(chatId).emit("message", message);
+
         try {
-          // Add chatId to each message for database storage
-          const messagesWithChatId = messages.map((msg) => ({
-            ...msg,
-            chatId,
-            id: msg.id || Date.now().toString(), // Ensure unique ID
-          }));
+          const newMessage = await uploadMessage(message, chatId);
 
-          // Store messages in the database (using Prisma as assumed from your model)
-          const storedMessages: Message[] = await Promise.all(
-            messagesWithChatId.map((msg) =>
-              prisma.message.create({
-                data: {
-                  chatId: msg.chatId,
-                  senderId: msg.senderId,
-                  content: {
-                    toJSON: () => msg.content,
-                  },
-                  type: msg.type,
-                },
-                select: {
-                  id: true,
-                  senderId: true,
-                  content: true,
-                  type: true,
-                  createdAt: true,
-                  sender: {
-                    select: {
-                      id: true,
-                      username: true,
-                      email: true,
-                      password: true,
-                      isVerified: true,
-                      avatar: true,
-                    },
-                  },
-                },
-              })
-            )
-          );
-
-          // Broadcast to all clients in the chat room
-          io.to(chatId).emit(SocketEvent.MESSAGE, storedMessages);
-
-          // Send acknowledgment to the sender
-          socket.emit(SocketEvent.MESSAGE_ACK, {
-            chatId,
-            messageIds: storedMessages.map((m) => m.id),
+          console.log("Message saved:", newMessage);
+          socket.to(chatId).emit("message-saved", {
+            message: newMessage,
+            tempId: message.id,
           });
-        } catch (error) {
-          console.error("Error processing message:", error);
-          socket.emit(SocketEvent.MESSAGE_ERROR, {
-            chatId,
-            error: "Failed to send message",
+        } catch {
+          socket.emit("message-error", {
+            tempId: message.id,
           });
         }
       }
     );
 
-    socket.on("disconnect", () => {
-      console.log("FLAG 5 - from server (client disconnected)");
+    socket.on("typing-start", (data) => {
+      try {
+        const { chatId, userId } = data;
+
+        if (!chatId || !userId) {
+          console.error("Missing chatId or userId in typing-start event");
+          return;
+        }
+
+        socket.broadcast.to(chatId).emit("typing-start", {
+          userId,
+          chatId,
+        });
+      } catch (error) {
+        console.error("Error handling typing-start:", error);
+      }
     });
+
+    socket.on("typing-stop", (data) => {
+      try {
+        const { chatId, userId } = data;
+
+        if (!chatId || !userId) {
+          console.error("Missing chatId or userId in typing-stop event");
+          return;
+        }
+
+        socket.broadcast.to(chatId).emit("typing-stop", {
+          userId,
+          chatId,
+        });
+      } catch (error) {
+        console.error("Error handling typing-stop:", error);
+      }
+    });
+
+    socket.on("disconnect", () => {});
   });
+
   server.listen(port);
 });
 
-const SocketEvent = {
-  CONNECTION: "connection",
-  DISCONNECT: "disconnect",
-  JOIN_ROOM: "join-room",
-  LEAVE_ROOM: "leave-room",
-  MESSAGE: "chat-message",
-  ERROR: "error",
-  MESSAGE_ACK: "message-ack",
-  MESSAGE_ERROR: "message-error",
-} as const;
+const uploadMessage = async (
+  message: Message,
+  chatId: string
+): Promise<Message> => {
+  // only system messages lack a senderId
+  // so we can safely cast it to string
+  const userId = message.senderId as string;
 
-type SocketEvent = (typeof SocketEvent)[keyof typeof SocketEvent];
+  const prismaMessage = await prisma.message.create({
+    data: {
+      chat: {
+        connect: {
+          id: chatId,
+        },
+      },
+      type: message.type as MessageType,
+      createdAt: message.createdAt,
+      readBy: {
+        connect: {
+          id: userId,
+        },
+      },
+      textContent:
+        message.type === "TEXT"
+          ? {
+              create: {
+                text: message.content.text,
+                userMessage: {
+                  create: {
+                    userId,
+                  },
+                },
+              },
+            }
+          : undefined,
+      mediaContent:
+        message.type === "MEDIA"
+          ? {
+              create: {
+                urls: {
+                  createMany: {
+                    data: message.content.urls.map((url) => ({ url })),
+                  },
+                },
+                userMessage: {
+                  create: {
+                    userId,
+                  },
+                },
+              },
+            }
+          : undefined,
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      type: true,
+      textContent: {
+        select: {
+          text: true,
+          userMessage: {
+            select: {
+              userId: true,
+            },
+          },
+        },
+      },
+      mediaContent: {
+        select: {
+          urls: {
+            select: {
+              url: true,
+            },
+          },
+          userMessage: {
+            select: {
+              userId: true,
+            },
+          },
+        },
+      },
+      readBy: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (message.type !== "TEXT" && message.type !== "MEDIA") {
+    throw new Error(`Unsupported message type: ${message.type}`);
+  }
+
+  return {
+    id: prismaMessage.id,
+    createdAt: prismaMessage.createdAt,
+    isRead: false,
+    type: prismaMessage.type as MessageType,
+    content:
+      prismaMessage.type === "TEXT"
+        ? { text: prismaMessage.textContent?.text || "" }
+        : { urls: prismaMessage.mediaContent?.urls || [] },
+    senderId:
+      prismaMessage.textContent?.userMessage.userId ||
+      prismaMessage.mediaContent?.userMessage.userId ||
+      null,
+  } as Message;
+};

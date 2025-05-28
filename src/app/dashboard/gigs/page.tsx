@@ -4,11 +4,11 @@ import { Plus, AlertTriangle } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { GigCard } from "@/components/dashboard-gig-card";
+import DashboardGigCard from "@/components/dashboard-gig-card";
 import FilterCard from "@/components/filter-card";
 import SearchBar from "@/components/search-bar";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions";
 import { redirect } from "next/navigation";
 import Pagination from "@/components/pagination";
 
@@ -22,43 +22,23 @@ export default async function GigsPage({
     page: number;
   }>;
 }) {
-  const user = await getCurrentUser();
+  const user = await me();
 
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/dashboard/gigs");
   }
 
-  const { query, category, page } = await searchParams;
+  const { query = "", page = 1 } = await searchParams;
 
   const [gigs, gigCnt] = await Promise.all([
     prisma.gig.findMany({
       where: {
-        AND: [
-          {
-            sellerId: user.id,
-          },
-          {
-            OR: [
-              {
-                title: {
-                  contains: query,
-                },
-              },
-              {
-                description: {
-                  contains: query,
-                },
-              },
-            ],
-          },
-          {
-            category: {
-              slug: category,
-            },
-          },
-        ],
+        sellerId: user.id,
       },
-      include: {
+      select: {
+        title: true,
+        description: true,
+        id: true,
         reviews: {
           select: {
             rating: true,
@@ -91,30 +71,7 @@ export default async function GigsPage({
     }),
     prisma.gig.count({
       where: {
-        AND: [
-          {
-            sellerId: user.id,
-          },
-          {
-            OR: [
-              {
-                title: {
-                  contains: query,
-                },
-              },
-              {
-                description: {
-                  contains: query,
-                },
-              },
-            ],
-          },
-          {
-            category: {
-              slug: category,
-            },
-          },
-        ],
+        sellerId: user.id,
       },
     }),
   ]);
@@ -144,7 +101,10 @@ export default async function GigsPage({
             You haven&apos;t created any gigs yet. Create your first gig to
             start selling your services.
           </p>
-          <Link href="/dashboard/create" className={cn(buttonVariants({}))}>
+          <Link
+            href="/dashboard/gigs/create"
+            className={cn(buttonVariants({}))}
+          >
             <Plus className="mr-2 h-4 w-4" /> Create Your First Gig
           </Link>
         </div>
@@ -152,31 +112,7 @@ export default async function GigsPage({
         <>
           <div className="mb-6 flex flex-col lg:items-center lg:flex-row gap-2">
             <SearchBar className="flex-1" />
-            <FilterCard
-              config={[
-                {
-                  id: "category",
-                  label: "Category",
-                  type: "combobox",
-                  options: [
-                    { label: "Web Development", value: "web-development" },
-                    { label: "Graphic Design", value: "graphic-design" },
-                    { label: "Content Writing", value: "content-writing" },
-                  ],
-                },
-                {
-                  id: "sort",
-                  type: "checkbox",
-                  label: "Sort By",
-                  options: [
-                    { label: "Newest", value: "newest" },
-                    { label: "Oldest", value: "oldest" },
-                    { label: "Price High to Low", value: "price_high" },
-                    { label: "Price Low to High", value: "price_low" },
-                  ],
-                },
-              ]}
-            />
+            <FilterCard config={[]} />
           </div>
 
           {gigs.length === 0 ? (
@@ -191,7 +127,7 @@ export default async function GigsPage({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {gigs.map((gig) => (
-                <GigCard key={gig.id} gig={gig} />
+                <DashboardGigCard key={gig.id} gig={gig} />
               ))}
             </div>
           )}
