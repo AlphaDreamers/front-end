@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Mail, User, ArrowRight, Loader2, Key, UserCircle } from "lucide-react";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -33,6 +33,8 @@ import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+
   const [passwordStrength, setPasswordStrength] = useState(0);
 
   const { push } = useRouter();
@@ -53,7 +55,11 @@ export default function SignUpPage() {
     toast.promise(async () => signUp(values), {
       loading: "Creating account...",
       success: () => {
-        push("/verify-email?email=" + values.email);
+        const params = new URLSearchParams(searchParams);
+
+        params.set("email", values.email);
+
+        push("/verify-email?" + params.toString());
 
         return "Account created! Check your email to verify your account.";
       },
@@ -266,7 +272,7 @@ export default function SignUpPage() {
           </Form>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter> 
           <div className="text-center w-full text-sm text-muted-foreground leading-[0.5]">
             Already have an account?{" "}
             <Link
@@ -283,6 +289,7 @@ export default function SignUpPage() {
           </div>
         </CardFooter>
       </Card>
+
       <div className="mt-4 text-center text-xs text-muted-foreground max-w-3/4 mx-auto">
         <div>
           <UserCircle className="size-5 stroke-[1.125] inline-flex mr-2" />

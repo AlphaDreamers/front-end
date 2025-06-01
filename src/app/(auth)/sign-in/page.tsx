@@ -109,7 +109,20 @@ export default function SignInPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel className="flex items-center justify-between">
+                    <span>Password</span>
+                    <Link
+                      href="/forgot-password"
+                      className={cn(
+                        buttonVariants({
+                          variant: "link",
+                        }),
+                        "p-0 m-0 inline w-fit h-fit"
+                      )}
+                    >
+                      Forgot password?
+                    </Link>
+                  </FormLabel>
                   <FormControl className="relative">
                     <div>
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -153,7 +166,7 @@ export default function SignInPage() {
         <div className="text-center w-full text-sm text-muted-foreground leading-[0.5]">
           Don&apos;t have an account?{" "}
           <Link
-            href="/sign-in"
+            href="/sign-up"
             className={cn(
               buttonVariants({
                 variant: "link",

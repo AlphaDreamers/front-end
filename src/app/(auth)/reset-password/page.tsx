@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Key, Loader2, LockKeyhole, Shield } from "lucide-react";
+import { Key, Loader2, LockKeyhole, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -33,8 +33,8 @@ import { usePasswordStrength } from "@/hooks/use-password-strength";
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
 
-  const email = searchParams.get("email") || "";
-  const code = searchParams.get("code") || "";
+  const email = searchParams.get("email") ?? undefined;
+  const code = searchParams.get("code") ?? undefined;
 
   const { push } = useRouter();
 
@@ -49,7 +49,7 @@ export default function ResetPasswordPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof ResetPasswordFormSchema>) => {
-    toast.promise(async () => resetPassword(values), {
+    toast.promise(async () => await resetPassword(values), {
       loading: "Resetting password...",
       success: () => {
         push("/sign-in");
@@ -77,10 +77,11 @@ export default function ResetPasswordPage() {
     <main className="max-w-md">
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">
-          Create an account
+          Reset Password
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Join our freelance marketplace with crypto payments
+          Enter your new password below to reset your account password. Make
+          sure to choose a strong password that you can remember.
         </p>
       </div>
 
@@ -138,24 +139,6 @@ export default function ResetPasswordPage() {
                   </FormItem>
                 )}
               />
-
-              <Button
-                type="submit"
-                className="w-full mt-2"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    Resetting password...
-                  </>
-                ) : (
-                  <>
-                    Reset Password
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
             </CardContent>
 
             <CardFooter>
@@ -163,7 +146,7 @@ export default function ResetPasswordPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="animate-spin mr-2" />
-                    Verifying...
+                    Resetting password...
                   </>
                 ) : (
                   <>

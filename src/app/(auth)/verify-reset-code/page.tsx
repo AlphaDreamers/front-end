@@ -33,7 +33,7 @@ import {
 import { resendVerificationEmail, verifyEmail } from "@/lib/actions";
 import { VerifyEmailFormSchema } from "@/lib/schemas";
 
-export default function VerifyEmailPage() {
+export default function VerifyPasswordResetCode() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   const callbackUrl = searchParams.get("callback-url") || "/";
@@ -52,11 +52,7 @@ export default function VerifyEmailPage() {
     toast.promise(async () => verifyEmail(values), {
       loading: "Veryfying...",
       success: () => {
-        const params = new URLSearchParams(searchParams);
-        params.delete("email");
-        params.delete("code");
-        params.delete("callback-url");
-        push(`${callbackUrl}?${params.toString()}`);
+        push(callbackUrl);
 
         return "Email verified successfully!";
       },
