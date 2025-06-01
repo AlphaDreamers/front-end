@@ -10,19 +10,19 @@ import { cn } from "@/lib/utils";
 
 interface AuthCardProps {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
 }
 
-export function AuthCard({
+const AuthCard = ({
   title,
   description,
   children,
   footer,
   className,
-}: AuthCardProps) {
+}: AuthCardProps) => {
   return (
     <Card
       className={cn("animate-in fade-in-50 zoom-in-95 duration-300", className)}
@@ -45,4 +45,6 @@ export function AuthCard({
       )}
     </Card>
   );
-}
+};
+
+export default AuthCard;

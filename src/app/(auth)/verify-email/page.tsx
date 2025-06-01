@@ -21,10 +21,10 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { AuthCard } from "@/components/auth/auth-card";
+import AuthCard from "@/components/auth/auth-card";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { useCountdown } from "@/hooks/use-countdown";
-import { verifyEmail, resendVerificationEmail } from "@/lib/actions";
+import { verifyEmail, resendVerificationEmail } from "@/lib/actions/auth";
 import { VerifyEmailFormSchema } from "@/lib/schemas";
 
 export default function VerifyEmailPage() {
@@ -32,7 +32,8 @@ export default function VerifyEmailPage() {
   const email = searchParams.get("email") || "";
   const callbackUrl = searchParams.get("callback-url") || "/dashboard";
 
-  const { isLoading, handleSubmit } = useAuthForm();
+  const { isLoading, handleSubmit } =
+    useAuthForm<z.infer<typeof VerifyEmailFormSchema>>();
   const { timeLeft, isActive, start } = useCountdown(60);
   const otpRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +83,7 @@ export default function VerifyEmailPage() {
       title="Verify your email"
       description={
         <>
-          We've sent a verification code to
+          We&apos;ve sent a verification code to
           <br />
           <span className="font-medium text-foreground">{email}</span>
         </>
@@ -105,7 +106,7 @@ export default function VerifyEmailPage() {
           {/* Resend option with countdown */}
           <div className="text-center">
             <p className="text-sm text-muted-foreground mb-2">
-              Didn't receive the code? Check your spam folder or
+              Didn&apos;t receive the code? Check your spam folder or
             </p>
             <Button
               variant={isActive ? "ghost" : "outline"}
@@ -147,9 +148,9 @@ export default function VerifyEmailPage() {
                 <FormItem>
                   <FormControl>
                     <InputOTP
-                      ref={otpRef}
                       maxLength={6}
                       {...field}
+                      ref={otpRef}
                       disabled={isLoading}
                       className="justify-center"
                     >

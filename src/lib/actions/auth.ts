@@ -281,9 +281,6 @@ export async function verifyPasswordResetCode(
   if (!exists) {
     throw new Error("Invalid or expired code");
   }
-
-  // Don't delete the token - it's needed for the actual reset
-  return { verified: true };
 }
 
 export async function resetPassword(

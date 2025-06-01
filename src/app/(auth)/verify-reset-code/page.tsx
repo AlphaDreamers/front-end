@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useSearchParams } from "next/navigation";
+import { Shield, Clock } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,20 +19,21 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+
 import { VerifyResetPasswordCodeFormSchema } from "@/lib/schemas";
-import { Shield, Clock } from "lucide-react";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { useCountdown } from "@/hooks/use-countdown";
-import { AuthCard } from "@/components/auth/auth-card";
+import AuthCard from "@/components/auth/auth-card";
 import {
   resendPasswordResetCode,
   verifyPasswordResetCode,
-} from "@/lib/actions";
+} from "@/lib/actions/auth";
 
 export default function VerifyPasswordResetCode() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const { isLoading, handleSubmit } = useAuthForm();
+  const { isLoading, handleSubmit } =
+    useAuthForm<z.infer<typeof VerifyResetPasswordCodeFormSchema>>();
   const { timeLeft, isActive, start } = useCountdown(60);
 
   const form = useForm({
@@ -57,9 +60,13 @@ export default function VerifyPasswordResetCode() {
     if (isActive) return;
 
     start();
-    await handleSubmit(resendPasswordResetCode, email, {
-      successMessage: "New code sent to your email",
-    });
+    await handleSubmit(
+      async ({ email }) => resendPasswordResetCode(email),
+      { email, code: "" },
+      {
+        successMessage: "New code sent to your email",
+      }
+    );
   };
 
   return (
@@ -75,7 +82,7 @@ export default function VerifyPasswordResetCode() {
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">
-              Didn't receive the code?{" "}
+              Didn&apos;t receive the code?{" "}
             </span>
             <Button
               variant="link"

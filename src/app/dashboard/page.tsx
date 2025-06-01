@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import ActiveItemsCard from "@/components/dashboard/active-items-card";
 import WalletCard from "@/components/dashboard/wallet-card";
 import RecentActivityCard from "@/components/dashboard/recent-activity-card";
-import { me } from "@/lib/actions";
+import { me } from "@/lib/actions/auth";
 import { StatsSummary } from "@/components/dashboard/stats-summary";
 import { EarningsSummary } from "@/components/dashboard/earnings-summary";
 import { PerformanceStats } from "@/components/dashboard/performance-stats";

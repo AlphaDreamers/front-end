@@ -6,17 +6,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, CheckCircle, AlertCircle } from "lucide-react";
+import { Lock, CheckCircle, AlertCircle, KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthCard } from "@/components/auth/auth-card";
-import { FormInput } from "@/components/auth/form-fields";
+import AuthCard from "@/components/auth/auth-card";
+import FormInput from "@/components/auth/form-fields";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { usePasswordStrength } from "@/hooks/use-password-strength";
 import { ResetPasswordFormSchema } from "@/lib/schemas";
-import { resetPassword } from "@/lib/actions";
+import { resetPassword } from "@/lib/actions/auth";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
 
 export default function ResetPasswordPage() {
@@ -25,7 +25,8 @@ export default function ResetPasswordPage() {
   const email = searchParams.get("email") || undefined;
   const code = searchParams.get("code") || undefined;
 
-  const { isLoading, handleSubmit } = useAuthForm();
+  const { isLoading, handleSubmit } =
+    useAuthForm<z.infer<typeof ResetPasswordFormSchema>>();
   const [isSuccess, setIsSuccess] = useState(false);
 
   const form = useForm({
@@ -96,7 +97,7 @@ export default function ResetPasswordPage() {
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Choose a strong password that you haven't used before
+              Choose a strong password that you haven&apos;t used before
             </AlertDescription>
           </Alert>
 
@@ -171,7 +172,7 @@ export default function ResetPasswordPage() {
             label="Confirm new password"
             type="password"
             placeholder="Re-enter your new password"
-            icon={Lock}
+            icon={KeyRound}
             required
           />
 

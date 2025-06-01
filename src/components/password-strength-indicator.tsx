@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 
@@ -28,5 +26,4 @@ const PasswordStrengthIndicator = ({
     </div>
   );
 };
-
 export default PasswordStrengthIndicator;

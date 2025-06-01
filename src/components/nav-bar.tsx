@@ -53,7 +53,8 @@ import {
   ThemeToggle,
   SearchToggle,
 } from "./navbar-utils";
-import { getCategoryTree, me, signOut } from "@/lib/actions";
+import { getCategoryTree, signOut } from "@/lib/actions";
+import { me } from "@/lib/actions/auth";
 import Async from "./async";
 
 const NAVBAR_HEIGHT = 58;

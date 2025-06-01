@@ -9,11 +9,11 @@ import { Mail, Lock, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { AuthCard } from "@/components/auth/auth-card";
-import { FormInput } from "@/components/auth/form-fields";
+import AuthCard from "@/components/auth/auth-card";
+import FormInput from "@/components/auth/form-fields";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { SignInFormSchema } from "@/lib/schemas";
-import { signIn } from "@/lib/actions";
+import { signIn } from "@/lib/actions/auth";
 
 export default function SignInPage() {
   const { isLoading, handleSubmit, searchParams } =
@@ -51,7 +51,7 @@ export default function SignInPage() {
           {/* Primary footer action */}
           <div className="w-full text-center">
             <span className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
             </span>
             <Link
               href="/sign-up"

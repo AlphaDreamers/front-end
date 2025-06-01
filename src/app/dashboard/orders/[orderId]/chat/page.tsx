@@ -1,24 +1,25 @@
 import { notFound, redirect } from "next/navigation";
 
-import ChatArea from "./chat-area";
-import { getChatById, me } from "@/lib/actions";
+import { getChatByOrderId } from "@/lib/actions";
+import { me } from "@/lib/actions/auth";
+import ChatArea from "@/components/chat/chat-area";
 
 export default async function ChatPage({
   params,
 }: {
   params: Promise<{
-    chatId: string;
+    orderId: string;
   }>;
 }) {
-  const { chatId } = await params;
+  const { orderId } = await params;
 
   const user = await me();
 
   if (!user?.isVerified) {
-    redirect(`/sign-in?callback-url=/dashboard/chats/${chatId}`);
+    redirect(`/sign-in?callback-url=/dashboard/orders/${orderId}/chat`);
   }
 
-  const chat = await getChatById(chatId);
+  const chat = await getChatByOrderId(orderId);
 
   if (!chat) {
     return notFound();

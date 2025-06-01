@@ -1,3 +1,6 @@
+import { LucideIcon } from "lucide-react";
+import { Control, FieldValues, Path } from "react-hook-form";
+
 import {
   FormField,
   FormItem,
@@ -7,12 +10,11 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import PasswordInput from "@/components/password-input";
-import { LucideIcon } from "lucide-react";
-import { Control } from "react-hook-form";
 
-interface FormInputProps {
-  control: Control<any>;
+import PasswordInput from "@/components/password-input";
+
+interface FormInputProps<T extends FieldValues = FieldValues> {
+  control: Control<T, unknown, T>;
   name: string;
   label: string;
   placeholder?: string;
@@ -20,9 +22,9 @@ interface FormInputProps {
   icon?: LucideIcon;
   description?: string;
   required?: boolean;
+  onFocus?: () => void;
 }
-
-export function FormInput({
+const FormInput = <T extends FieldValues = FieldValues>({
   control,
   name,
   label,
@@ -31,11 +33,12 @@ export function FormInput({
   icon: Icon,
   description,
   required = false,
-}: FormInputProps) {
+  onFocus,
+}: FormInputProps<T>) => {
   return (
     <FormField
       control={control}
-      name={name}
+      name={name as Path<T>}
       render={({ field }) => (
         <FormItem>
           <FormLabel className="flex items-center gap-2">
@@ -53,6 +56,7 @@ export function FormInput({
                   {...field}
                   placeholder={placeholder}
                   className={Icon ? "pl-10" : ""}
+                  onFocus={onFocus}
                 />
               ) : (
                 <Input
@@ -60,6 +64,7 @@ export function FormInput({
                   type={type}
                   placeholder={placeholder}
                   className={Icon ? "pl-10" : ""}
+                  onFocus={onFocus}
                 />
               )}
             </div>
@@ -70,4 +75,5 @@ export function FormInput({
       )}
     />
   );
-}
+};
+export default FormInput;

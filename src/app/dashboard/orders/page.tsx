@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 import SearchBar from "@/components/search-bar";
 import FilterCard from "@/components/filter-card";
-import { me } from "@/lib/actions";
+import { me } from "@/lib/actions/auth";
 import { prisma } from "@/lib/prisma";
 import SolanaBuyButton from "@/components/solana-pay-button";
 
@@ -243,7 +243,7 @@ export default async function OrdersPage({}: {
                     )}
 
                     <Link
-                      href={`/dashboard/chats/${order.chat?.id}`}
+                      href={`/dashboard/orders/${order.id}/chat`}
                       className={cn(
                         buttonVariants({
                           variant: "outline",

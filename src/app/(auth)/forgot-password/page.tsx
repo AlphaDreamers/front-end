@@ -11,15 +11,16 @@ import { Mail, ArrowLeft, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthCard } from "@/components/auth/auth-card";
-import { FormInput } from "@/components/auth/form-fields";
+import AuthCard from "@/components/auth/auth-card";
+import FormInput from "@/components/auth/form-fields";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { ForgotPasswordFormSchema } from "@/lib/schemas";
 import { forgotPassword } from "@/lib/actions/auth";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const { isLoading, handleSubmit } = useAuthForm();
+  const { isLoading, handleSubmit } =
+    useAuthForm<z.infer<typeof ForgotPasswordFormSchema>>();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
 
@@ -59,7 +60,8 @@ export default function ForgotPasswordPage() {
           <Alert>
             <Mail className="h-4 w-4" />
             <AlertDescription>
-              We've sent a 6-digit code to <strong>{submittedEmail}</strong>
+              We&apos;ve sent a 6-digit code to{" "}
+              <strong>{submittedEmail}</strong>
               <br />
               Please check your inbox and spam folder.
             </AlertDescription>
@@ -91,8 +93,8 @@ export default function ForgotPasswordPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            Didn't receive the email? Please wait a few minutes and check your
-            spam folder.
+            Didn&apos;t receive the email? Please wait a few minutes and check
+            your spam folder.
           </p>
         </div>
       </AuthCard>
@@ -117,8 +119,8 @@ export default function ForgotPasswordPage() {
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              For security reasons, we'll send a reset code whether or not an
-              account exists with this email.
+              For security reasons, we&apos;ll send a reset code whether or not
+              an account exists with this email.
             </AlertDescription>
           </Alert>
         </div>

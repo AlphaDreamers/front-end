@@ -20,7 +20,7 @@ export const PasswordSchema = z
   });
 
 // Constant for password conditions (used in UI for password strength indicators)
-export const PASSWORD_SCHEMA_CONDITIONS_COUNT = 8;
+export const PASSWORD_SCHEMA_CONDITIONS_COUNT = 7;
 
 // --- Authentication Schemas ---
 
@@ -90,14 +90,23 @@ export const ResetPasswordFormSchema = z
 // Schema for creating a new wallet
 export const CreateNewWalletFormSchema = z
   .object({
-    name: z.string(),
+    name: z
+      .string()
+      .min(1, "Wallet name is required")
+      .max(50, "Wallet name must be less than 50 characters")
+      .regex(
+        /^[a-zA-Z0-9\s-_]+$/,
+        "Wallet name can only contain letters, numbers, spaces, hyphens, and underscores"
+      ),
     password: PasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  });
+  })
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  .transform(({ confirmPassword, ...rest }) => rest);
 
 // Schema for importing an existing wallet using a mnemonic
 export const ImportWalletFormSchema = z
@@ -125,7 +134,7 @@ export const ImportWalletFormSchema = z
   });
 
 // Schema for verifying the mnemonic phrase
-export const MneumonicsVerificationSchema = z.object({
+export const MneumonicsVerificationFormSchema = z.object({
   mnemonic: z.array(z.string()),
 });
 

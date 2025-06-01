@@ -13,6 +13,7 @@ import {
 } from "@/lib/schemas";
 import { Chat, CLODUINARY_CONFIG, UploadPreset } from "./types";
 import { Prisma } from "@prisma/client";
+import { me } from "./actions/auth";
 
 export async function signOut() {
   const cookieStore = await cookies();
@@ -770,25 +771,6 @@ export const confirmPayment = async (orderId: string) => {
   return order;
 };
 
-export const createWallet = async (values: {
-  publicKey: string;
-  name: string;
-}) => {
-  const user = await me();
-
-  if (!user?.isVerified) throw new Error("User not authenticated");
-
-  const { publicKey, name } = values;
-
-  await prisma.wallet.create({
-    data: {
-      publicKey,
-      name,
-      userId: user.id,
-    },
-  });
-};
-
 export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
   const user = await me();
   if (!user) {
@@ -805,7 +787,9 @@ export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
   });
 };
 
-export const getChatById = async (chatId: string): Promise<Chat | null> => {
+export const getChatByOrderId = async (
+  orderId: string
+): Promise<Chat | null> => {
   const currentUser = await me();
 
   if (!currentUser) {
@@ -814,7 +798,7 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
 
   const chat = await prisma.chat.findUnique({
     where: {
-      id: chatId,
+      orderId,
     },
     select: {
       id: true,

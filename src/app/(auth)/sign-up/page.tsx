@@ -6,17 +6,26 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, User, Lock, ArrowRight, Check, X } from "lucide-react";
+import {
+  Mail,
+  User,
+  Lock,
+  ArrowRight,
+  Check,
+  X,
+  AtSign,
+  KeyRound,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { AuthCard } from "@/components/auth/auth-card";
-import { FormInput } from "@/components/auth/form-fields";
+import AuthCard from "@/components/auth/auth-card";
+import FormInput from "@/components/auth/form-fields";
 import { useAuthForm } from "@/hooks/use-auth-state";
 import { usePasswordStrength } from "@/hooks/use-password-strength";
 import { SignUpFormSchema } from "@/lib/schemas";
-import { signUp } from "@/lib/actions";
+import { signUp } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
 // Password requirement component for better UX
@@ -145,7 +154,7 @@ export default function SignUpPage() {
             name="username"
             label="Username"
             placeholder="johndoe"
-            icon={User}
+            icon={AtSign}
             description="This will be your public display name"
             required
           />
@@ -217,7 +226,7 @@ export default function SignUpPage() {
             label="Confirm password"
             type="password"
             placeholder="Re-enter your password"
-            icon={Lock}
+            icon={KeyRound}
             required
           />
 

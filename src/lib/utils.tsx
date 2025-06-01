@@ -76,7 +76,11 @@ export const getPasswordStrengthColor = (strength: number): string => {
 export const encryptPrivateKey = async (
   privateKey: Uint8Array,
   password: string
-) => {
+): Promise<{
+  encryptedPrivateKey: string;
+  salt: string;
+  iv: string;
+}> => {
   if (!privateKey || privateKey.length === 0) {
     throw new Error("Invalid private key provided");
   }
