@@ -57,12 +57,16 @@ export default async function GigsPage({
         },
         category: {
           select: {
-            label: true,
+            title: true,
           },
         },
         images: {
           select: {
-            url: true,
+            file: {
+              select: {
+                url: true,
+              },
+            },
           },
         },
       },

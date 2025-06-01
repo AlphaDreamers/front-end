@@ -11,7 +11,7 @@ import { SkillsSection } from "@/components/profile/skills-section";
 import { GigsGallery } from "@/components/gigs-gallery";
 import ReviewsSection from "@/components/reviews-section";
 import PortfolioSection from "@/components/profile/portfolio-section";
-import { getCurrentUser, getSimilarSellers } from "@/lib/actions";
+import { me, getSimilarSellers } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import SimilarSellersCard from "@/components/profile/similar-sellers-card";
 import ConnectCard from "@/components/profile/connect-card";
@@ -44,7 +44,11 @@ const getUser = async (username: string) => {
           },
           images: {
             select: {
-              url: true,
+              file: {
+                select: {
+                  url: true,
+                },
+              },
             },
           },
           reviews: {
@@ -54,7 +58,7 @@ const getUser = async (username: string) => {
           },
           tags: {
             select: {
-              label: true,
+              title: true,
             },
           },
           packages: {
@@ -72,7 +76,7 @@ const getUser = async (username: string) => {
           id: true,
           category: {
             select: {
-              label: true,
+              title: true,
             },
           },
         },
@@ -101,7 +105,15 @@ const getUser = async (username: string) => {
         select: {
           id: true,
           title: true,
-          images: true,
+          images: {
+            select: {
+              file: {
+                select: {
+                  url: true,
+                },
+              },
+            },
+          },
           description: true,
           url: true,
         },
@@ -162,9 +174,9 @@ export default async function ProfilePage({
     return notFound();
   }
 
-  const me = await getCurrentUser();
+  const currentUser = await me();
 
-  const isMe = me?.id === user.id;
+  const isMe = currentUser?.id === user.id;
 
   const isAuth = !!me;
 
@@ -233,12 +245,14 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      <div className="flex flex-col lg:w-1/3 gap-4">
-        {user.socialLinks.length > 0 && (
-          <ConnectCard links={user.socialLinks} />
-        )}
+      <div className="lg:w-1/3">
+        <div className="sticky top-20 flex flex-col gap-4">
+          {user.socialLinks.length > 0 && (
+            <ConnectCard links={user.socialLinks} />
+          )}
 
-        <SimilarSellersCard getSimilarSellers={getSimilarSellers} />
+          <SimilarSellersCard getSimilarSellers={getSimilarSellers} />
+        </div>
       </div>
     </div>
   );

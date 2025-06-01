@@ -1,32 +1,55 @@
-//import { FeaturedGigs } from "@/components/home/featured-gigs";
-import { CategoriesShowcase } from "@/components/home/categories-showcase";
-import { Footer } from "@/components/footer";
-import { prisma } from "@/lib/prisma";
 import HeroSection from "@/components/home/hero-section";
+import { FeaturedGigs } from "@/components/home/featured-gigs";
+import { CategoriesShowcase } from "@/components/home/categories-showcase";
+import TestimonialsSection from "@/components/home/testimonials-section";
+import { prisma } from "@/lib/prisma";
+import { Category, Color, Gig, LucideIconName, Testimonial } from "@/lib/types";
 
-export default async function HomePage() {
-  await prisma.gig.findMany({
+const getCategories = async (): Promise<Category[]> => {
+  const categories = await prisma.category.findMany({
     select: {
+      id: true,
       title: true,
-      seller: {
+      _count: {
         select: {
-          avatar: true,
-          username: true,
-          badgeProgress: {
-            select: {
-              isFeatured: true,
-              badge: {
-                select: {
-                  title: true,
-                },
-              },
-            },
-          },
+          gigs: true,
         },
       },
+      icon: true,
+      color: true,
+    },
+    take: 10,
+  });
+
+  return categories.map((category) => ({
+    id: category.id,
+    label: category.title,
+    gigsCnt: category._count.gigs,
+    icon: category.icon as LucideIconName,
+    color: category.color as Color,
+  }));
+};
+
+const getFeaturedGigs = async (): Promise<Gig[]> => {
+  const gigs = await prisma.gig.findMany({
+    take: 10,
+    select: {
+      id: true,
+      packages: {
+        select: {
+          price: true,
+        },
+      },
+      title: true,
+      description: true,
       images: {
         select: {
-          url: true,
+          isPrimary: true,
+          file: {
+            select: {
+              url: true,
+            },
+          },
         },
       },
       reviews: {
@@ -36,44 +59,134 @@ export default async function HomePage() {
       },
       tags: {
         select: {
-          label: true,
+          title: true,
+          id: true,
         },
       },
-      packages: {
+      seller: {
         select: {
-          title: true,
-          price: true,
-          orders: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          publicKey: true,
+          avatar: true,
+          badgeProgress: {
+            where: {
+              isFeatured: true,
+            },
             select: {
-              id: true,
+              badge: {
+                select: {
+                  title: true,
+                },
+              },
             },
           },
         },
       },
-      description: true,
-      id: true,
     },
   });
 
-  const categories = await prisma.category.findMany({
+  return gigs.map((gig) => ({
+    id: gig.id,
+    image:
+      gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
+    startsAtPrice: gig.packages.reduce(
+      (min, pkg) => Math.min(min, pkg.price),
+      Infinity
+    ),
+    title: gig.title,
+    description: gig.description,
+    ratingCount: gig.reviews.length,
+    averageRating:
+      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
+      (gig.reviews.length || 1),
+    tags: gig.tags.map((tag) => ({
+      id: tag.id,
+      label: tag.title,
+    })),
+    seller: {
+      id: gig.seller.id,
+      username: gig.seller.username,
+      firstName: gig.seller.firstName,
+      lastName: gig.seller.lastName,
+      publicKey: gig.seller.publicKey,
+      badge:
+        gig.seller.badgeProgress.length > 0
+          ? {
+              title: gig.seller.badgeProgress[0].badge.title,
+            }
+          : null,
+      avatar: gig.seller.avatar,
+    },
+  }));
+};
+
+const getTestimonials = async (): Promise<Testimonial[]> => {
+  const testimonials = await prisma.testimonialContent.findMany({
     select: {
       id: true,
-      label: true,
-      _count: {
+      content: true,
+      rating: true,
+      contactMessage: {
         select: {
-          gigs: true,
+          author: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              publicKey: true,
+              avatar: true,
+              badgeProgress: {
+                where: {
+                  isFeatured: true,
+                },
+                select: {
+                  badge: {
+                    select: {
+                      title: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
-    take: 12,
   });
 
+  return testimonials.map((testimonial) => ({
+    id: testimonial.id,
+    content: testimonial.content,
+    rating: testimonial.rating,
+    author: {
+      id: testimonial.contactMessage.author!.id,
+      username: testimonial.contactMessage.author!.username,
+      firstName: testimonial.contactMessage.author!.firstName,
+      lastName: testimonial.contactMessage.author!.lastName,
+      publicKey: testimonial.contactMessage.author!.publicKey,
+      avatar: testimonial.contactMessage.author!.avatar,
+      badge:
+        testimonial.contactMessage.author!.badgeProgress.length > 0
+          ? {
+              title:
+                testimonial.contactMessage.author!.badgeProgress[0].badge.title,
+            }
+          : null,
+    },
+  }));
+};
+
+export default async function HomePage() {
   return (
     <main className="flex min-h-screen flex-col">
       <HeroSection />
-      {/*<FeaturedGigs gigs={gigs} />*/}
-      <CategoriesShowcase categories={categories} />
-      <Footer />
+      <FeaturedGigs getFeaturedGigs={getFeaturedGigs} />
+      <CategoriesShowcase getCategories={getCategories} />
+      <TestimonialsSection getTestimonials={getTestimonials} />
     </main>
   );
 }

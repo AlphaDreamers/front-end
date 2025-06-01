@@ -243,7 +243,7 @@ export default async function OrdersPage({}: {
                     )}
 
                     <Link
-                      href={`/dashoard/chats/${order.chat?.id}`}
+                      href={`/dashboard/chats/${order.chat?.id}`}
                       className={cn(
                         buttonVariants({
                           variant: "outline",

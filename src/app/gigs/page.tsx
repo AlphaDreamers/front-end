@@ -1,11 +1,10 @@
-import { Prisma } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
 
 import GigCard from "@/components/gig-card";
 import Pagination from "@/components/pagination";
 import SearchBar from "@/components/search-bar";
 import FilterCard from "@/components/filter-card";
+import { Gig } from "@/lib/types";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -26,86 +25,8 @@ export default async function BrowseGigsPage({
 }) {
   const { query } = await searchParams;
 
-  const [gigs, cnt] = await Promise.all([
-    prisma.gig.findMany({
-      select: {
-        title: true,
-        seller: {
-          select: {
-            avatar: true,
-            username: true,
-            badgeProgress: {
-              select: {
-                isFeatured: true,
-                badge: {
-                  select: {
-                    title: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        images: {
-          select: {
-            url: true,
-          },
-        },
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
-        tags: {
-          select: {
-            label: true,
-          },
-        },
-        packages: {
-          select: {
-            title: true,
-            price: true,
-            orders: {
-              select: {
-                id: true,
-              },
-            },
-          },
-        },
-        description: true,
-        id: true,
-      },
-      where: {
-        OR: [
-          {
-            title: {
-              contains: query,
-            },
-          },
-          {
-            seller: {
-              OR: [
-                {
-                  username: {
-                    contains: query,
-                  },
-                },
-                {
-                  firstName: {
-                    contains: query,
-                  },
-                },
-                {
-                  lastName: {
-                    contains: query,
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    }),
+  const [gigs = [], cnt = 0] = await Promise.all([
+    getFeaturedGigs(),
     prisma.gig.count({
       where: {
         OR: [
@@ -181,3 +102,96 @@ export default async function BrowseGigsPage({
     </div>
   );
 }
+
+const getFeaturedGigs = async (): Promise<Gig[]> => {
+  const gigs = await prisma.gig.findMany({
+    take: 10,
+    select: {
+      id: true,
+      packages: {
+        select: {
+          price: true,
+        },
+      },
+      title: true,
+      description: true,
+      images: {
+        select: {
+          isPrimary: true,
+          file: {
+            select: {
+              url: true,
+            },
+          },
+        },
+      },
+      reviews: {
+        select: {
+          rating: true,
+        },
+      },
+      tags: {
+        select: {
+          title: true,
+          id: true,
+        },
+      },
+      seller: {
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          publicKey: true,
+          avatar: true,
+          badgeProgress: {
+            where: {
+              isFeatured: true,
+            },
+            select: {
+              badge: {
+                select: {
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return gigs.map((gig) => ({
+    id: gig.id,
+    image:
+      gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
+    startsAtPrice: gig.packages.reduce(
+      (min, pkg) => Math.min(min, pkg.price),
+      Infinity
+    ),
+    title: gig.title,
+    description: gig.description,
+    ratingCount: gig.reviews.length,
+    averageRating:
+      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
+      (gig.reviews.length || 1),
+    tags: gig.tags.map((tag) => ({
+      id: tag.id,
+      label: tag.title,
+    })),
+    seller: {
+      id: gig.seller.id,
+      username: gig.seller.username,
+      firstName: gig.seller.firstName,
+      lastName: gig.seller.lastName,
+      publicKey: gig.seller.publicKey,
+      badge:
+        gig.seller.badgeProgress.length > 0
+          ? {
+              title: gig.seller.badgeProgress[0].badge.title,
+            }
+          : null,
+      avatar: gig.seller.avatar,
+    },
+  }));
+};

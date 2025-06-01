@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Link, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Prisma } from "@prisma/client";
 import {
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface PackageComparisonProps {
   packages: Prisma.PackageGetPayload<{

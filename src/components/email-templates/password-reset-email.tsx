@@ -2,11 +2,12 @@ import React from "react";
 
 interface PasswordResetEmailTemplateProps {
   code: string;
+  email: string;
 }
 
 const PasswordResetEmailTemplate: React.FC<
   Readonly<PasswordResetEmailTemplateProps>
-> = ({ code }) => {
+> = ({ code, email }) => {
   return (
     <div
       style={{
@@ -47,7 +48,7 @@ const PasswordResetEmailTemplate: React.FC<
           textAlign: "center",
         }}
       >
-        <p
+        <a
           style={{
             color: "#4263eb",
             fontSize: "28px",
@@ -55,9 +56,10 @@ const PasswordResetEmailTemplate: React.FC<
             letterSpacing: "5px",
             margin: "10px 0",
           }}
+          href={`${process.env.NEXT_PUBLIC_SERVER_URL}/reset-password?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`}
         >
-          {code}
-        </p>
+          Reset password
+        </a>
       </div>
 
       <p
@@ -67,7 +69,7 @@ const PasswordResetEmailTemplate: React.FC<
           lineHeight: "24px",
         }}
       >
-        This code will expire in 24 hours. If you didn't request a password
+        This code will expire in 24 hours. If you didn&apos;t request a password
         reset, please ignore this email or contact support if you have concerns
         about your account security.
       </p>

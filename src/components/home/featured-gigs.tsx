@@ -1,5 +1,4 @@
 import { ArrowRight } from "lucide-react";
-import { Prisma } from "@prisma/client";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -12,61 +11,15 @@ import {
 } from "../ui/carousel";
 import { cn } from "@/lib/utils";
 
-import GigCard from "../gig-card";
+import GigCard, { GigCardSkeleton } from "../gig-card";
+import { Gig } from "@/lib/types";
+import Async from "../async";
 
 interface FeaturedGigsProps {
-  gigs: Prisma.GigGetPayload<{
-    select: {
-      title: true;
-      seller: {
-        select: {
-          avatar: true;
-          username: true;
-          badgeProgress: {
-            select: {
-              isFeatured: true;
-              badge: {
-                select: {
-                  title: true;
-                };
-              };
-            };
-          };
-        };
-      };
-      images: {
-        select: {
-          url: true;
-        };
-      };
-      reviews: {
-        select: {
-          rating: true;
-        };
-      };
-      tags: {
-        select: {
-          label: true;
-        };
-      };
-      packages: {
-        select: {
-          title: true;
-          price: true;
-          orders: {
-            select: {
-              id: true;
-            };
-          };
-        };
-      };
-      description: true;
-      id: true;
-    };
-  }>[];
+  getFeaturedGigs: () => Promise<Gig[]>;
 }
 
-export function FeaturedGigs({ gigs }: FeaturedGigsProps) {
+export function FeaturedGigs({ getFeaturedGigs }: FeaturedGigsProps) {
   return (
     <section className="w-full py-16">
       <Carousel className="container mx-auto px-4">
@@ -79,16 +32,31 @@ export function FeaturedGigs({ gigs }: FeaturedGigsProps) {
         </div>
 
         <CarouselContent className="-ml-1">
-          {gigs.map((gig) => (
-            <CarouselItem
-              key={gig.id}
-              className="pl-1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5"
-            >
-              <div className="p-1 h-full">
-                <GigCard key={gig.id} {...gig} />
-              </div>
-            </CarouselItem>
-          ))}
+          <Async fetch={getFeaturedGigs} fallback={<FeaturedGigsSkeleton />}>
+            {(gigs) =>
+              gigs.length !== 0 ? (
+                gigs.map((gig) => (
+                  <CarouselItem
+                    key={gig.id}
+                    className="pl-1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5"
+                  >
+                    <div className="p-1 h-full">
+                      <GigCard key={gig.id} gig={gig} />
+                    </div>
+                  </CarouselItem>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center w-full h-80">
+                  <h4 className="text-xl font-semibold text-muted-foreground">
+                    No featured gigs available at the moment.
+                  </h4>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Check back later or explore other categories.
+                  </p>
+                </div>
+              )
+            }
+          </Async>
         </CarouselContent>
 
         <div className="mt-4 text-center">
@@ -109,3 +77,16 @@ export function FeaturedGigs({ gigs }: FeaturedGigsProps) {
     </section>
   );
 }
+
+const FeaturedGigsSkeleton = () => {
+  return Array.from({ length: 10 }).map((_, index) => (
+    <CarouselItem
+      key={index}
+      className="pl-1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5"
+    >
+      <div className="p-1 h-full">
+        <GigCardSkeleton />
+      </div>
+    </CarouselItem>
+  ));
+};

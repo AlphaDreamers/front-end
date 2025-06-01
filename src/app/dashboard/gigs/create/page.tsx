@@ -7,7 +7,7 @@ const getCategories = async () => {
   return await prisma.category.findMany({
     select: {
       id: true,
-      label: true,
+      title: true,
     },
   });
 };
@@ -16,7 +16,7 @@ const getTags = async () => {
   return await prisma.tag.findMany({
     select: {
       id: true,
-      label: true,
+      title: true,
     },
   });
 };

@@ -9,10 +9,10 @@ import { cookies } from "next/headers";
 
 import { prisma } from "@/lib/prisma";
 import {
-  ContactSellerFormSchema,
   CreateGigFormSchema,
   ForgotPasswordFormSchema,
   KycFormSchema,
+  PasswordResetCodeSchema,
   ResetPasswordFormSchema,
   SignInFormSchema,
   SignUpFormSchema,
@@ -22,15 +22,9 @@ import {
 } from "@/lib/schemas";
 import VerificationEmailTemplate from "@/components/email-templates/verification-email";
 import WelcomeEmailTemplate from "@/components/email-templates/welcome-email";
+import { Chat, CLODUINARY_CONFIG, JWTToken, UploadPreset } from "./types";
+import { Prisma } from "@prisma/client";
 import PasswordResetEmailTemplate from "@/components/email-templates/password-reset-email";
-import {
-  Chat,
-  CLODUINARY_CONFIG,
-  JWTToken,
-  Message,
-  UploadPreset,
-} from "./types";
-import { MessageType, Prisma } from "@prisma/client";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -244,11 +238,7 @@ export async function signIn(values: z.infer<typeof SignInFormSchema>) {
   });
 }
 
-export async function forgotPassword(
-  values: z.infer<typeof ForgotPasswordFormSchema>
-) {
-  const { email } = values;
-
+export async function resendPasswordResetCode(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -268,131 +258,90 @@ export async function forgotPassword(
   }
 
   if (!user.isVerified) {
-    throw new Error("Please verify your email first");
+    throw new Error("Email is not verified");
   }
 
+  // Generate new reset code
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
   await prisma.$transaction(async () => {
-    if (user.verificationToken) {
-      await prisma.verificationToken.delete({
+    if (
+      user.verificationToken &&
+      user.verificationToken.expiresAt > new Date()
+    ) {
+      // Update existing token if it hasn't expired
+      await prisma.verificationToken.update({
         where: { userId: user.id },
+        data: {
+          code: resetCode,
+          expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+        },
+      });
+    } else {
+      // Create new token if it doesn't exist or has expired
+      await prisma.verificationToken.create({
+        data: {
+          userId: user.id,
+          code: resetCode,
+          expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+        },
       });
     }
 
-    await prisma.verificationToken.create({
-      data: {
-        userId: user.id,
-        code: resetCode,
-        expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-      },
-    });
-
+    // Send reset code email
     const { error } = await resend.emails.send({
       from: DEFAULT_FROM_EMAIL,
       to: [email],
       subject: "Reset your password",
-      react: await PasswordResetEmailTemplate({ code: resetCode }),
+      react: await PasswordResetEmailTemplate({ code: resetCode, email }),
     });
 
     if (error) {
-      throw new Error("Failed to send password reset email");
+      throw new Error(
+        "Failed to send password reset email. Please try again later."
+      );
     }
   });
 }
 
-/**
- * Verify password reset code and set auth token
- */
-export async function verifyPasswordResetCode(email: string, code: string) {
+export async function resetPassword({
+  email,
+  code,
+  newPassword,
+}: z.infer<typeof ResetPasswordFormSchema>) {
+  const user = await me();
+
+  if (user) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: await argon2.hash(newPassword),
+      },
+    });
+    return;
+  }
+
   const token = await prisma.verificationToken.findFirst({
     where: {
       code,
       user: { email },
     },
-    include: {
-      user: true,
-    },
+    include: { user: true },
   });
 
-  if (!token) {
-    throw new Error("Invalid reset code");
+  if (!token || token.expiresAt.getTime() < Date.now()) {
+    throw new Error("Invalid or expired code");
   }
 
-  if (token.expiresAt < new Date()) {
-    throw new Error("Reset code has expired");
-  }
-
-  try {
-    // Create special reset token
-    const resetToken = jwt.sign(
-      { id: token.user.id, purpose: "password-reset" },
-      process.env.JWT_SECRET!,
-      { expiresIn: "15m" } // Short expiry for security
-    );
-
-    // Set HTTP-only cookie
-    const cookieStore = await cookies();
-    cookieStore.set("reset_token", resetToken, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 15 * 60, // 15 minutes in seconds
-      path: "/",
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Verify reset code error:", error);
-    throw new Error("Failed to verify reset code. Please try again later.");
-  }
-}
-
-export async function resetPassword(
-  values: z.infer<typeof ResetPasswordFormSchema>
-) {
-  const { password } = values;
-
-  const cookieStore = await cookies();
-  const resetToken = cookieStore.get("reset_token")?.value;
-
-  if (!resetToken) {
-    throw new Error("Reset session expired");
-  }
-
-  try {
-    // Verify token is valid and for password reset
-    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET!) as {
-      id: string;
-      purpose?: string;
-    };
-
-    if (decoded.purpose !== "password-reset") {
-      throw new Error("Invalid reset session");
-    }
-
-    // Update password
-    await prisma.user.update({
-      where: { id: decoded.id },
-      data: {
-        password: await argon2.hash(password),
-      },
-    });
-
-    // Clear reset token cookie
-    cookieStore.set("reset_token", "", {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: -1,
-      path: "/",
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Reset password error:", error);
-    throw new Error("Failed to reset password. Please try again later.");
-  }
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: token.user.id },
+      data: { password: await argon2.hash(newPassword) },
+    }),
+    prisma.verificationToken.delete({
+      where: { id: token.id },
+    }),
+  ]);
 }
 
 export async function signOut() {
@@ -1187,19 +1136,21 @@ export const confirmPayment = async (orderId: string) => {
   return order;
 };
 
-export const addWallet = async (publicKey: string) => {
+export const createWallet = async (values: {
+  publicKey: string;
+  name: string;
+}) => {
   const user = await me();
 
   if (!user?.isVerified) throw new Error("User not authenticated");
 
-  if (user.publicKey) {
-    throw new Error("Wallet already added");
-  }
+  const { publicKey, name } = values;
 
-  await prisma.user.update({
-    where: { id: user.id },
+  await prisma.wallet.create({
     data: {
       publicKey,
+      name,
+      userId: user.id,
     },
   });
 };
@@ -1278,7 +1229,7 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
           },
           mediaContent: {
             select: {
-              urls: {
+              files: {
                 select: {
                   url: true,
                 },
@@ -1307,6 +1258,23 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
       createdAt: ms.createdAt,
       isRead: ms.readBy.some((user) => user.id === currentUser.id),
       type: ms.type,
+      content:
+        ms.type === "TEXT"
+          ? {
+              text: ms.textContent?.text || "",
+            }
+          : ms.type === "MEDIA"
+            ? {
+                urls: ms.mediaContent?.files.map((url) => url.url) || [],
+              }
+            : {
+                type: ms.systemContent?.type,
+                content: ms.systemContent?.content || "",
+              },
+      senderId:
+        ms.textContent?.userMessage.userId ||
+        ms.mediaContent?.userMessage.userId ||
+        null,
     })),
   } as Chat;
 };
@@ -1368,7 +1336,7 @@ type CategoryWithChildren = {
 const constructSelectQuery = (depth: number): Prisma.CategorySelect => {
   const baseSelect: Prisma.CategorySelect = {
     id: true,
-    label: true,
+    title: true,
   };
 
   if (depth <= 0) {
@@ -1429,3 +1397,83 @@ export const uploadFileToCloudinary = async (
 
   return result.secure_url as string;
 };
+
+export const getTestimolnials = async () => {
+  return prisma.testimonialContent.findMany({
+    select: {
+      id: true,
+      rating: true,
+      content: true,
+      contactMessage: {
+        select: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export async function forgotPassword(
+  values: z.infer<typeof ForgotPasswordFormSchema>
+) {
+  const { email } = values;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      isVerified: true,
+      verificationToken: {
+        select: {
+          code: true,
+          expiresAt: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (!user.isVerified) {
+    throw new Error("Please verify your email first");
+  }
+
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  await prisma.$transaction(async () => {
+    if (user.verificationToken) {
+      await prisma.verificationToken.delete({
+        where: { userId: user.id },
+      });
+    }
+
+    await prisma.verificationToken.create({
+      data: {
+        userId: user.id,
+        code: resetCode,
+        expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+      },
+    });
+
+    const { error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email],
+      subject: "Reset your password",
+      react: await PasswordResetEmailTemplate({ code: resetCode, email }),
+    });
+
+    if (error) {
+      throw new Error("Failed to send password reset email");
+    }
+  });
+}

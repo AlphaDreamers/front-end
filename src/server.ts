@@ -103,6 +103,20 @@ const uploadMessage = async (
   // so we can safely cast it to string
   const userId = message.senderId as string;
 
+  let mediaFiles;
+  if (message.type === "MEDIA") {
+    mediaFiles = await Promise.all(
+      message.content.urls.map(async (url) =>
+        prisma.mediaFile.create({
+          data: {
+            url,
+            type: "IMAGE",
+          },
+        })
+      )
+    );
+  }
+
   const prismaMessage = await prisma.message.create({
     data: {
       chat: {
@@ -134,10 +148,11 @@ const uploadMessage = async (
         message.type === "MEDIA"
           ? {
               create: {
-                urls: {
-                  createMany: {
-                    data: message.content.urls.map((url) => ({ url })),
-                  },
+                files: {
+                  connect:
+                    mediaFiles?.map((file) => ({
+                      id: file.id,
+                    })) || [],
                 },
                 userMessage: {
                   create: {
@@ -164,8 +179,9 @@ const uploadMessage = async (
       },
       mediaContent: {
         select: {
-          urls: {
+          files: {
             select: {
+              id: true,
               url: true,
             },
           },
@@ -196,7 +212,7 @@ const uploadMessage = async (
     content:
       prismaMessage.type === "TEXT"
         ? { text: prismaMessage.textContent?.text || "" }
-        : { urls: prismaMessage.mediaContent?.urls || [] },
+        : { urls: prismaMessage.mediaContent?.files.map((f) => f.url) || [] },
     senderId:
       prismaMessage.textContent?.userMessage.userId ||
       prismaMessage.mediaContent?.userMessage.userId ||

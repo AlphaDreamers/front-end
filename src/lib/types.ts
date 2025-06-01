@@ -1,4 +1,9 @@
 import { SystemContentType } from "@prisma/client";
+import * as icons from "lucide-react";
+
+export type LucideIconName = keyof typeof icons;
+
+export type Color = "purple" | "green" | "gray" | "blue" | "green" | "yellow";
 
 export type Message = { id: string } & (
   | {
@@ -31,22 +36,22 @@ export type Message = { id: string } & (
     }
 );
 
+type User = {
+  id: string;
+  username: string;
+  avatar: string | null;
+  firstName: string;
+  lastName: string;
+  publicKey: string | null;
+  badge: {
+    title: string;
+  } | null;
+};
+
 export type Chat = {
   id: string;
-  buyer: {
-    id: string;
-    username: string;
-    avatar: string | null;
-    firstName: string;
-    lastName: string;
-  };
-  seller: {
-    id: string;
-    username: string;
-    avatar: string | null;
-    firstName: string;
-    lastName: string;
-  };
+  buyer: User;
+  seller: User;
   messages: Message[];
 };
 
@@ -62,3 +67,35 @@ export const CLODUINARY_CONFIG = {
 };
 
 export type UploadPreset = keyof typeof CLODUINARY_CONFIG;
+
+export interface Category {
+  id: string;
+  label: string;
+  gigsCnt: number;
+  icon: LucideIconName;
+  color: Color;
+}
+
+export interface Testimonial {
+  id: string;
+  author: User;
+  content: string;
+  rating: number;
+}
+
+interface Tag {
+  id: string;
+  label: string;
+}
+
+export interface Gig {
+  id: string;
+  seller: User;
+  image: string;
+  startsAtPrice: number;
+  tags: Tag[];
+  title: string;
+  description: string;
+  averageRating: number;
+  ratingCount: number;
+}

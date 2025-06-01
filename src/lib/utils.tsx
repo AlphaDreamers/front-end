@@ -10,6 +10,8 @@ import {
   Globe,
   MessageSquare,
 } from "lucide-react";
+import { PASSWORD_SCHEMA_CONDITIONS_COUNT, PasswordSchema } from "./schemas";
+import { encode } from "bs58";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,12 +47,115 @@ export const getIconBySocialType = (
   }
 };
 
-export const fileToBase64 = (
-  file: File
-): Promise<string | ArrayBuffer | null> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
+export const calculatePasswordStrength = (password: string): number => {
+  const result = PasswordSchema.safeParse(password);
+  const errorCount = result.success ? 0 : result.error.errors.length;
+  return (
+    ((PASSWORD_SCHEMA_CONDITIONS_COUNT - errorCount) /
+      PASSWORD_SCHEMA_CONDITIONS_COUNT) *
+    100
+  );
+};
+
+export const getPasswordStrengthLabel = (strength: number): string => {
+  if (strength < 25) return "Very Weak";
+  if (strength < 50) return "Weak";
+  if (strength < 75) return "Good";
+  if (strength < 90) return "Strong";
+  return "Very Strong";
+};
+
+export const getPasswordStrengthColor = (strength: number): string => {
+  if (strength < 25) return "text-red-500";
+  if (strength < 50) return "text-orange-500";
+  if (strength < 75) return "text-yellow-500";
+  if (strength < 90) return "text-blue-500";
+  return "text-green-500";
+};
+
+export const encryptPrivateKey = async (
+  privateKey: Uint8Array,
+  password: string
+) => {
+  if (!privateKey || privateKey.length === 0) {
+    throw new Error("Invalid private key provided");
+  }
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const passwordKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+
+  const privateKeyBuffer = new ArrayBuffer(privateKey.length);
+  const privateKeyView = new Uint8Array(privateKeyBuffer);
+  privateKeyView.set(privateKey);
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    derivedKey,
+    privateKeyBuffer
+  );
+  return {
+    encryptedPrivateKey: encode(new Uint8Array(encrypted)),
+    salt: encode(salt),
+    iv: encode(iv),
+  };
+};
+
+export const decryptPrivateKey = async (
+  encryptedData: { encryptedPrivateKey: string; salt: string; iv: string },
+  password: string
+): Promise<Uint8Array> => {
+  const encrypted = Buffer.from(encryptedData.encryptedPrivateKey, "base64");
+  const salt = Buffer.from(encryptedData.salt, "base64");
+  const iv = Buffer.from(encryptedData.iv, "base64");
+
+  const passwordKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+
+  // Decrypt the private key
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    derivedKey,
+    encrypted
+  );
+
+  return new Uint8Array(decrypted);
 };

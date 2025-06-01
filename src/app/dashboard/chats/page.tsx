@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 import FilterCard from "@/components/filter-card";
 import SearchBar from "@/components/search-bar";
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions";
 
 export default async function ChatsPage({
   searchParams,
@@ -23,7 +23,7 @@ export default async function ChatsPage({
     role?: string;
   }>;
 }) {
-  const user = await getCurrentUser();
+  const user = await me();
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/chats");
   }
@@ -120,7 +120,7 @@ export default async function ChatsPage({
                 return (
                   <Link
                     key={chat.id}
-                    href={`/chats/${chat.id}`}
+                    href={`/dashboard/chats/${chat.id}`}
                     className={cn(
                       "flex items-start gap-3 px-4 py-6 transition-all hover:bg-muted/50 hover:border-l-4 hover:border-primary"
                     )}

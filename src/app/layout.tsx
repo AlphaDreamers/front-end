@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { Ubuntu_Sans } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ThemeProvider } from "@/components/theme-provider";
 
 import WalletProvider from "@/components/wallet-provider";
-import { ThemeProvider } from "@/components/theme-provider";
 import SessionProvider from "@/components/session-provider";
 import Navbar from "@/components/nav-bar";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 import "./globals.css";
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: "A Solana services marketplace for developers and creators",
 };
 
-const spaceGrotesk = Ubuntu_Sans({
+const ubuntuSans = Ubuntu_Sans({
   subsets: ["latin"],
   variable: "--font-space-grotesk",
   display: "swap",
@@ -31,7 +31,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${spaceGrotesk.className} antialiased bg-gradient-to-b from-background to-primary/15`}
+        className={`${ubuntuSans.className} antialiased`}
       >
         <WalletProvider>
           <SessionProvider>
@@ -42,12 +42,15 @@ export default async function RootLayout({
               disableTransitionOnChange
             >
               <SidebarProvider>
-                <Navbar />
-                <div className="mt-16 min-h-screen container mx-auto px-4 py-8">
-                  {children}
-                </div>
+                <SidebarInset>
+                  <Navbar>
+                    <div className="min-h-screen container mx-auto">
+                      {children}
+                    </div>
+                  </Navbar>
 
-                <Toaster richColors />
+                  <Toaster richColors />
+                </SidebarInset>
               </SidebarProvider>
             </ThemeProvider>
           </SessionProvider>

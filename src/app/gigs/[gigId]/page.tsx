@@ -42,7 +42,11 @@ const gigSelect = Prisma.validator<Prisma.GigSelect>()({
   images: {
     select: {
       id: true,
-      url: true,
+      file: {
+        select: {
+          url: true,
+        },
+      },
       isPrimary: true,
     },
   },
@@ -59,7 +63,7 @@ const gigSelect = Prisma.validator<Prisma.GigSelect>()({
           feature: {
             select: {
               id: true,
-              label: true,
+              title: true,
             },
           },
         },
@@ -78,7 +82,7 @@ const gigSelect = Prisma.validator<Prisma.GigSelect>()({
           skill: {
             select: {
               id: true,
-              label: true,
+              title: true,
             },
           },
         },
@@ -123,13 +127,13 @@ const gigSelect = Prisma.validator<Prisma.GigSelect>()({
   category: {
     select: {
       id: true,
-      label: true,
+      title: true,
     },
   },
   tags: {
     select: {
       id: true,
-      label: true,
+      title: true,
     },
   },
   faqs: {
@@ -193,7 +197,7 @@ export default async function GigDetailsPage({
 
         <ImageCarousel
           images={gig.images
-            .filter((image) => image.url)
+            .filter((image) => image.file.url)
             .map((image) => image.url || "")}
           alt={gig.title}
         />
@@ -318,7 +322,7 @@ const OrderDetailsCard = ({ packages }: OrderDetailsCardProps) => {
                         ) : (
                           <X className="h-4 w-4 text-red-500" />
                         )}
-                        {feature.feature.label}
+                        {feature.feature.title}
                       </div>
                     ))}
                   </div>

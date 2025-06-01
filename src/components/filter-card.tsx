@@ -78,14 +78,12 @@ const FilterCard = ({ config, className }: FilterCardProps) => {
   });
 
   return (
-    <Card className={cn("py-2", className)}>
-      <CardContent className="flex flex-wrap gap-2 items-center px-2">
-        <ClearAllFiltersButton
-          ids={config.map((filterConfig) => filterConfig.id)}
-        />
-        {filterButtons}
-      </CardContent>
-    </Card>
+    <div className="flex flex-wrap gap-2 items-center">
+      <ClearAllFiltersButton
+        ids={config.map((filterConfig) => filterConfig.id)}
+      />
+      {filterButtons}
+    </div>
   );
 };
 

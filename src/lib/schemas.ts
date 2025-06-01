@@ -1,33 +1,43 @@
 import { z } from "zod";
+import COMMON_PASSWORDS from "./common-passwords";
+import bs58 from "bs58";
+import { Keypair } from "@solana/web3.js";
 
-export const CreateNewWalletFormSchema = z
-  .object({
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
+// Reusable Password Schema (used in multiple forms)
+export const PasswordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(32, "Password must be at most 32 characters")
+  .regex(
+    /[!@#$%^&*(),.?":{}|<>]/,
+    "Password must contain at least one special character"
+  )
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/\d/, "Password must contain at least one number")
+  .refine((val) => COMMON_PASSWORDS.every((password) => password !== val), {
+    message: "Password is too common, please choose a different one",
   });
 
-export const ImportWalletFormSchema = z
-  .object({
-    mnemonic: z.string().min(12, "Mnemonic must be at least 12 characters"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+// Constant for password conditions (used in UI for password strength indicators)
+export const PASSWORD_SCHEMA_CONDITIONS_COUNT = 8;
 
+// --- Authentication Schemas ---
+
+// Schema for user sign-up form
 export const SignUpFormSchema = z
   .object({
-    firstName: z.string(),
-    lastName: z.string(),
-    username: z.string(),
+    firstName: z
+      .string()
+      .min(1, "First name is required")
+      .max(50, "First name must be at most 50 characters"),
+    lastName: z
+      .string()
+      .min(1, "Last name is required")
+      .max(50, "Last name must be at most 50 characters"),
+    username: z.string().min(3, "Username must be at least 3 characters"),
     email: z.string().email(),
-    password: z.string(),
+    password: PasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -35,30 +45,120 @@ export const SignUpFormSchema = z
     path: ["confirmPassword"],
   });
 
+// Schema for verifying email with a code
 export const VerifyEmailFormSchema = z.object({
   code: z.string(),
   email: z.string().email(),
 });
 
+// Schema for user sign-in form
 export const SignInFormSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 
-export const ResetPasswordFormSchema = z
-  .object({
-    password: z.string(),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
+// Schema for requesting a password reset
 export const ForgotPasswordFormSchema = z.object({
   email: z.string().email(),
 });
 
+// Schema for verifying the password reset code
+export const VerifyResetPasswordCodeFormSchema = z.object({
+  email: z.string().email(),
+  code: z
+    .string()
+    .regex(/^\d{6}$/, { message: "Code must be a 6-digit number" }),
+});
+
+// Schema for resetting the password
+export const ResetPasswordFormSchema = z
+  .object({
+    email: z.string().email().optional(),
+    code: z
+      .string()
+      .regex(/^\d{6}$/, { message: "Code must be a 6-digit number" })
+      .optional(),
+    newPassword: PasswordSchema,
+    confirmNewPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "New passwords do not match",
+  });
+
+// --- Wallet Schemas ---
+
+// Schema for creating a new wallet
+export const CreateNewWalletFormSchema = z
+  .object({
+    name: z.string(),
+    password: PasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+// Schema for importing an existing wallet using a mnemonic
+export const ImportWalletFormSchema = z
+  .object({
+    mnemonic: z
+      .string()
+      .min(12, "Mnemonic must be at least 12 words")
+      .max(24, "Mnemonic must be at most 24 words")
+      .refine((val) => {
+        try {
+          const words = val.trim().split(/\s+/);
+          if (words.length < 12 || words.length > 24) return false;
+          const keypair = Keypair.fromSeed(bs58.decode(words.join(" ")));
+          return keypair.publicKey.toBase58().length > 0;
+        } catch {
+          return false;
+        }
+      }, "Invalid mnemonic"),
+    password: PasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+// Schema for verifying the mnemonic phrase
+export const MneumonicsVerificationSchema = z.object({
+  mnemonic: z.array(z.string()),
+});
+
+// --- Gig Schemas ---
+
+// Reusable schema for gig features (used in CreateGigFormSchema)
+const FeatureSchema = z.object({
+  label: z
+    .string()
+    .min(1, "Feature label is required")
+    .max(100, "Feature label must be at most 100 characters"),
+});
+
+// Reusable schema for gig packages (used in CreateGigFormSchema)
+const PackageSchema = z.object({
+  title: z
+    .string()
+    .min(3, "Package title is required")
+    .max(50, "Package title must be at most 50 characters"),
+  deliveryTime: z
+    .number()
+    .int()
+    .positive("Delivery time must be a positive number"),
+  price: z.number().positive("Price must be a positive number"),
+  revisions: z
+    .number()
+    .int()
+    .min(0, "Revisions must be 0 or more")
+    .max(100, "Revisions must be at most 100"),
+  featureInclusions: z.array(z.boolean()),
+});
+
+// Schema for creating a new gig
 export const CreateGigFormSchema = z
   .object({
     title: z
@@ -75,79 +175,39 @@ export const CreateGigFormSchema = z
       .min(1, "Please select at least one tag")
       .max(10, "Maximum 10 tags allowed"),
     features: z
-      .array(
-        z.object({
-          label: z
-            .string()
-            .min(1, "Feature label is required")
-            .max(100, "Feature label must be at most 100 characters"),
-        })
-      )
+      .array(FeatureSchema)
       .min(1, "Add at least one feature")
       .max(10, "Maximum 10 features allowed"),
     packages: z
-      .array(
-        z.object({
-          title: z
-            .string()
-            .min(3, "Package title is required")
-            .max(50, "Package title must be at most 50 characters"),
-          deliveryTime: z
-            .number()
-            .int()
-            .positive("Delivery time must be a positive number"),
-          price: z.number().positive("Price must be a positive number"),
-          revisions: z
-            .number()
-            .int()
-            .min(0, "Revisions must be 0 or more")
-            .max(100, "Revisions must be at most 100"),
-          featureInclusions: z.array(z.boolean()),
-        })
-      )
+      .array(PackageSchema)
       .min(1, "Add at least one package")
-      .max(3, "Maximum 3 packages allowed")
-      .refine(
-        (packages) => {
-          // Verify all packages have the same number of feature inclusions
-          const firstPackageInclusionsCount =
-            packages[0].featureInclusions.length;
-          return packages.every(
-            (pkg) =>
-              pkg.featureInclusions.length === firstPackageInclusionsCount
-          );
-        },
-        {
-          message:
-            "All packages must have the same number of feature inclusions",
-        }
-      ),
+      .max(3, "Maximum 3 packages allowed"),
     images: z
-      .array(
-        z.object({
-          file: z.instanceof(File),
-          isPrimary: z.boolean(),
-        })
-      )
+      .array(z.object({ file: z.instanceof(File), isPrimary: z.boolean() }))
       .min(1, "Add at least one image")
       .max(8, "Maximum 8 images allowed"),
   })
   .refine(
     (data) => {
-      // Ensure each feature is included in at least one package
+      const firstPackageInclusionsCount =
+        data.packages[0].featureInclusions.length;
+      return data.packages.every(
+        (pkg) => pkg.featureInclusions.length === firstPackageInclusionsCount
+      );
+    },
+    { message: "All packages must have the same number of feature inclusions" }
+  )
+  .refine(
+    (data) => {
       for (
         let featureIndex = 0;
         featureIndex < data.features.length;
         featureIndex++
       ) {
-        // Check if any package includes this feature
         const isIncludedInAnyPackage = data.packages.some(
           (pkg) => pkg.featureInclusions[featureIndex] === true
         );
-
-        if (!isIncludedInAnyPackage) {
-          return false;
-        }
+        if (!isIncludedInAnyPackage) return false;
       }
       return true;
     },
@@ -158,7 +218,6 @@ export const CreateGigFormSchema = z
   )
   .refine(
     (data) => {
-      // Ensure that each package has exactly the same number of feature inclusions as there are features
       return data.packages.every(
         (pkg) => pkg.featureInclusions.length === data.features.length
       );
@@ -169,6 +228,37 @@ export const CreateGigFormSchema = z
     }
   );
 
+// Reusable schema for updating gig features
+const UpdateFeatureSchema = z.object({
+  id: z.string().uuid().optional(),
+  tempId: z.string().optional(),
+  label: z
+    .string()
+    .min(1, "Feature label is required")
+    .max(100, "Feature label must be at most 100 characters"),
+});
+
+// Reusable schema for updating gig packages
+const UpdatePackageSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z
+    .string()
+    .min(3, "Package title is required")
+    .max(50, "Package title must be at most 50 characters"),
+  deliveryTime: z
+    .number()
+    .int()
+    .positive("Delivery time must be a positive number"),
+  price: z.number().positive("Price must be a positive number"),
+  revisions: z
+    .number()
+    .int()
+    .min(0, "Revisions must be 0 or more")
+    .max(100, "Revisions must be at most 100"),
+  featureInclusions: z.array(z.boolean()),
+});
+
+// Schema for updating an existing gig
 export const UpdateGigFormSchema = z
   .object({
     id: z.string().uuid(),
@@ -186,48 +276,11 @@ export const UpdateGigFormSchema = z
       .min(1, "Please select at least one tag")
       .max(10, "Maximum 10 tags allowed"),
     features: z
-      .array(
-        z.object({
-          id: z.string().uuid().optional(),
-          tempId: z.string().optional(), // For new features that need a temporary reference
-          label: z
-            .string()
-            .min(1, "Feature label is required")
-            .max(100, "Feature label must be at most 100 characters"),
-        })
-      )
+      .array(UpdateFeatureSchema)
       .min(1, "Add at least one feature")
-      .max(10, "Maximum 10 features allowed")
-      .refine(
-        (features) => {
-          // Ensure that every new feature (without an id) has a tempId
-          return features.every((feature) => feature.id || feature.tempId);
-        },
-        {
-          message: "Every new feature must have a temporary ID",
-        }
-      ),
+      .max(10, "Maximum 10 features allowed"),
     packages: z
-      .array(
-        z.object({
-          id: z.string().uuid().optional(),
-          title: z
-            .string()
-            .min(3, "Package title is required")
-            .max(50, "Package title must be at most 50 characters"),
-          deliveryTime: z
-            .number()
-            .int()
-            .positive("Delivery time must be a positive number"),
-          price: z.number().positive("Price must be a positive number"),
-          revisions: z
-            .number()
-            .int()
-            .min(0, "Revisions must be 0 or more")
-            .max(100, "Revisions must be at most 100"),
-          featureInclusions: z.array(z.boolean()),
-        })
-      )
+      .array(UpdatePackageSchema)
       .min(1, "Add at least one package")
       .max(3, "Maximum 3 packages allowed"),
     images: z
@@ -242,33 +295,25 @@ export const UpdateGigFormSchema = z
   })
   .refine(
     (data) => {
-      // Verify all packages have the same number of feature inclusions
       const firstPackageInclusionsCount =
         data.packages[0].featureInclusions.length;
       return data.packages.every(
         (pkg) => pkg.featureInclusions.length === firstPackageInclusionsCount
       );
     },
-    {
-      message: "All packages must have the same number of feature inclusions",
-    }
+    { message: "All packages must have the same number of feature inclusions" }
   )
   .refine(
     (data) => {
-      // Ensure each feature is included in at least one package
       for (
         let featureIndex = 0;
         featureIndex < data.features.length;
         featureIndex++
       ) {
-        // Check if any package includes this feature
         const isIncludedInAnyPackage = data.packages.some(
           (pkg) => pkg.featureInclusions[featureIndex] === true
         );
-
-        if (!isIncludedInAnyPackage) {
-          return false;
-        }
+        if (!isIncludedInAnyPackage) return false;
       }
       return true;
     },
@@ -279,7 +324,6 @@ export const UpdateGigFormSchema = z
   )
   .refine(
     (data) => {
-      // Ensure that each package has exactly the same number of feature inclusions as there are features
       return data.packages.every(
         (pkg) => pkg.featureInclusions.length === data.features.length
       );
@@ -290,11 +334,50 @@ export const UpdateGigFormSchema = z
     }
   );
 
-export const ContactSellerFormSchema = z.object({
-  message: z.string().min(1, "Message is required"),
-  recipientId: z.string().min(1, "Recipient ID is required"),
+// --- Profile and Communication Schemas ---
+
+// Reusable schema for user skills
+const SkillSchema = z.object({
+  id: z.string().uuid().optional(),
+  level: z.number().min(1).max(5, "Skill level must be between 1 and 5"),
+  skillId: z.string().uuid(),
 });
 
+// Reusable schema for social links
+const SocialLinkSchema = z.object({
+  id: z.string().uuid().optional(),
+  url: z.string().url("Must be a valid URL"),
+  type: z.enum([
+    "WEBSITE",
+    "GITHUB",
+    "LINKEDIN",
+    "INSTAGRAM",
+    "FACEBOOK",
+    "TIKTOK",
+    "YOUTUBE",
+    "DISCORD",
+    "TELEGRAM",
+    "WHATSAPP",
+    "EMAIL",
+  ]),
+});
+
+// Reusable schema for portfolio items
+const PortfolioItemSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().min(1, "Title is required").max(100, "Title too long"),
+  description: z.string().max(500, "Description too long"),
+  url: z.string().url("Must be a valid URL"),
+  images: z.array(
+    z.object({
+      id: z.string().uuid().optional(),
+      url: z.string().url("Must be a valid URL"),
+      isPrimary: z.boolean(),
+    })
+  ),
+});
+
+// Schema for updating user profile
 export const UpdateProfileFormSchema = z.object({
   username: z.string(),
   avatar: z.string(),
@@ -303,56 +386,35 @@ export const UpdateProfileFormSchema = z.object({
   bio: z.string(),
   firstName: z.string(),
   lastName: z.string(),
-  skills: z.array(
-    z.object({
-      id: z.string().uuid().optional(),
-      level: z.number().min(1).max(5, "Skill level must be between 1 and 5"),
-      skillId: z.string().uuid(),
-    })
-  ),
-  socialLinks: z.array(
-    z.object({
-      id: z.string().uuid().optional(),
-      url: z.string().url("Must be a valid URL"),
-      type: z.enum([
-        "WEBSITE",
-        "GITHUB",
-        "LINKEDIN",
-        "INSTAGRAM",
-        "FACEBOOK",
-        "TIKTOK",
-        "YOUTUBE",
-        "DISCORD",
-        "TELEGRAM",
-        "WHATSAPP",
-        "EMAIL",
-      ]),
-    })
-  ),
-  portfolioItems: z.array(
-    z.object({
-      id: z.string().uuid().optional(),
-      title: z.string().min(1, "Title is required").max(100, "Title too long"),
-      description: z.string().max(500, "Description too long"),
-      url: z.string().url("Must be a valid URL"),
-      images: z.array(
-        z.object({
-          id: z.string().uuid().optional(),
-          url: z.string().url("Must be a valid URL"),
-          isPrimary: z.boolean(),
-        })
-      ),
-    })
-  ),
+  skills: z.array(SkillSchema),
+  socialLinks: z.array(SocialLinkSchema),
+  portfolioItems: z.array(PortfolioItemSchema),
   featuredBadge: z.string().uuid(),
 });
 
+// Schema for contacting a seller
+export const ContactSellerFormSchema = z.object({
+  message: z.string().min(1, "Message is required"),
+  recipientId: z.string().min(1, "Recipient ID is required"),
+});
+
+// Schema for sending a message (ensures at least text or attachments are provided)
+export const SendMessageFormSchema = z
+  .object({
+    attachments: z.instanceof(File).array().optional(),
+    text: z.string().optional(),
+  })
+  .refine(
+    (data) => data.text || (data.attachments && data.attachments.length > 0),
+    {
+      message: "Message must have either text or attachments",
+    }
+  );
+
+// --- KYC Schema ---
+
+// Schema for KYC verification
 export const KycFormSchema = z.object({
   id: z.instanceof(File),
   selfie: z.instanceof(File),
-});
-
-export const SendMessageFormSchema = z.object({
-  attachments: z.instanceof(File).array().optional(),
-  text: z.string().optional(),
 });

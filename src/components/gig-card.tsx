@@ -1,5 +1,4 @@
 import { Star, Eye, Award } from "lucide-react";
-import { Prisma } from "@prisma/client";
 import Image from "next/image";
 
 import {
@@ -11,75 +10,21 @@ import {
 import { buttonVariants } from "./ui/button";
 import { Badge } from "./ui/badge";
 import Link from "next/link";
+import { Gig } from "@/lib/types";
+import { Skeleton } from "./ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface GigCardProps {
-  gig: Prisma.GigGetPayload<{
-    select: {
-      title: true;
-      seller: {
-        select: {
-          avatar: true;
-          username: true;
-          badgeProgress: {
-            select: {
-              isFeatured: true;
-              badge: {
-                select: {
-                  title: true;
-                };
-              };
-            };
-          };
-        };
-      };
-      images: {
-        select: {
-          url: true;
-        };
-      };
-      reviews: {
-        select: {
-          rating: true;
-        };
-      };
-      tags: {
-        select: {
-          label: true;
-        };
-      };
-      packages: {
-        select: {
-          title: true;
-          price: true;
-          orders: {
-            select: {
-              id: true;
-            };
-          };
-        };
-      };
-      description: true;
-      id: true;
-    };
-  }>;
+  gig: Gig;
 }
 
 const GigCard = ({ gig }: GigCardProps) => {
-  const featuredBadge = gig.seller.badgeProgress.find(
-    (badge) => badge.isFeatured === true
-  );
-
-  const averageRating =
-    gig.reviews.reduce((acc, review) => acc + review.rating, 0) /
-    (gig.reviews.length || 1);
-  const ratingCount = gig.reviews.length;
-
   return (
     <Card className="h-full overflow-hidden hover:border-primary transition-all duration-300">
       {/* Image with price overlay */}
       <CardHeader className="relative">
         <Image
-          src={gig.images[0].url}
+          src={gig.image}
           width={200}
           height={200}
           alt={gig.title}
@@ -94,7 +39,7 @@ const GigCard = ({ gig }: GigCardProps) => {
                 alt={gig.seller.username}
                 width={32}
                 height={32}
-                className="w-8 h-8 rounded-full border-1 border-primary"
+                className="min-w-8 min-h-8 rounded-full border-1 border-primary"
               />
             </Link>
             <Link href={`/profile/${gig.seller.username}`} className="ml-2">
@@ -105,10 +50,10 @@ const GigCard = ({ gig }: GigCardProps) => {
                 {gig.seller.username}
               </p>
             </Link>
-            {featuredBadge && (
+            {gig.seller.badge && (
               <Badge className="ml-auto">
                 <Star />
-                {featuredBadge.badge.title}
+                {gig.seller.badge.title}
               </Badge>
             )}
           </div>
@@ -120,11 +65,11 @@ const GigCard = ({ gig }: GigCardProps) => {
         <div className="flex items-center mb-3 text-xs text-gray-400">
           <div className="flex items-center mr-3">
             <Star className="w-3 h-3 text-primary mr-1" />
-            <span>{averageRating.toFixed(2)}</span>
+            <span>{gig.averageRating.toFixed(2)}</span>
           </div>
           <div className="flex items-center mr-3">
             <Award className="w-3 h-3 text-primary mr-1" />
-            <span className="text-muted-foreground">({ratingCount})</span>
+            <span className="text-muted-foreground">({gig.ratingCount})</span>
           </div>
         </div>
 
@@ -135,8 +80,8 @@ const GigCard = ({ gig }: GigCardProps) => {
         </p>
 
         <div className="flex flex-wrap gap-x-2 gap-y-1">
-          {gig.tags.map((tag, index) => (
-            <Badge variant="outline" key={index} className="text-chart-3">
+          {gig.tags.map((tag) => (
+            <Badge variant="outline" key={tag.id} className="text-chart-3">
               {tag.label}
             </Badge>
           ))}
@@ -145,7 +90,7 @@ const GigCard = ({ gig }: GigCardProps) => {
 
       <CardFooter className="justify-between mt-auto">
         <div className="text-primary font-bold text-xl">
-          {gig.packages[0].price} SOL
+          {gig.startsAtPrice} SOL
         </div>
 
         <Link
@@ -165,3 +110,58 @@ const GigCard = ({ gig }: GigCardProps) => {
 };
 
 export default GigCard;
+
+export const GigCardSkeleton = () => {
+  return (
+    <Card className="h-full overflow-hidden hover:border-primary transition-all duration-300">
+      <CardHeader className="relative">
+        <Skeleton className="-mt-6 -mx-6 min-w-[calc(100%+48px)] h-48 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">
+          <div className="flex items-center">
+            <Skeleton className="w-8 h-8 rounded-full border-1 border-primary" />
+
+            <div className="ml-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="w-20 h-3 mt-1" />
+            </div>
+            <Skeleton className="ml-auto h-5 w-14" />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <div className="flex items-center mb-3 gap-2">
+          <Skeleton className="w-6 h-4" />
+          <Skeleton className="w-6 h-4" />
+        </div>
+
+        <Skeleton className="mb-3 h-6 w-28" />
+
+        <div className="mb-4 flex flex-col gap-1">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-7/8" />
+          <Skeleton className="h-4 w-11/12" />
+        </div>
+
+        <div className="flex flex-wrap gap-x-2 gap-y-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton
+              key={i}
+              className={cn("h-4", {
+                "w-20": i % 2 === 0,
+                "w-16": i % 2 !== 0,
+              })}
+            />
+          ))}
+        </div>
+      </CardContent>
+
+      <CardFooter className="justify-between mt-auto">
+        <Skeleton className="w-24 h-8" />
+
+        <Skeleton className="w-20 h-8" />
+      </CardFooter>
+    </Card>
+  );
+};

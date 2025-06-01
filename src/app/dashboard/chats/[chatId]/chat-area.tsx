@@ -8,6 +8,10 @@ import { Chat, Message } from "@/lib/types";
 import { SendMessageFormSchema } from "@/lib/schemas";
 import { uploadFileToCloudinary } from "@/lib/actions";
 import ChatInput from "@/components/chat/chat-input";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import Image from "next/image";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChatAreaProps {
   chat: Chat;
@@ -119,15 +123,23 @@ const ChatArea = ({ chat, currentUserId }: ChatAreaProps) => {
   };
 
   return (
-    <main className="flex flex-col h-full w-full">
-      <div></div>
-      <div className="flex-1">
-        {messages.map((ms) => (
-          <div key={ms.id}>{JSON.stringify(ms)}</div>
-        ))}
-      </div>
+    <main className="flex flex-col h-full">
+      <ScrollArea className="flex-1 max-h-full">
+        <div className="flex flex-col gap-4 overflow-y-auto p-4">
+          {messages.map((ms) => (
+            <MessageBubble
+              message={ms}
+              key={ms.id}
+              side={ms.senderId === currentUserId ? "right" : "left"}
+              variant={ms.senderId === currentUserId ? "default" : "secondary"}
+            />
+          ))}
+        </div>
+      </ScrollArea>
       {isOtherTyping && (
-        <div className="text-sm text-muted-foreground">User is typing...</div>
+        <div className="ml-auto mr-4 my-4 border w-fit px-4 py-2 rounded-full text-sm text-muted-foreground animate-pulse bg-muted">
+          <span>Other user is typing...</span>
+        </div>
       )}
       <ChatInput
         onSendMessage={handleSendMessage}
@@ -153,3 +165,112 @@ const ChatArea = ({ chat, currentUserId }: ChatAreaProps) => {
 };
 
 export default ChatArea;
+
+interface MessageBubbleProps {
+  message: Message;
+  side: "left" | "right";
+  variant?: "default" | "outline" | "secondary";
+}
+
+const MessageBubble = ({
+  message,
+  side = "right",
+  variant = "default",
+}: MessageBubbleProps) => {
+  switch (message.type) {
+    case "TEXT": {
+      return (
+        <div
+          className={cn(
+            "flex gap-2",
+            side === "right" ? "flex-row-reverse" : "flex-row"
+          )}
+        >
+          <Image
+            src="https://picsum.photos/200/300/?random=1"
+            alt="User Avatar"
+            className="size-12 rounded-full border shadow shadow-primary aspect-square"
+            width={32}
+            height={32}
+          />
+          <div
+            className={cn(
+              "flex flex-col max-w-[400px]",
+              side === "right" ? "items-end" : "items-start"
+            )}
+          >
+            <div
+              className={cn("flex items-center rounded py-2 px-4 text-sm", {
+                "bg-primary text-primary-foreground": variant === "default",
+                "bg-secondary text-secondary-foreground":
+                  variant === "secondary",
+              })}
+            >
+              {message.content.text}
+            </div>
+            <time className="text-xs text-muted-foreground ml-2">
+              {formatDistanceToNow(new Date(message.createdAt), {
+                addSuffix: true,
+              })}
+            </time>
+          </div>
+        </div>
+      );
+    }
+    case "MEDIA": {
+      return (
+        <div
+          className={cn(
+            "flex gap-2",
+            side === "right" ? "flex-row-reverse" : "flex-row"
+          )}
+        >
+          <Image
+            src="https://picsum.photos/200/300/?random=1"
+            alt="User Avatar"
+            className="size-12 rounded-full border shadow shadow-primary aspect-square"
+            width={32}
+            height={32}
+          />
+          <div
+            className={cn(
+              "flex flex-col max-w-[400px]",
+              side === "right" ? "items-end" : "items-start"
+            )}
+          >
+            <div
+              className={cn("flex items-center rounded py-2 px-4 text-sm", {
+                "bg-primary text-primary-foreground": variant === "default",
+                "bg-secondary text-secondary-foreground":
+                  variant === "secondary",
+              })}
+            >
+              {message.content.urls.map((url, index) => (
+                <Image
+                  key={index}
+                  src={url}
+                  alt={`Attachment ${index + 1}`}
+                  className="max-h-60 max-w-full rounded"
+                  width={200}
+                  height={200}
+                />
+              ))}
+            </div>
+            <time className="text-xs text-muted-foreground ml-2">
+              {formatDistanceToNow(new Date(message.createdAt), {
+                addSuffix: true,
+              })}
+            </time>
+          </div>
+        </div>
+      );
+    }
+    case "SYSTEM": {
+      return (
+        <div className="text-center text-sm text-muted-foreground my-4">
+          {message.content.content}
+        </div>
+      );
+    }
+  }
+};

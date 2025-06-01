@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum SocialLinkType {
@@ -28,24 +22,96 @@ enum SocialLinkType {
   EMAIL
 }
 
+enum Tier {
+  NONE
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+enum SystemContentType {
+  WELCOME
+}
+
+enum OrderStatus {
+  WAITING_FOR_PAYMENT
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  MESSAGE
+  PAYMENT
+  SYSTEM
+  REVIEW
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  OTHER
+}
+
+enum MessageType {
+  TEXT
+  MEDIA
+  SYSTEM
+}
+
+enum ContactMessageType {
+  TESTIMONIAL
+}
+
+model ContactMessage {
+  id String @id @default(uuid())
+
+  type ContactMessageType
+
+  author             User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  testimonialContent TestimonialContent?
+
+  authorId String?
+
+  createdAt DateTime @default(now())
+}
+
+model TestimonialContent {
+  id String @id @default(uuid())
+
+  content String
+  rating  Int
+
+  contactMessage ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+
+  contactMessageId String @unique
+}
+
 model PortfolioItem {
   id String @id @default(uuid())
 
   title       String
   description String?
   url         String?
-  images      Image[]
 
-  user User @relation(fields: [userId], references: [id])
+  images Image[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   userId String
 }
 
 model SocialLink {
-  id     String         @id @default(uuid())
-  type   SocialLinkType
-  url    String
-  user   User           @relation(fields: [userId], references: [id])
+  id String @id @default(uuid())
+
+  type SocialLinkType
+  url  String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   userId String
 }
 
@@ -66,80 +132,67 @@ model User {
   publicKey     String?
 
   verificationToken VerificationToken?
-  gigs              Gig[]              @relation("Seller")
-  bookmarked        Gig[]              @relation("Bookmarked")
+  gigs              Gig[]               @relation("Seller")
+  bookmarked        Gig[]               @relation("Bookmarked")
   reviews           Review[]
   skills            UserSkill[]
-  buyerChats        Chat[]             @relation("BuyerChat")
-  sellerChats       Chat[]             @relation("SellerChat")
-
-  badgeProgress  UserBadgeProgress[]
-  ordersAsBuyer  Order[]             @relation("Buyer")
-  ordersAsSeller Order[]             @relation("Seller")
-  notifications  Notification[]
-  socialLinks    SocialLink[]
-  portfolioItems PortfolioItem[]
-
-  messages     UserMessage[]
-  readMessages Message[]     @relation("MessageReadBy")
+  buyerChats        Chat[]              @relation("BuyerChat")
+  sellerChats       Chat[]              @relation("SellerChat")
+  badgeProgress     UserBadgeProgress[]
+  ordersAsBuyer     Order[]             @relation("Buyer")
+  ordersAsSeller    Order[]             @relation("Seller")
+  notifications     Notification[]
+  socialLinks       SocialLink[]
+  portfolioItems    PortfolioItem[]
+  messages          UserMessage[]
+  readMessages      Message[]           @relation("MessageReadBy")
+  contactMessages   ContactMessage[]
+  wallets           Wallet[]
 }
 
 model UserMessage {
   id String @id @default(uuid())
 
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
-
-  textMessageId    String? @unique
-  fileMessageId    String? @unique
-  imageMessageId   String? @unique
-  linkMessageId    String? @unique
-  paymentMessageId String? @unique
-
-  textMessage  TextContent?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  textContent  TextContent?
   mediaContent MediaContent?
-  MediaFile    MediaFile[]
+
+  userId String?
 }
 
-enum OrderStatus {
-  WAITING_FOR_PAYMENT
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
+model MediaFile {
+  id String @id @default(uuid())
+
+  url  String
+  type MediaType
+
+  images       Image[]
+  mediaContent MediaContent[]
 }
 
 model Order {
   id String @id @default(uuid())
 
   deadline DateTime
-  status   OrderStatus @default(PENDING)
+  status   OrderStatus @default(WAITING_FOR_PAYMENT)
 
-  package Package @relation(fields: [packageId], references: [id])
+  package Package @relation(fields: [packageId], references: [id], onDelete: Restrict)
   review  Review?
   chat    Chat?
-  buyer   User    @relation(name: "Buyer", fields: [buyerId], references: [id])
-  seller  User    @relation(name: "Seller", fields: [sellerId], references: [id])
+  buyer   User    @relation(name: "Buyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller  User    @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Restrict)
+  gig     Gig?    @relation(fields: [gigId], references: [id], onDelete: SetNull)
 
   packageId String
   buyerId   String
   sellerId  String
+  gigId     String?
 
   createdAt DateTime @default(now())
-  gig       Gig      @relation(fields: [gigId], references: [id])
-  gigId     String
 }
 
 model Transaction {
   id String @id @default(uuid())
-}
-
-enum NotificationType {
-  ORDER_UPDATE
-  MESSAGE
-  PAYMENT
-  SYSTEM
-  REVIEW
 }
 
 model Notification {
@@ -150,7 +203,7 @@ model Notification {
   description String
   isRead      Boolean          @default(false)
 
-  recipient User @relation(fields: [recipientId], references: [id])
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   recipientId String
 
@@ -163,7 +216,7 @@ model VerificationToken {
   code      String   @unique
   expiresAt DateTime
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   userId String @unique
 }
@@ -176,9 +229,9 @@ model Gig {
 
   images    Image[]
   packages  Package[]
-  seller    User         @relation(name: "Seller", fields: [sellerId], references: [id])
+  seller    User         @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Cascade)
   bookmarks User[]       @relation("Bookmarked")
-  category  Category     @relation(fields: [categoryId], references: [id])
+  category  Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   tags      Tag[]
   features  GigFeature[]
   reviews   Review[]
@@ -192,12 +245,13 @@ model Gig {
 model Image {
   id String @id @default(uuid())
 
-  url       String
   isPrimary Boolean @default(false)
 
-  gig           Gig?           @relation(fields: [gigId], references: [id])
-  portfolioItem PortfolioItem? @relation(fields: [portfolioItemId], references: [id])
+  file          MediaFile      @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  gig           Gig?           @relation(fields: [gigId], references: [id], onDelete: SetNull)
+  portfolioItem PortfolioItem? @relation(fields: [portfolioItemId], references: [id], onDelete: SetNull)
 
+  fileId          String
   gigId           String?
   portfolioItemId String?
 }
@@ -210,7 +264,7 @@ model Package {
   revisions    Int
   deliveryTime Int
 
-  gig      Gig              @relation(fields: [gigId], references: [id])
+  gig      Gig              @relation(fields: [gigId], references: [id], onDelete: Cascade)
   features PackageFeature[]
   orders   Order[]
 
@@ -220,9 +274,9 @@ model Package {
 model GigFeature {
   id String @id @default(uuid())
 
-  label String
+  title String
 
-  gig             Gig              @relation(fields: [gigId], references: [id])
+  gig             Gig              @relation(fields: [gigId], references: [id], onDelete: Cascade)
   packageFeatures PackageFeature[]
 
   gigId String
@@ -233,8 +287,8 @@ model PackageFeature {
 
   isIncluded Boolean
 
-  gigPackage Package    @relation(fields: [gigPackageId], references: [id])
-  feature    GigFeature @relation(fields: [featureId], references: [id])
+  gigPackage Package    @relation(fields: [gigPackageId], references: [id], onDelete: Cascade)
+  feature    GigFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
 
   gigPackageId String
   featureId    String
@@ -243,8 +297,7 @@ model PackageFeature {
 model Tag {
   id String @id @default(uuid())
 
-  label String
-  slug  String @unique
+  title String @unique
 
   gigs Gig[]
 }
@@ -252,13 +305,14 @@ model Tag {
 model Category {
   id String @id @default(uuid())
 
-  label String
-  slug  String @unique
+  title String @unique
   depth Int    @default(0)
+  icon  String
+  color String
 
   gigs     Gig[]
   children Category[] @relation("CategoryParent")
-  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: Restrict)
 
   parentId String?
 }
@@ -270,13 +324,13 @@ model Review {
   title       String
   description String
 
-  author User  @relation(fields: [authorId], references: [id])
-  order  Order @relation(fields: [orderId], references: [id])
-  gig    Gig   @relation(fields: [gigId], references: [id])
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gig    Gig?  @relation(fields: [gigId], references: [id], onDelete: SetNull)
 
-  orderId  String @unique
-  authorId String
-  gigId    String
+  orderId  String  @unique
+  authorId String?
+  gigId    String?
 
   createdAt DateTime @default(now())
 }
@@ -284,7 +338,7 @@ model Review {
 model Skill {
   id String @id @default(uuid())
 
-  label String
+  title String
 
   userSkills UserSkill[]
 }
@@ -294,8 +348,8 @@ model UserSkill {
 
   level Int @default(0)
 
-  user  User  @relation(fields: [userId], references: [id])
-  skill Skill @relation(fields: [skillId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   userId  String
   skillId String
@@ -304,120 +358,86 @@ model UserSkill {
 }
 
 model Chat {
-  id       String    @id @default(uuid())
-  buyer    User      @relation(name: "BuyerChat", fields: [buyerId], references: [id])
-  seller   User      @relation(name: "SellerChat", fields: [sellerId], references: [id])
+  id String @id @default(uuid())
+
+  buyer    User      @relation(name: "BuyerChat", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller   User      @relation(name: "SellerChat", fields: [sellerId], references: [id], onDelete: Restrict)
   messages Message[]
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
   sellerId String
   buyerId  String
-  orderId  String?   @unique
-  order    Order?    @relation(fields: [orderId], references: [id])
-}
-
-enum MessageType {
-  TEXT
-  MEDIA
-  SYSTEM
+  orderId  String? @unique
 }
 
 model Message {
-  id     String      @id @default(uuid())
-  type   MessageType
-  readBy User[]      @relation("MessageReadBy")
-  chat   Chat        @relation(fields: [chatId], references: [id])
+  id String @id @default(uuid())
 
-  chatId    String
-  createdAt DateTime @default(now())
+  type MessageType
 
+  chat          Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  readBy        User[]         @relation("MessageReadBy")
   textContent   TextContent?
   mediaContent  MediaContent?
   systemContent SystemContent?
+
+  chatId String
+
+  createdAt DateTime @default(now())
 }
 
 model TextContent {
-  id   String @id @default(uuid())
+  id String @id @default(uuid())
+
   text String
 
-  messageId     String      @unique
-  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
-  userMessageId String      @unique
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userMessage UserMessage @relation(fields: [userMessageId], references: [id], onDelete: Cascade)
+
+  messageId     String @unique
+  userMessageId String @unique
 }
 
 model MediaContent {
   id String @id @default(uuid())
 
-  urls MediaUrl[]
+  files       MediaFile[]
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userMessage UserMessage @relation(fields: [userMessageId], references: [id], onDelete: Cascade)
 
-  messageId     String      @unique
-  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
-  userMessageId String      @unique
-}
-
-model MediaUrl {
-  id  String @id @default(uuid())
-  url String
-
-  mediaContent   MediaContent @relation(fields: [mediaContentId], references: [id])
-  mediaContentId String
-}
-
-model MediaFile {
-  id String @id @default(uuid())
-
-  url      String
-  fileType String // e.g., "image/png", "video/mp4", etc.
-
-  userMessage   UserMessage @relation(fields: [userMessageId], references: [id])
-  userMessageId String
-}
-
-enum SystemContentType {
-  WELCOME
+  messageId     String @unique
+  userMessageId String @unique
 }
 
 model SystemContent {
-  id        String            @id @default(uuid())
-  content   String
-  type      SystemContentType
-  messageId String            @unique
-  message   Message           @relation(fields: [messageId], references: [id], onDelete: Cascade)
-}
+  id String @id @default(uuid())
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
+  content String
+  type    SystemContentType
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  messageId String @unique
 }
 
 model Badge {
   id String @id @default(uuid())
 
   title       String
-  description String // A description of what the badge represents
-  condition   String // Different badge calculation types eg. "consecutive response time under 5 minutes", "5-star reviews", etc.
+  description String
+  condition   String
 
   userBadges UserBadgeProgress[]
   milestones BadgeMilestone[]
 }
 
-enum Tier {
-  NONE
-  BRONZE
-  SILVER
-  GOLD
-  PLATINUM
-  DIAMOND
-}
-
 model BadgeMilestone {
   id String @id @default(uuid())
 
-  threshold Int // e.g., 10, 25, 50, 100, 200
+  threshold Int
+  tier      Tier
 
-  tier  Tier // The tier awarded at this threshold
-  badge Badge @relation(fields: [badgeId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   badgeId String
 }
@@ -425,18 +445,17 @@ model BadgeMilestone {
 model UserBadgeProgress {
   id String @id @default(uuid())
 
-  isFeatured Boolean @default(false)
+  isFeatured      Boolean @default(false)
+  highestTier     Tier    @default(NONE)
+  currentProgress Int     @default(0)
 
-  user  User  @relation(fields: [userId], references: [id])
-  badge Badge @relation(fields: [badgeId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   userId  String
   badgeId String
 
-  currentProgress Int  @default(0) // Current count (resets for consecutive badges)
-  highestTier     Tier @default(NONE) // Highest tier achieved (never decreases)
-
-  @@unique([userId, badgeId]) // Each user can have only one progress record per badge
+  @@unique([userId, badgeId])
 }
 
 model GigFaq {
@@ -445,7 +464,18 @@ model GigFaq {
   question String
   answer   String
 
-  gig Gig @relation(fields: [gigId], references: [id])
+  gig Gig @relation(fields: [gigId], references: [id], onDelete: Cascade)
 
   gigId String
+}
+
+model Wallet {
+  id String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  name String
+
+  publicKey String @unique
 }

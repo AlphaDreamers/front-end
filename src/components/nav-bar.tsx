@@ -15,8 +15,11 @@ import {
   ListOrdered,
   Bookmark,
   ShoppingBag,
+  Plus,
+  Briefcase,
 } from "lucide-react";
 import Image from "next/image";
+import { PropsWithChildren } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "./ui/button";
@@ -54,24 +57,49 @@ import { getCategoryTree, me, signOut } from "@/lib/actions";
 import Async from "./async";
 
 const NAVBAR_HEIGHT = 58;
+
+// Updated sidebar navigation with better organization
 const SIDEBAR_NAV_ITEMS = [
-  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
-  { href: "/dashboard/gigs", icon: <ShoppingBag />, label: "My Gigs" },
-  { href: "/gigs", icon: <Grid />, label: "Gigs" },
-  { href: "/dashboard/orders", icon: <ListOrdered />, label: "Orders" },
+  {
+    href: "/dashboard",
+    icon: <LayoutDashboard />,
+    label: "Dashboard",
+    authRequired: true,
+  },
+  { href: "/gigs", icon: <Grid />, label: "Browse Gigs", authRequired: false },
+  {
+    href: "/dashboard/gigs",
+    icon: <ShoppingBag />,
+    label: "My Services",
+    authRequired: true,
+  },
+  {
+    href: "/dashboard/orders",
+    icon: <ListOrdered />,
+    label: "Orders",
+    authRequired: true,
+  },
   {
     href: "/dashboard/chats",
     icon: <MessageSquare />,
     label: "Messages",
+    authRequired: true,
+  },
+  {
+    href: "/dashboard/wallet",
+    icon: <Wallet />,
+    label: "Wallet",
+    authRequired: true,
   },
   {
     href: "/bookmarks",
     icon: <Bookmark />,
     label: "Bookmarks",
+    authRequired: true,
   },
 ];
 
-export default async function Navbar() {
+export default async function Navbar({ children }: PropsWithChildren) {
   const user = await me();
   const isAuth = user?.isVerified === true;
   const notificationCnt = user?._count.notifications || 0;
@@ -102,7 +130,7 @@ export default async function Navbar() {
                 className="relative rounded-xl text-muted-foreground hidden md:inline-flex"
               >
                 <Search className="size-4 opacity-50" />
-                <div>Search...</div>
+                <div>Search services...</div>
                 <div className="w-24" />
               </Button>
             </SearchToggle>
@@ -110,29 +138,45 @@ export default async function Navbar() {
 
           {/* Center Section - Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
+            {/* Always visible - Browse marketplace */}
             <Link
               href="/gigs"
               className={buttonVariants({ variant: "ghost", size: "sm" })}
             >
               <Grid />
-              Browse Gigs
+              Browse Services
             </Link>
 
-            {!isAuth && (
+            {/* Authenticated user navigation */}
+            {isAuth && (
               <>
+                {/* Quick access to create new service */}
+                <Link
+                  href="/dashboard/gigs/create"
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  <Plus />
+                  Create Service
+                </Link>
+
+                {/* Messages with notification indicator */}
                 <Link
                   href="/dashboard/chats"
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "relative"
+                  )}
                 >
                   <MessageSquare />
                   Messages
                   {notificationCnt > 0 && (
-                    <span className="absolute -top-2 -right-2 flex items-center justify-center w-[18px] h-[18px] text-[0.75rem] bg-[#F56565] text-white rounded-full animate-pulse">
+                    <span className="absolute -top-1 -right-1 flex items-center justify-center w-[18px] h-[18px] text-[0.75rem] bg-red-500 text-white rounded-full animate-pulse">
                       {notificationCnt}
                     </span>
                   )}
                 </Link>
 
+                {/* Dashboard access */}
                 <Link
                   href="/dashboard"
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
@@ -141,6 +185,17 @@ export default async function Navbar() {
                   Dashboard
                 </Link>
               </>
+            )}
+
+            {/* Unauthenticated user helpful links */}
+            {!isAuth && (
+              <Link
+                href="/gigs"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <Briefcase />
+                How it Works
+              </Link>
             )}
           </div>
 
@@ -177,9 +232,9 @@ export default async function Navbar() {
                 </Link>
                 <Link
                   href="/sign-up"
-                  className={cn(buttonVariants({ variant: "ghost" }))}
+                  className={cn(buttonVariants({ variant: "default" }))}
                 >
-                  Sign Up
+                  Get Started
                 </Link>
               </div>
             )}
@@ -204,22 +259,68 @@ export default async function Navbar() {
         </SidebarHeader>
 
         <SidebarContent>
-          {/* Main Navigation Items */}
+          {/* Authentication status in mobile */}
+          {!isAuth && (
+            <SidebarGroup>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/sign-in">
+                      <User />
+                      Sign In
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/sign-up">
+                      <Plus />
+                      Get Started
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          )}
+
+          {/* Main Navigation Items - filtered based on auth status */}
           <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarMenu>
-              {SIDEBAR_NAV_ITEMS.map((item) => (
+              {SIDEBAR_NAV_ITEMS.filter(
+                (item) => !item.authRequired || isAuth
+              ).map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild>
                     <Link href={item.href}>
                       {item.icon}
                       {item.label}
+                      {item.href === "/dashboard/chats" &&
+                        notificationCnt > 0 && (
+                          <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                            {notificationCnt}
+                          </span>
+                        )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Quick action for authenticated users */}
+              {isAuth && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/gigs/create">
+                      <Plus />
+                      Create New Service
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroup>
 
+          {/* Categories section */}
           <SidebarGroup>
             <SidebarGroupLabel>Categories</SidebarGroupLabel>
             <SidebarMenu>
@@ -239,14 +340,16 @@ export default async function Navbar() {
         <SidebarFooter>
           <SidebarGroup>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/dashboard/settings">
-                    <Settings />
-                    Settings
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {isAuth && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/settings">
+                      <Settings />
+                      Settings
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <ThemeToggle />
@@ -259,11 +362,12 @@ export default async function Navbar() {
 
       {/* Spacer to prevent content from being hidden under the navbar */}
       <div style={{ height: `${NAVBAR_HEIGHT}px` }}></div>
+      {children}
     </SearchDialogContextProvider>
   );
 }
 
-// Component for authenticated user controls
+// Enhanced authenticated user controls with better wallet integration
 const AuthenticatedControls = async ({
   notificationCnt,
 }: {
@@ -277,6 +381,17 @@ const AuthenticatedControls = async ({
 
   return (
     <>
+      {/* Quick Wallet Access - Important for Solana platform */}
+      <Link
+        href="/dashboard/wallet"
+        className={cn(
+          buttonVariants({ size: "icon", variant: "ghost" }),
+          "rounded-full relative"
+        )}
+      >
+        <Wallet />
+      </Link>
+
       {/* Notifications Bell */}
       <Link
         href="/notifications"
@@ -318,7 +433,7 @@ const AuthenticatedControls = async ({
           <DropdownMenuItem asChild>
             <Link href={`/profile/${user.username}`}>
               <User />
-              Profile
+              My Profile
             </Link>
           </DropdownMenuItem>
 
@@ -330,14 +445,30 @@ const AuthenticatedControls = async ({
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            <Link href="/wallet">
-              <Wallet />
-              Wallet
+            <Link href="/dashboard/gigs">
+              <ShoppingBag />
+              My Services
             </Link>
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
-            <Link href="/settings">
+            <Link href="/dashboard/orders">
+              <ListOrdered />
+              Orders
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/wallet">
+              <Wallet />
+              Wallet & Payments
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings">
               <Settings />
               Settings
             </Link>
@@ -347,7 +478,7 @@ const AuthenticatedControls = async ({
 
           <DropdownMenuItem variant="destructive" onClick={signOut}>
             <LogOut />
-            Logout
+            Sign Out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
