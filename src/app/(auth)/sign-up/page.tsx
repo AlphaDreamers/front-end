@@ -1,325 +1,246 @@
+// src/app/(auth)/sign-up/page.tsx
 "use client";
 
 import Link from "next/link";
-import { Mail, User, ArrowRight, Loader2, Key, UserCircle } from "lucide-react";
-import { z } from "zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { z } from "zod";
+import { Mail, User, Lock, ArrowRight, Check, X } from "lucide-react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
+import { AuthCard } from "@/components/auth/auth-card";
+import { FormInput } from "@/components/auth/form-fields";
+import { useAuthForm } from "@/hooks/use-auth-state";
+import { usePasswordStrength } from "@/hooks/use-password-strength";
+import { SignUpFormSchema } from "@/lib/schemas";
+import { signUp } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
-import { signUp } from "@/lib/actions";
-import {
-  PASSWORD_SCHEMA_CONDITIONS_COUNT,
-  PasswordSchema,
-  SignUpFormSchema,
-} from "@/lib/schemas";
-import PasswordInput from "@/components/password-input";
-import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
+// Password requirement component for better UX
+function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {met ? (
+        <Check className="h-3 w-3 text-green-500" />
+      ) : (
+        <X className="h-3 w-3 text-muted-foreground" />
+      )}
+      <span className={cn("text-muted-foreground", met && "text-foreground")}>
+        {text}
+      </span>
+    </div>
+  );
+}
 
 export default function SignUpPage() {
-  const searchParams = useSearchParams();
-
-  const [passwordStrength, setPasswordStrength] = useState(0);
-
-  const { push } = useRouter();
+  const { isLoading, handleSubmit } =
+    useAuthForm<z.infer<typeof SignUpFormSchema>>();
+  const [showPasswordRequirements, setShowPasswordRequirements] =
+    useState(false);
 
   const form = useForm({
     resolver: zodResolver(SignUpFormSchema),
     defaultValues: {
+      firstName: "",
+      lastName: "",
       username: "",
       email: "",
       password: "",
       confirmPassword: "",
-      firstName: "",
-      lastName: "",
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof SignUpFormSchema>) => {
-    toast.promise(async () => signUp(values), {
-      loading: "Creating account...",
-      success: () => {
-        const params = new URLSearchParams(searchParams);
+  const password = form.watch("password");
+  const { strength } = usePasswordStrength(password);
 
-        params.set("email", values.email);
+  // Check individual password requirements for display
+  const passwordChecks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
 
-        push("/verify-email?" + params.toString());
-
-        return "Account created! Check your email to verify your account.";
-      },
-      error: (err) => {
-        const ms =
-          err instanceof Error
-            ? err.message
-            : "An error occurred. Please try again.";
-
-        form.setError("root", {
-          message: ms,
-        });
-
-        return ms;
+  const onSubmit = (values: z.infer<typeof SignUpFormSchema>) => {
+    handleSubmit(signUp, values, {
+      successMessage: "Account created! Please check your email to verify.",
+      successRedirect: `/verify-email?email=${encodeURIComponent(values.email)}`,
+      onError: (error) => {
+        // Handle specific error cases
+        if (error.message.includes("already registered")) {
+          form.setError("email", { message: error.message });
+        } else {
+          form.setError("root", { message: error.message });
+        }
       },
     });
   };
 
-  const isLoading = form.formState.isSubmitting;
-
-  const getPasswordStrength = (password: string) => {
-    const result = PasswordSchema.safeParse(password);
-    const errorCount = result.success ? 0 : result.error.errors.length;
-    return (
-      ((PASSWORD_SCHEMA_CONDITIONS_COUNT - errorCount) /
-        PASSWORD_SCHEMA_CONDITIONS_COUNT) *
-      100
-    );
-  };
-
   return (
-    <main className="max-w-md">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">
-          Create an account
-        </h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Join our freelance marketplace with crypto payments
-        </p>
-      </div>
-
-      <Card>
-        <CardContent>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="flex flex-col gap-6"
-            >
-              <div className="flex items-center gap-2">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl className="relative">
-                        <div>
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            {...field}
-                            placeholder="John"
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl className="relative">
-                        <div>
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            {...field}
-                            placeholder="Doe"
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl className="relative">
-                      <div>
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          {...field}
-                          placeholder="johndoe"
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl className="relative">
-                      <div>
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          {...field}
-                          type="email"
-                          placeholder="name@example.com"
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl className="relative">
-                      <div>
-                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <PasswordInput
-                          {...field}
-                          placeholder="********"
-                          className="pl-10"
-                          onChange={(e) => {
-                            field.onChange(e);
-                            setPasswordStrength(
-                              getPasswordStrength(e.target.value)
-                            );
-                          }}
-                        />
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      <div className="flex items-center gap-2">
-                        <Progress value={passwordStrength} />
-                        <span>{passwordStrength.toFixed(1)}%</span>
-                      </div>
-                      <span>Password strength</span>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl className="relative">
-                      <div>
-                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          {...field}
-                          placeholder="********"
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full mt-2"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    Create account
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-
-        <CardFooter> 
-          <div className="text-center w-full text-sm text-muted-foreground leading-[0.5]">
-            Already have an account?{" "}
+    <AuthCard
+      title="Create your account"
+      description="Join the Solana services marketplace"
+      footer={
+        <>
+          <div className="w-full text-center">
+            <span className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+            </span>
             <Link
               href="/sign-in"
-              className={cn(
-                buttonVariants({
-                  variant: "link",
-                  className: "inline p-0 m-0",
-                })
-              )}
+              className="text-sm font-medium text-primary hover:underline"
             >
               Sign in
             </Link>
           </div>
-        </CardFooter>
-      </Card>
 
-      <div className="mt-4 text-center text-xs text-muted-foreground max-w-3/4 mx-auto">
-        <div>
-          <UserCircle className="size-5 stroke-[1.125] inline-flex mr-2" />
-          By signing up, you agree to our{" "}
-          <Link
-            href="/terms-of-service"
-            className={cn(
-              buttonVariants({
-                variant: "link",
-                className: "inline p-0 m-0 text-xs",
-              })
+          <p className="text-center text-xs text-muted-foreground">
+            By creating an account, you agree to our{" "}
+            <Link href="/terms" className="underline hover:text-primary">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline hover:text-primary">
+              Privacy Policy
+            </Link>
+          </p>
+        </>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Form-level error */}
+          {form.formState.errors.root && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {form.formState.errors.root.message}
+            </div>
+          )}
+
+          {/* Name fields in a grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              control={form.control}
+              name="firstName"
+              label="First name"
+              placeholder="John"
+              icon={User}
+              required
+            />
+            <FormInput
+              control={form.control}
+              name="lastName"
+              label="Last name"
+              placeholder="Doe"
+              icon={User}
+              required
+            />
+          </div>
+
+          <FormInput
+            control={form.control}
+            name="username"
+            label="Username"
+            placeholder="johndoe"
+            icon={User}
+            description="This will be your public display name"
+            required
+          />
+
+          <FormInput
+            control={form.control}
+            name="email"
+            label="Email"
+            type="email"
+            placeholder="john@example.com"
+            icon={Mail}
+            required
+          />
+
+          <div className="space-y-2">
+            <FormInput
+              control={form.control}
+              name="password"
+              label="Password"
+              type="password"
+              placeholder="Create a strong password"
+              icon={Lock}
+              required
+              onFocus={() => setShowPasswordRequirements(true)}
+            />
+
+            {/* Password strength indicator */}
+            {password && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Progress value={strength} className="h-2" />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {strength}% strong
+                  </span>
+                </div>
+
+                {/* Password requirements checklist */}
+                {showPasswordRequirements && (
+                  <div className="rounded-md bg-muted/50 p-3 space-y-1">
+                    <PasswordRequirement
+                      met={passwordChecks.length}
+                      text="At least 8 characters"
+                    />
+                    <PasswordRequirement
+                      met={passwordChecks.uppercase}
+                      text="One uppercase letter"
+                    />
+                    <PasswordRequirement
+                      met={passwordChecks.lowercase}
+                      text="One lowercase letter"
+                    />
+                    <PasswordRequirement
+                      met={passwordChecks.number}
+                      text="One number"
+                    />
+                    <PasswordRequirement
+                      met={passwordChecks.special}
+                      text="One special character"
+                    />
+                  </div>
+                )}
+              </div>
             )}
+          </div>
+
+          <FormInput
+            control={form.control}
+            name="confirmPassword"
+            label="Confirm password"
+            type="password"
+            placeholder="Re-enter your password"
+            icon={Lock}
+            required
+          />
+
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isLoading}
           >
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="/privacy-policy"
-            className={cn(
-              buttonVariants({
-                variant: "link",
-                className: "inline p-0 m-0 text-xs",
-              })
+            {isLoading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Creating account...
+              </>
+            ) : (
+              <>
+                Create account
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
             )}
-          >
-            Privacy Policy
-          </Link>
-          .
-        </div>
-      </div>
-    </main>
+          </Button>
+        </form>
+      </Form>
+    </AuthCard>
   );
 }

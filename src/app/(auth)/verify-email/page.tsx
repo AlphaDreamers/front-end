@@ -1,22 +1,14 @@
+// src/app/(auth)/verify-email/page.tsx
 "use client";
 
-import { ArrowRight, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useSearchParams } from "next/navigation";
+import { Mail, Shield, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -29,16 +21,20 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-
-import { resendVerificationEmail, verifyEmail } from "@/lib/actions";
+import { AuthCard } from "@/components/auth/auth-card";
+import { useAuthForm } from "@/hooks/use-auth-state";
+import { useCountdown } from "@/hooks/use-countdown";
+import { verifyEmail, resendVerificationEmail } from "@/lib/actions";
 import { VerifyEmailFormSchema } from "@/lib/schemas";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const callbackUrl = searchParams.get("callback-url") || "/";
+  const callbackUrl = searchParams.get("callback-url") || "/dashboard";
 
-  const { push } = useRouter();
+  const { isLoading, handleSubmit } = useAuthForm();
+  const { timeLeft, isActive, start } = useCountdown(60);
+  const otpRef = useRef<HTMLInputElement>(null);
 
   const form = useForm({
     resolver: zodResolver(VerifyEmailFormSchema),
@@ -48,135 +44,152 @@ export default function VerifyEmailPage() {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof VerifyEmailFormSchema>) => {
-    toast.promise(async () => verifyEmail(values), {
-      loading: "Veryfying...",
-      success: () => {
-        const params = new URLSearchParams(searchParams);
-        params.delete("email");
-        params.delete("code");
-        params.delete("callback-url");
-        push(`${callbackUrl}?${params.toString()}`);
+  // Auto-focus on the OTP input when component mounts
+  useEffect(() => {
+    otpRef.current?.focus();
+  }, []);
 
-        return "Email verified successfully!";
-      },
-      error: (err) => {
-        const ms =
-          err instanceof Error
-            ? err.message
-            : "An error occurred. Please try again.";
-
-        form.setError("root", {
-          message: ms,
+  const onSubmit = (values: z.infer<typeof VerifyEmailFormSchema>) => {
+    handleSubmit(verifyEmail, values, {
+      successMessage: "Email verified successfully! Welcome aboard!",
+      successRedirect: callbackUrl,
+      onError: (error) => {
+        form.setError("code", {
+          message: error.message.includes("expired")
+            ? "This code has expired. Please request a new one."
+            : "Invalid code. Please check and try again.",
         });
-
-        return ms;
       },
     });
   };
 
-  const isLoading = form.formState.isSubmitting;
+  const handleResend = async () => {
+    if (isActive || !email) return;
 
-  const onResendCode = async () => {
-    toast.promise(
-      async () => {
-        await resendVerificationEmail(email);
-      },
-      {
-        loading: "Resending code...",
-        success: () => {
-          return "Verification code resent!";
-        },
-        error: (err) => {
-          const ms =
-            err instanceof Error
-              ? err.message
-              : "An error occurred. Please try again.";
-
-          form.setError("root", {
-            message: ms,
-          });
-
-          return ms;
-        },
-      }
-    );
+    start();
+    try {
+      await resendVerificationEmail(email);
+      // Clear the OTP field when resending
+      form.setValue("code", "");
+      otpRef.current?.focus();
+    } catch (error) {
+      console.error("Failed to resend:", error);
+    }
   };
 
   return (
-    <Card className="animate-slideUp">
-      <CardHeader className="text-center">
-        <CardTitle>Verify your email</CardTitle>
-        <CardDescription className="text-center">
-          We&apos;ve sent a verification code to your email
-        </CardDescription>
-      </CardHeader>
+    <AuthCard
+      title="Verify your email"
+      description={
+        <>
+          We've sent a verification code to
+          <br />
+          <span className="font-medium text-foreground">{email}</span>
+        </>
+      }
+      footer={
+        <div className="w-full space-y-4">
+          {/* Email change option */}
+          <div className="text-center text-sm">
+            <span className="text-muted-foreground">Wrong email? </span>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => window.history.back()}
+              className="p-0 h-auto font-medium"
+            >
+              Go back and edit
+            </Button>
+          </div>
 
-      <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-          >
+          {/* Resend option with countdown */}
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              Didn't receive the code? Check your spam folder or
+            </p>
+            <Button
+              variant={isActive ? "ghost" : "outline"}
+              size="sm"
+              onClick={handleResend}
+              disabled={isActive || isLoading}
+              className="min-w-[140px]"
+            >
+              {isActive ? (
+                <>Resend in {timeLeft}s</>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Resend code
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Security notice */}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Shield className="h-3 w-3" />
+            <span>This code expires in 24 hours for your security</span>
+          </div>
+        </div>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-sm text-center text-muted-foreground">
+              Enter the 6-digit code below
+            </p>
+
             <FormField
               control={form.control}
               name="code"
               render={({ field }) => (
-                <FormItem className="w-fit mx-auto">
+                <FormItem>
                   <FormControl>
-                    <InputOTP maxLength={6} {...field}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} className="size-12" />
-                        <InputOTPSlot index={1} className="size-12" />
-                        <InputOTPSlot index={2} className="size-12" />
-                        <InputOTPSlot index={3} className="size-12" />
-                        <InputOTPSlot index={4} className="size-12" />
-                        <InputOTPSlot index={5} className="size-12" />
+                    <InputOTP
+                      ref={otpRef}
+                      maxLength={6}
+                      {...field}
+                      disabled={isLoading}
+                      className="justify-center"
+                    >
+                      <InputOTPGroup className="gap-2">
+                        {[...Array(6)].map((_, i) => (
+                          <InputOTPSlot
+                            key={i}
+                            index={i}
+                            className="h-12 w-10 text-lg"
+                          />
+                        ))}
                       </InputOTPGroup>
                     </InputOTP>
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-center mt-2" />
                 </FormItem>
               )}
             />
+          </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-4"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  Verify email
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-
-      <CardFooter>
-        <div className="text-center w-full text-sm text-muted-foreground leading-[0.5]">
-          Didn&apos;t receive an email?
-          <br />
-          Check your spam folder or{" "}
           <Button
-            onClick={onResendCode}
-            disabled={isLoading}
-            variant="link"
-            className="inline p-0 m-0"
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isLoading || form.watch("code").length !== 6}
           >
-            Resend code
+            {isLoading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Verifying...
+              </>
+            ) : (
+              <>
+                Verify email
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
-        </div>
-      </CardFooter>
-    </Card>
+        </form>
+      </Form>
+    </AuthCard>
   );
 }

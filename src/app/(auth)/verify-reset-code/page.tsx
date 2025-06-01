@@ -1,22 +1,10 @@
 "use client";
 
-import { ArrowRight, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useSearchParams } from "next/navigation";
-
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -29,150 +17,120 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-
-import { resendVerificationEmail, verifyEmail } from "@/lib/actions";
-import { VerifyEmailFormSchema } from "@/lib/schemas";
+import { VerifyResetPasswordCodeFormSchema } from "@/lib/schemas";
+import { Shield, Clock } from "lucide-react";
+import { useAuthForm } from "@/hooks/use-auth-state";
+import { useCountdown } from "@/hooks/use-countdown";
+import { AuthCard } from "@/components/auth/auth-card";
+import {
+  resendPasswordResetCode,
+  verifyPasswordResetCode,
+} from "@/lib/actions";
 
 export default function VerifyPasswordResetCode() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const callbackUrl = searchParams.get("callback-url") || "/";
-
-  const { push } = useRouter();
+  const { isLoading, handleSubmit } = useAuthForm();
+  const { timeLeft, isActive, start } = useCountdown(60);
 
   const form = useForm({
-    resolver: zodResolver(VerifyEmailFormSchema),
+    resolver: zodResolver(VerifyResetPasswordCodeFormSchema),
     defaultValues: {
-      code: "",
       email,
+      code: "",
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof VerifyEmailFormSchema>) => {
-    toast.promise(async () => verifyEmail(values), {
-      loading: "Veryfying...",
-      success: () => {
-        push(callbackUrl);
-
-        return "Email verified successfully!";
-      },
-      error: (err) => {
-        const ms =
-          err instanceof Error
-            ? err.message
-            : "An error occurred. Please try again.";
-
-        form.setError("root", {
-          message: ms,
-        });
-
-        return ms;
+  const onSubmit = (
+    values: z.infer<typeof VerifyResetPasswordCodeFormSchema>
+  ) => {
+    handleSubmit(verifyPasswordResetCode, values, {
+      successMessage: "Code verified successfully",
+      successRedirect: `/reset-password?email=${email}&code=${values.code}`,
+      onError: (error) => {
+        form.setError("code", { message: error.message });
       },
     });
   };
 
-  const isLoading = form.formState.isSubmitting;
+  const handleResend = async () => {
+    if (isActive) return;
 
-  const onResendCode = async () => {
-    toast.promise(
-      async () => {
-        await resendVerificationEmail(email);
-      },
-      {
-        loading: "Resending code...",
-        success: () => {
-          return "Verification code resent!";
-        },
-        error: (err) => {
-          const ms =
-            err instanceof Error
-              ? err.message
-              : "An error occurred. Please try again.";
-
-          form.setError("root", {
-            message: ms,
-          });
-
-          return ms;
-        },
-      }
-    );
+    start();
+    await handleSubmit(resendPasswordResetCode, email, {
+      successMessage: "New code sent to your email",
+    });
   };
 
   return (
-    <Card className="animate-slideUp">
-      <CardHeader className="text-center">
-        <CardTitle>Verify your email</CardTitle>
-        <CardDescription className="text-center">
-          We&apos;ve sent a verification code to your email
-        </CardDescription>
-      </CardHeader>
+    <AuthCard
+      title="Verify Reset Code"
+      description="Enter the 6-digit code sent to your email"
+      footer={
+        <div className="w-full space-y-4">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>Code expires in 24 hours</span>
+          </div>
 
-      <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-          >
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem className="w-fit mx-auto">
-                  <FormControl>
-                    <InputOTP maxLength={6} {...field}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} className="size-12" />
-                        <InputOTPSlot index={1} className="size-12" />
-                        <InputOTPSlot index={2} className="size-12" />
-                        <InputOTPSlot index={3} className="size-12" />
-                        <InputOTPSlot index={4} className="size-12" />
-                        <InputOTPSlot index={5} className="size-12" />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+          <div className="text-center text-sm">
+            <span className="text-muted-foreground">
+              Didn't receive the code?{" "}
+            </span>
             <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-4"
-              size="lg"
+              variant="link"
+              size="sm"
+              onClick={handleResend}
+              disabled={isActive || isLoading}
+              className="p-0"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  Verify email
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
+              {isActive ? `Resend in ${timeLeft}s` : "Resend code"}
             </Button>
-          </form>
-        </Form>
-      </CardContent>
+          </div>
 
-      <CardFooter>
-        <div className="text-center w-full text-sm text-muted-foreground leading-[0.5]">
-          Didn&apos;t receive an email?
-          <br />
-          Check your spam folder or{" "}
-          <Button
-            onClick={onResendCode}
-            disabled={isLoading}
-            variant="link"
-            className="inline p-0 m-0"
-          >
-            Resend code
-          </Button>
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Shield className="h-3 w-3" />
+            <span>Your information is secure and encrypted</span>
+          </div>
         </div>
-      </CardFooter>
-    </Card>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <InputOTP
+                    maxLength={6}
+                    {...field}
+                    disabled={isLoading}
+                    className="justify-center"
+                  >
+                    <InputOTPGroup>
+                      {[...Array(6)].map((_, i) => (
+                        <InputOTPSlot key={i} index={i} className="h-12 w-12" />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </FormControl>
+                <FormMessage className="text-center" />
+              </FormItem>
+            )}
+          />
+
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isLoading}
+          >
+            {isLoading ? "Verifying..." : "Verify Code"}
+          </Button>
+        </form>
+      </Form>
+    </AuthCard>
   );
 }

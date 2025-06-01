@@ -1,27 +1,28 @@
+// src/app/(auth)/forgot-password/page.tsx
 "use client";
 
-import { Mail, ArrowRight, Loader2, Shield } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { Mail, ArrowLeft, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
+import { Form } from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthCard } from "@/components/auth/auth-card";
+import { FormInput } from "@/components/auth/form-fields";
+import { useAuthForm } from "@/hooks/use-auth-state";
 import { ForgotPasswordFormSchema } from "@/lib/schemas";
-import { forgotPassword } from "@/lib/actions";
+import { forgotPassword } from "@/lib/actions/auth";
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
+  const { isLoading, handleSubmit } = useAuthForm();
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+
   const form = useForm({
     resolver: zodResolver(ForgotPasswordFormSchema),
     defaultValues: {
@@ -29,95 +30,133 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const onSubmit = async (values: { email: string }) => {
-    toast.promise(async () => forgotPassword(values), {
-      loading: "Sending reset link...",
-      success: () => {
-        return "Reset link sent successfully";
-      },
-      error: (err) => {
-        const ms = err instanceof Error ? err.message : "Something went wrong";
-        form.setError("root", {
-          type: "custom",
-          message: ms,
-        });
-        return ms;
+  const onSubmit = async (values: z.infer<typeof ForgotPasswordFormSchema>) => {
+    await handleSubmit(forgotPassword, values, {
+      onError: (error) => {
+        // Don't reveal if email exists or not for security
+        if (error.message.includes("not found")) {
+          // Still show success to prevent email enumeration
+          setIsSubmitted(true);
+          setSubmittedEmail(values.email);
+        } else {
+          form.setError("email", { message: error.message });
+        }
       },
     });
+
+    setIsSubmitted(true);
+    setSubmittedEmail(values.email);
   };
 
-  const isLoading = form.formState.isSubmitting;
+  // Success state - shown after form submission
+  if (isSubmitted) {
+    return (
+      <AuthCard
+        title="Check your email"
+        description="We've sent you a password reset code"
+      >
+        <div className="space-y-4">
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              We've sent a 6-digit code to <strong>{submittedEmail}</strong>
+              <br />
+              Please check your inbox and spam folder.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() =>
+                router.push(
+                  `/verify-reset-code?email=${encodeURIComponent(submittedEmail)}`
+                )
+              }
+              className="w-full"
+              size="lg"
+            >
+              Enter reset code
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsSubmitted(false);
+                form.reset();
+              }}
+              className="w-full"
+            >
+              Try a different email
+            </Button>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Didn't receive the email? Please wait a few minutes and check your
+            spam folder.
+          </p>
+        </div>
+      </AuthCard>
+    );
+  }
 
   return (
-    <main className="max-w-md mx-auto">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">
-          Forgot Password
-        </h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Enter your email address to receive a link to reset your password. If
-          you don&apos;t receive an email, please check your spam folder or try
-          again later.
-        </p>
-      </div>
+    <AuthCard
+      title="Forgot your password?"
+      description="No worries, we'll send you reset instructions"
+      footer={
+        <div className="w-full space-y-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/sign-in")}
+            className="w-full"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to sign in
+          </Button>
 
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              For security reasons, we'll send a reset code whether or not an
+              account exists with this email.
+            </AlertDescription>
+          </Alert>
+        </div>
+      }
+    >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Card>
-            <CardContent className="flex flex-col gap-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      <Mail size={16} className="inline mr-2" />
-                      Email
-                      <span className="text-xs text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="example@gmail.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Enter the email address associated with your account. We
-                      will send you a link to reset your password.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormInput
+            control={form.control}
+            name="email"
+            label="Email address"
+            type="email"
+            placeholder="Enter your email"
+            icon={Mail}
+            description="Enter the email associated with your account"
+            required
+          />
 
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    Resetting password...
-                    <Loader2 className="animate-spin mr-2" />
-                  </>
-                ) : (
-                  <>
-                    Send Reset Link
-                    <ArrowRight className="ml-2" />
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Sending reset code...
+              </>
+            ) : (
+              <>
+                Send reset code
+                <Mail className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
         </form>
       </Form>
-
-      <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Shield className="h-4 w-4" />
-        <span>
-          Your data is secure. We will never share your information with third
-          parties.
-        </span>
-      </div>
-    </main>
+    </AuthCard>
   );
 }

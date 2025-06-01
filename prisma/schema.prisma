@@ -219,6 +219,8 @@ model VerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   userId String @unique
+
+  createdAt DateTime @default(now())
 }
 
 model Gig {
