@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { SocialLinkType } from "@prisma/client";
 import { LucideProps } from "lucide-react";
+import { format } from "date-fns";
 import {
   Twitter,
   Github,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { PASSWORD_SCHEMA_CONDITIONS_COUNT, PasswordSchema } from "./schemas";
 import { encode } from "bs58";
+import { Message } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -163,3 +164,36 @@ export const decryptPrivateKey = async (
 
   return new Uint8Array(decrypted);
 };
+
+export function groupMessagesByDate(
+  messages: Message[]
+): Record<string, Message[]> {
+  return messages.reduce(
+    (groups, message) => {
+      const date = format(new Date(message.createdAt), "yyyy-MM-dd");
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(message);
+      return groups;
+    },
+    {} as Record<string, Message[]>
+  );
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+export function formatOrderStatus(status: string): string {
+  return status
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}

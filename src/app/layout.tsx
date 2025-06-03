@@ -3,9 +3,8 @@ import { Ubuntu_Sans } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { ThemeProvider } from "@/components/theme-provider";
+import ThemeProvider from "@/components/ui/theme-provider";
 
-import WalletProvider from "@/components/wallet-provider";
 import SessionProvider from "@/components/session-provider";
 import Navbar from "@/components/nav-bar";
 
@@ -30,31 +29,23 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${ubuntuSans.className} antialiased`}
-      >
-        <WalletProvider>
-          <SessionProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <SidebarProvider>
-                <SidebarInset>
-                  <Navbar>
-                    <div className="min-h-screen container mx-auto">
-                      {children}
-                    </div>
-                  </Navbar>
+      <body className={`${ubuntuSans.className} antialiased`}>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <SidebarProvider>
+              <SidebarInset>
+                <div className="min-h-screen container mx-auto">{children}</div>
 
-                  <Toaster richColors />
-                </SidebarInset>
-              </SidebarProvider>
-            </ThemeProvider>
-          </SessionProvider>
-        </WalletProvider>
+                <Toaster richColors />
+              </SidebarInset>
+            </SidebarProvider>
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );

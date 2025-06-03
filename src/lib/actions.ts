@@ -2,8 +2,6 @@
 
 import { z } from "zod";
 
-import { cookies } from "next/headers";
-
 import { prisma } from "@/lib/prisma";
 import {
   CreateGigFormSchema,
@@ -11,15 +9,8 @@ import {
   UpdateGigFormSchema,
   UpdateProfileFormSchema,
 } from "@/lib/schemas";
-import { Chat, CLODUINARY_CONFIG, UploadPreset } from "./types";
 import { Prisma } from "@prisma/client";
 import { me } from "./actions/auth";
-
-export async function signOut() {
-  const cookieStore = await cookies();
-
-  cookieStore.delete("token");
-}
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
@@ -787,116 +778,6 @@ export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
   });
 };
 
-export const getChatByOrderId = async (
-  orderId: string
-): Promise<Chat | null> => {
-  const currentUser = await me();
-
-  if (!currentUser) {
-    throw new Error("User not authenticated");
-  }
-
-  const chat = await prisma.chat.findUnique({
-    where: {
-      orderId,
-    },
-    select: {
-      id: true,
-      buyer: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-      seller: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-      messages: {
-        select: {
-          id: true,
-          type: true,
-          readBy: {
-            select: {
-              id: true,
-            },
-          },
-          systemContent: {
-            select: {
-              type: true,
-              content: true,
-            },
-          },
-          textContent: {
-            select: {
-              text: true,
-              userMessage: {
-                select: {
-                  userId: true,
-                },
-              },
-            },
-          },
-          mediaContent: {
-            select: {
-              files: {
-                select: {
-                  url: true,
-                },
-              },
-              userMessage: {
-                select: {
-                  userId: true,
-                },
-              },
-            },
-          },
-          createdAt: true,
-        },
-      },
-    },
-  });
-
-  if (!chat) {
-    return null;
-  }
-
-  return {
-    ...chat,
-    messages: chat.messages.map((ms) => ({
-      id: ms.id,
-      createdAt: ms.createdAt,
-      isRead: ms.readBy.some((user) => user.id === currentUser.id),
-      type: ms.type,
-      content:
-        ms.type === "TEXT"
-          ? {
-              text: ms.textContent?.text || "",
-            }
-          : ms.type === "MEDIA"
-            ? {
-                urls: ms.mediaContent?.files.map((url) => url.url) || [],
-              }
-            : {
-                type: ms.systemContent?.type,
-                content: ms.systemContent?.content || "",
-              },
-      senderId:
-        ms.textContent?.userMessage.userId ||
-        ms.mediaContent?.userMessage.userId ||
-        null,
-    })),
-  } as Chat;
-};
-
 export const getFilteredGigsList = async ({ query }: { query: string }) => {
   if (!query || query.trim().length === 0) {
     return [];
@@ -988,32 +869,6 @@ export const getCategoryTree = async (): Promise<CategoryWithChildren[]> => {
   });
 
   return categories as CategoryWithChildren[];
-};
-
-export const uploadFileToCloudinary = async (
-  file: File,
-  preset: UploadPreset
-): Promise<string> => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", preset);
-  formData.append("folder", CLODUINARY_CONFIG[preset]);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  const result = await res.json();
-
-  if (!res.ok) {
-    throw new Error(`Cloudinary upload failed: ${JSON.stringify(result)}`);
-  }
-
-  return result.secure_url as string;
 };
 
 export const getTestimolnials = async () => {

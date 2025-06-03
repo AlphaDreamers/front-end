@@ -484,3 +484,9 @@ export async function resendPasswordResetCode(email: string) {
       console.error("Failed to send password reset email:", error);
     });
 }
+
+export async function signOut() {
+  const cookieStore = await cookies();
+
+  cookieStore.delete("token");
+}

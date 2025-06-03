@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MessageStatus {
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
 enum SocialLinkType {
   X
   GITHUB
@@ -242,6 +250,8 @@ model Gig {
 
   categoryId String
   sellerId   String
+
+  createdAt DateTime @default(now())
 }
 
 model Image {
@@ -375,7 +385,8 @@ model Chat {
 model Message {
   id String @id @default(uuid())
 
-  type MessageType
+  type   MessageType
+  status MessageStatus @default(SENT)
 
   chat          Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   readBy        User[]         @relation("MessageReadBy")
@@ -386,6 +397,9 @@ model Message {
   chatId String
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chatId, createdAt])
 }
 
 model TextContent {

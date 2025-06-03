@@ -1,6 +1,8 @@
 "use client";
 
-import type React from "react";
+import { Edit, Eye, DollarSign, Users, BarChart3 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 import {
   Card,
@@ -10,178 +12,168 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Star, Edit, Trash2, Eye, Clock } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Prisma } from "@prisma/client";
+import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-// Updated Gig type to match Prisma schema
+import GigDeleteButton from "./gig/gig-delete-button";
+import Rating from "./rating";
+import { DashboardGig } from "@/lib/types";
+
 interface DashboardGigCardProps {
-  gig: Prisma.GigGetPayload<{
-    select: {
-      title: true;
-      description: true;
-      id: true;
-      reviews: {
-        select: {
-          rating: true;
-        };
-      };
-      packages: {
-        select: {
-          title: true;
-          price: true;
-          orders: {
-            select: {
-              id: true;
-            };
-          };
-        };
-      };
-      category: {
-        select: {
-          label: true;
-        };
-      };
-      images: {
-        select: {
-          url: true;
-        };
-      };
-    };
-  }>;
+  gig: DashboardGig;
 }
 
 const DashboardGigCard = ({ gig }: DashboardGigCardProps) => {
-  // Calculate average rating
-  const totalRatings = gig.reviews.length;
-  const averageRating =
-    totalRatings > 0
-      ? gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
-        totalRatings
-      : 0;
-
   return (
-    <Card className="transition-color duration-300 hover:shadow-primary hover:border-primary group">
-      <CardHeader className="px-4">
-        <div className="aspect-video w-full overflow-hidden rounded-md mb-4">
+    <Card className="group relative overflow-hidden transition-all duration-300">
+      <CardHeader>
+        {/* Hero Image */}
+        <div className="relative aspect-video -mx-6 -mt-6 mb-6 min-w-[calc(100%+48px)] overflow-hidden">
           <Image
-            src={gig.images[0]?.url || "/placeholder.jpg"}
+            src={gig.image}
             alt={gig.title}
             width={400}
-            height={300}
-            className="w-full h-full object-cover"
+            height={240}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
 
-        <div className="flex justify-between text-xs mb-2 text-muted-foreground">
-          <div>{gig.category.label}</div>
-          <div className="flex items-center gap-1">
-            <Eye size={14} />
-            <span>{0}</span>
+        <div>
+          {/* Category and Views */}
+          <div className="flex items-center justify-between mb-3">
+            <Badge variant="outline" className="text-xs font-medium">
+              {gig.category.label}
+            </Badge>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Eye className="h-3 w-3" />
+                <span>{(2847).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Title */}
+          <CardTitle className="text-lg font-semibold line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+            {gig.title}
+          </CardTitle>
+
+          {/* Description */}
+          <CardDescription className="text-sm line-clamp-4 mb-4">
+            {gig.description}
+          </CardDescription>
+
+          {/* Rating and Reviews */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-1">
+              <Rating rating={gig.averageRating} />
+              <span className="text-sm font-medium">
+                {gig.averageRating.toFixed(1)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({gig.ratingCount} reviews)
+              </span>
+            </div>
           </div>
         </div>
-
-        <CardTitle className="line-clamp-2">{gig.title}</CardTitle>
-
-        <CardDescription className="mt-2 line-clamp-3">
-          {gig.description}
-        </CardDescription>
       </CardHeader>
 
-      <CardContent className="px-4 flex-grow">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <Star size={16} className="text-primary mr-1" />
-            <span>{averageRating.toFixed(2)}</span>
-            <span className="text-muted-foreground text-xs ml-1">
-              ({gig.reviews.length} reviews)
-            </span>
+      <CardContent className="mt-auto">
+        {/* Performance Metrics */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center size-12 bg-secondary rounded-full mx-auto mb-1">
+              <Users className="text-chart-3" />
+            </div>
+            <div className="text-lg font-semibold text-muted-foreground">
+              {gig.totalOrders}
+            </div>
+            <div className="text-xs text-muted-foreground">Orders</div>
           </div>
 
-          <div className="flex items-center">
-            <Clock size={16} className="text-muted-foreground mr-1" />
-            <span className="text-sm">
-              Orders:{" "}
-              {gig.packages.reduce((acc, pkg) => acc + pkg.orders.length, 0)}
-            </span>
+          <div className="text-center">
+            <div className="flex items-center justify-center size-12 bg-secondary rounded-full mx-auto mb-2">
+              <DollarSign className="text-chart-4" />
+            </div>
+            <div className="text-lg font-semibold text-muted-foreground">
+              {(1766.5).toFixed(1)} SOL
+            </div>
+            <div className="text-xs text-muted-foreground">Revenue</div>
+          </div>
+
+          <div className="text-center">
+            <div className="flex items-center justify-center size-12 bg-secondary rounded-full mx-auto mb-2">
+              <BarChart3 className="text-chart-5" />
+            </div>
+            <div className="text-lg font-semibold text-muted-foreground">
+              {(15420).toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">Impressions</div>
           </div>
         </div>
 
-        <div className="flex justify-around items-center gap-4">
-          {gig.packages.map((pkg, index) => (
-            <Card
-              key={index}
-              className="flex-1 py-2 bg-accent text-center gap-2"
-            >
-              <CardHeader className="px-2">
-                <CardTitle>{pkg.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-2 font-medium text-primary">
-                {pkg.price} SOL
-              </CardContent>
-              <CardFooter className="px-2 block text-xs text-muted-foreground">
-                {pkg.orders.length} sold
-              </CardFooter>
-            </Card>
-          ))}
+        {/* Package Overview */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-muted-foreground">
+              Packages
+            </h4>
+            <span className="text-xs text-muted-foreground">
+              {gig.packages.length} tiers
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {gig.packages.map((pkg) => (
+              <div
+                key={pkg.id}
+                className="flex items-center justify-between p-3 bg-muted rounded"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{pkg.title}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {pkg.orderCnt} sold
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-semibold">{pkg.price} SOL</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
 
-      <CardFooter className="px-4 gap-2">
+      <CardFooter className="gap-2">
         <Link
           href={`/dashboard/gigs/${gig.id}/edit`}
           className={buttonVariants({
+            variant: "default",
             className: "flex-1",
           })}
         >
           <Edit />
-          <span>Edit</span>
+          Edit Gig
         </Link>
 
         <Link
           href={`/gigs/${gig.id}`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "flex-1",
+          })}
         >
           <Eye />
-          <span>Preview</span>
+          Preview
         </Link>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="destructive" size="icon">
-              <Trash2 />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Are you absolutely sure?</DialogTitle>
-              <DialogDescription>
-                This action cannot be undone. This will permanently delete your
-                gig and remove it from our servers.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="grid grid-cols-2 gap-4">
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              {/*<DeleteGigButton gigId={gig.id} />*/}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <GigDeleteButton gigId={gig.id} />
       </CardFooter>
     </Card>
   );
 };
+
 export default DashboardGigCard;

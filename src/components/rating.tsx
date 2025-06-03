@@ -53,7 +53,7 @@ const Rating = ({ rating, maxRating = 5, onClick, size = 20 }: RatingProps) => {
                 style={{ width: `${fillPercentage}%` }}
               >
                 <Star
-                  className="text-primary stroke-primary fill-primary"
+                  className="text-chart-3 stroke-chart-3 fill-chart-3"
                   strokeWidth={1}
                   size={size}
                 />

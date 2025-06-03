@@ -57,11 +57,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Checkbox } from "./ui/checkbox";
 
 import { createGig } from "@/lib/actions";
 import { CreateGigFormSchema } from "@/lib/schemas";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Checkbox } from "./ui/checkbox";
 
 interface CreateGigFormProps {
   categories: Prisma.CategoryGetPayload<{

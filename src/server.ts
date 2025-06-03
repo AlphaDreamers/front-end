@@ -3,9 +3,8 @@ import { parse } from "url";
 import next from "next";
 import { Server } from "socket.io";
 
-import { type Message } from "./lib/types";
-import { MessageType } from "@prisma/client";
 import { prisma } from "./lib/prisma";
+import { Message } from "./lib/types";
 
 const port = parseInt(process.env.PORT || "3000", 10);
 const dev = process.env.NODE_ENV !== "production";
@@ -18,95 +17,183 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  console.log(
-    `> Server listening at http://localhost:${port} as ${
-      dev ? "development" : process.env.NODE_ENV
-    }`
-  );
+  const io = new Server(server, {
+    cors: {
+      origin: process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000",
+      credentials: true,
+    },
+  });
 
-  const io = new Server(server);
   io.on("connection", (socket) => {
-    socket.on("join-chat", ({ chatId }) => {
-      console.log(`User joined chat: ${chatId}`);
-      socket.join(chatId);
+    console.log("New client connected:", socket.id);
+
+    socket.on("join-chat", async ({ chatId, userId }) => {
+      try {
+        // Verify user has access to chat
+        const chat = await prisma.chat.findFirst({
+          where: {
+            id: chatId,
+            OR: [{ buyerId: userId }, { sellerId: userId }],
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!chat) {
+          socket.emit("error", "Access denied");
+          return;
+        }
+
+        socket.join(chatId);
+        console.log(`User ${userId} joined chat ${chatId}`);
+
+        // Mark unread messages as delivered
+        await prisma.message.updateMany({
+          where: {
+            chatId,
+            textContent: {
+              userMessage: {
+                userId: {
+                  not: userId,
+                },
+              },
+            },
+            NOT: {
+              readBy: {
+                some: {
+                  id: userId,
+                },
+              },
+            },
+          },
+          data: {
+            // This would need a status field in the schema
+          },
+        });
+      } catch (error) {
+        console.error("Error joining chat:", error);
+        socket.emit("error", "Failed to join chat");
+      }
     });
 
+    // Handle sending messages
     socket.on(
       "message",
       async ({ message, chatId }: { message: Message; chatId: string }) => {
-        console.log("Received message:", message);
-        socket.to(chatId).emit("message", message);
-
         try {
-          const newMessage = await uploadMessage(message, chatId);
+          // Broadcast to other users in the chat immediately
+          socket.to(chatId).emit("message", message);
 
-          console.log("Message saved:", newMessage);
-          socket.to(chatId).emit("message-saved", {
-            message: newMessage,
+          // Save to database
+          const savedMessage = await saveMessage(message, chatId);
+
+          // Emit confirmation with saved message
+          io.to(chatId).emit("message-saved", {
+            message: savedMessage,
             tempId: message.id,
           });
-        } catch {
+        } catch (error) {
+          console.error("Error saving message:", error);
           socket.emit("message-error", {
             tempId: message.id,
+            error: "Failed to save message",
           });
         }
       }
     );
 
-    socket.on("typing-start", (data) => {
+    // Handle typing indicators
+    socket.on("typing-start", ({ chatId, userId, userName }) => {
+      socket.to(chatId).emit("typing-start", { userId, userName });
+    });
+
+    socket.on("typing-stop", ({ chatId, userId }) => {
+      socket.to(chatId).emit("typing-stop", { userId });
+    });
+
+    // Handle message status updates
+    socket.on("message-delivered", async ({ messageId, chatId }) => {
+      socket.to(chatId).emit("message-delivered", { messageId });
+    });
+
+    socket.on("message-read", async ({ messageId, chatId, userId }) => {
       try {
-        const { chatId, userId } = data;
-
-        if (!chatId || !userId) {
-          console.error("Missing chatId or userId in typing-start event");
-          return;
-        }
-
-        socket.broadcast.to(chatId).emit("typing-start", {
-          userId,
-          chatId,
+        // Update in database
+        await prisma.message.update({
+          where: { id: messageId },
+          data: {
+            readBy: {
+              connect: { id: userId },
+            },
+          },
         });
+
+        socket.to(chatId).emit("message-read", { messageId, userId });
       } catch (error) {
-        console.error("Error handling typing-start:", error);
+        console.error("Error marking message as read:", error);
       }
     });
 
-    socket.on("typing-stop", (data) => {
-      try {
-        const { chatId, userId } = data;
-
-        if (!chatId || !userId) {
-          console.error("Missing chatId or userId in typing-stop event");
-          return;
-        }
-
-        socket.broadcast.to(chatId).emit("typing-stop", {
-          userId,
-          chatId,
-        });
-      } catch (error) {
-        console.error("Error handling typing-stop:", error);
-      }
+    // Handle disconnect
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
     });
-
-    socket.on("disconnect", () => {});
   });
 
-  server.listen(port);
+  server.listen(port, () => {
+    console.log(`> Ready on http://localhost:${port}`);
+  });
 });
 
-const uploadMessage = async (
-  message: Message,
-  chatId: string
-): Promise<Message> => {
-  // only system messages lack a senderId
-  // so we can safely cast it to string
-  const userId = message.senderId as string;
+// Helper function to save messages
+async function saveMessage(message: Message, chatId: string): Promise<Message> {
+  const userId = message.senderId!;
 
-  let mediaFiles;
+  if (message.type === "TEXT") {
+    const saved = await prisma.message.create({
+      data: {
+        type: "TEXT",
+        chatId,
+        textContent: {
+          create: {
+            text: message.content.text,
+            userMessage: {
+              create: {
+                userId,
+              },
+            },
+          },
+        },
+        readBy: {
+          connect: { id: userId },
+        },
+      },
+      include: {
+        textContent: {
+          include: {
+            userMessage: true,
+          },
+        },
+        readBy: true,
+      },
+    });
+
+    return {
+      id: saved.id,
+      type: "TEXT",
+      content: { text: saved.textContent!.text },
+      senderId: userId,
+      status: "sent",
+      createdAt: saved.createdAt,
+      isRead: false,
+    };
+  }
+
   if (message.type === "MEDIA") {
-    mediaFiles = await Promise.all(
-      message.content.urls.map(async (url) =>
+    // First create media files
+    const mediaFiles = await Promise.all(
+      message.content.urls.map((url) =>
         prisma.mediaFile.create({
           data: {
             url,
@@ -115,107 +202,48 @@ const uploadMessage = async (
         })
       )
     );
+
+    const saved = await prisma.message.create({
+      data: {
+        type: "MEDIA",
+        chatId,
+        mediaContent: {
+          create: {
+            files: {
+              connect: mediaFiles.map((f) => ({ id: f.id })),
+            },
+            userMessage: {
+              create: {
+                userId,
+              },
+            },
+          },
+        },
+        readBy: {
+          connect: { id: userId },
+        },
+      },
+      include: {
+        mediaContent: {
+          include: {
+            files: true,
+            userMessage: true,
+          },
+        },
+        readBy: true,
+      },
+    });
+
+    return {
+      id: saved.id,
+      type: "MEDIA",
+      content: { urls: saved.mediaContent!.files.map((f) => f.url) },
+      senderId: userId,
+      status: "sent",
+      createdAt: saved.createdAt,
+      isRead: false,
+    };
   }
 
-  const prismaMessage = await prisma.message.create({
-    data: {
-      chat: {
-        connect: {
-          id: chatId,
-        },
-      },
-      type: message.type as MessageType,
-      createdAt: message.createdAt,
-      readBy: {
-        connect: {
-          id: userId,
-        },
-      },
-      textContent:
-        message.type === "TEXT"
-          ? {
-              create: {
-                text: message.content.text,
-                userMessage: {
-                  create: {
-                    userId,
-                  },
-                },
-              },
-            }
-          : undefined,
-      mediaContent:
-        message.type === "MEDIA"
-          ? {
-              create: {
-                files: {
-                  connect:
-                    mediaFiles?.map((file) => ({
-                      id: file.id,
-                    })) || [],
-                },
-                userMessage: {
-                  create: {
-                    userId,
-                  },
-                },
-              },
-            }
-          : undefined,
-    },
-    select: {
-      id: true,
-      createdAt: true,
-      type: true,
-      textContent: {
-        select: {
-          text: true,
-          userMessage: {
-            select: {
-              userId: true,
-            },
-          },
-        },
-      },
-      mediaContent: {
-        select: {
-          files: {
-            select: {
-              id: true,
-              url: true,
-            },
-          },
-          userMessage: {
-            select: {
-              userId: true,
-            },
-          },
-        },
-      },
-      readBy: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  });
-
-  if (message.type !== "TEXT" && message.type !== "MEDIA") {
-    throw new Error(`Unsupported message type: ${message.type}`);
-  }
-
-  return {
-    id: prismaMessage.id,
-    createdAt: prismaMessage.createdAt,
-    isRead: false,
-    type: prismaMessage.type as MessageType,
-    content:
-      prismaMessage.type === "TEXT"
-        ? { text: prismaMessage.textContent?.text || "" }
-        : { urls: prismaMessage.mediaContent?.files.map((f) => f.url) || [] },
-    senderId:
-      prismaMessage.textContent?.userMessage.userId ||
-      prismaMessage.mediaContent?.userMessage.userId ||
-      null,
-  } as Message;
-};
+  throw new Error(`Unsupported message type: ${message.type}`);
+}

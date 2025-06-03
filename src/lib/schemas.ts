@@ -113,25 +113,35 @@ export const ImportWalletFormSchema = z
   .object({
     mnemonic: z
       .string()
-      .min(12, "Mnemonic must be at least 12 words")
-      .max(24, "Mnemonic must be at most 24 words")
+      .trim()
+      .min(1, "Recovery phrase is required")
       .refine((val) => {
-        try {
-          const words = val.trim().split(/\s+/);
-          if (words.length < 12 || words.length > 24) return false;
-          const keypair = Keypair.fromSeed(bs58.decode(words.join(" ")));
-          return keypair.publicKey.toBase58().length > 0;
-        } catch {
-          return false;
-        }
-      }, "Invalid mnemonic"),
+        const words = val.trim().split(/\s+/);
+        return words.length >= 12 && words.length <= 24;
+      }, "Recovery phrase must be between 12 and 24 words")
+      .refine((val) => {
+        // Additional validation will happen in the component
+        // This is just a basic check
+        const words = val.trim().split(/\s+/);
+        return words.every((word) => word.length > 0);
+      }, "Invalid recovery phrase format"),
+    name: z
+      .string()
+      .min(1, "Wallet name is required")
+      .max(50, "Wallet name must be less than 50 characters")
+      .regex(
+        /^[a-zA-Z0-9\s-_]+$/,
+        "Wallet name can only contain letters, numbers, spaces, hyphens, and underscores"
+      ),
     password: PasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  });
+  })
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  .transform(({ confirmPassword, ...rest }) => rest);
 
 // Schema for verifying the mnemonic phrase
 export const MneumonicsVerificationFormSchema = z.object({

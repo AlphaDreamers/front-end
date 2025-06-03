@@ -1,64 +1,87 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
-import { Search } from "lucide-react";
-
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import React from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-interface SearchBarProps extends React.ComponentProps<typeof Input> {
+interface SearchBarProps {
   id?: string;
+  placeholder?: string;
+  className?: string;
   containerClassName?: string;
+  debounceMs?: number;
 }
 
-const SearchBar = ({
-  id = "query",
-  containerClassName,
+export function SearchBar({
+  id = "q",
+  placeholder = "Search...",
   className,
-  ...props
-}: SearchBarProps) => {
+  containerClassName,
+  debounceMs = 300,
+}: SearchBarProps) {
   const searchParams = useSearchParams();
-  const path = usePathname();
-  const { replace } = useRouter();
+  const pathname = usePathname();
+  const router = useRouter();
 
-  const handleSearch = useDebouncedCallback((term: string) => {
+  const [query, setQuery] = useState(searchParams.get(id) || "");
+
+  // Sync with URL changes (e.g., from filters or back button)
+  useEffect(() => {
+    setQuery(searchParams.get(id) || "");
+  }, [searchParams, id]);
+
+  // Debounced URL update
+  const updateUrl = useDebouncedCallback((value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (term) {
-      params.set(id, term);
+
+    if (value) {
+      params.set(id, value);
     } else {
       params.delete(id);
     }
-    replace(`${path}?${params.toString()}`);
-  }, 300);
 
-  const query = searchParams.get(id) || "";
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, debounceMs);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    updateUrl(value);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    updateUrl("");
+  };
 
   return (
     <div className={cn("relative", containerClassName)}>
-      <Button
-        className="absolute left-px top-px rounded-[4.5px] rounded-r-none size-[38px]"
-        variant="secondary"
-        size="icon"
-        onClick={() => {
-          handleSearch.flush();
-        }}
-      >
-        <Search className="text-muted-foreground size-5" />
-      </Button>
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
 
       <Input
         type="search"
-        placeholder="Search..."
-        defaultValue={query}
-        onChange={(e) => handleSearch(e.target.value)}
-        className={cn("pl-14 h-10 text-xl", className)}
-        {...props}
+        placeholder={placeholder}
+        value={query}
+        onChange={handleChange}
+        className={cn("pl-10 pr-10", className)}
       />
+
+      {query && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+          onClick={handleClear}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Clear search</span>
+        </Button>
+      )}
     </div>
   );
-};
-
-export default SearchBar;
+}

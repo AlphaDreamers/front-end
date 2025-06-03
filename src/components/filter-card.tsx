@@ -1,31 +1,37 @@
 "use client";
 
-import type React from "react";
-
-import { useDebouncedCallback } from "use-debounce";
-import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
+import { useDebouncedCallback } from "use-debounce";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Card, CardContent } from "@/components/ui/card";
-import { Toggle } from "@/components/ui/toggle";
+  Filter,
+  X,
+  ChevronDown,
+  Check,
+  Calendar as CalendarIcon,
+  Sliders,
+  SlidersHorizontal,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./ui/sheet";
+import { cn } from "../lib/utils";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -33,627 +39,542 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import type { DateRange } from "react-day-picker";
+} from "./ui/command";
+import { Slider } from "./ui/slider";
+import { Input } from "./ui/input";
+import { Switch } from "./ui/switch";
+import { Calendar } from "./ui/calendar";
 
-interface FilterCardProps {
-  config: (
-    | (SliderButtonProps & { type: "slider" })
-    | (ComboboxButtonProps & { type: "combobox" })
-    | (MultiComboboxButtonProps & { type: "multicombobox" })
-    | (SwitchButtonProps & { type: "switch" })
-    | (CheckboxButtonProps & { type: "checkbox" })
-    | (RadioButtonProps & { type: "radio" })
-    | (DateButtonProps & { type: "date" })
-    | (DateRangeButtonProps & { type: "daterange" })
-  )[];
+// Types
+type FilterValue =
+  | string
+  | string[]
+  | number
+  | boolean
+  | [number, number]
+  | Date
+  | null;
+
+interface BaseFilter {
+  id: string;
+  label: string;
+  type: "select" | "multi" | "range" | "toggle" | "date";
+}
+
+interface SelectFilter extends BaseFilter {
+  type: "select";
+  options: { label: string; value: string }[];
+}
+
+interface MultiFilter extends BaseFilter {
+  type: "multi";
+  options: { label: string; value: string }[];
+}
+
+interface RangeFilter extends BaseFilter {
+  type: "range";
+  min: number;
+  max: number;
+  step?: number;
+  format?: (value: number) => string;
+}
+
+interface ToggleFilter extends BaseFilter {
+  type: "toggle";
+}
+
+interface DateFilter extends BaseFilter {
+  type: "date";
+}
+
+type Filter =
+  | SelectFilter
+  | MultiFilter
+  | RangeFilter
+  | ToggleFilter
+  | DateFilter;
+
+interface FiltersProps {
+  filters: Filter[];
   className?: string;
 }
 
-const FilterCard = ({ config, className }: FilterCardProps) => {
-  const filterButtons = config.map((filterConfig) => {
-    switch (filterConfig.type) {
-      case "slider":
-        return <SliderButton key={filterConfig.id} {...filterConfig} />;
-      case "combobox":
-        return <ComboboxButton key={filterConfig.id} {...filterConfig} />;
-      case "multicombobox":
-        return <MultiComboboxButton key={filterConfig.id} {...filterConfig} />;
-      case "switch":
-        return <SwitchButton key={filterConfig.id} {...filterConfig} />;
-      case "checkbox":
-        return <CheckboxButton key={filterConfig.id} {...filterConfig} />;
-      case "radio":
-        return <RadioButton key={filterConfig.id} {...filterConfig} />;
-      case "date":
-        return <DateButton key={filterConfig.id} {...filterConfig} />;
-      case "daterange":
-        return <DateRangeButton key={filterConfig.id} {...filterConfig} />;
-      default:
-        return null;
-    }
-  });
+export default function Filters({ filters, className }: FiltersProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  return (
-    <div className="flex flex-wrap gap-2 items-center">
-      <ClearAllFiltersButton
-        ids={config.map((filterConfig) => filterConfig.id)}
-      />
-      {filterButtons}
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Parse filters from URL
+  const activeFilters = useMemo(() => {
+    const result: Record<string, FilterValue> = {};
+
+    filters.forEach((filter) => {
+      if (filter.type === "multi") {
+        const values = searchParams.getAll(filter.id);
+        if (values.length > 0) result[filter.id] = values;
+      } else if (filter.type === "range") {
+        const min = searchParams.get(`${filter.id}-min`);
+        const max = searchParams.get(`${filter.id}-max`);
+        if (min || max) {
+          result[filter.id] = [
+            min ? Number(min) : filter.min,
+            max ? Number(max) : filter.max,
+          ];
+        }
+      } else if (filter.type === "toggle") {
+        const value = searchParams.get(filter.id);
+        if (value === "true") result[filter.id] = true;
+      } else if (filter.type === "date") {
+        const value = searchParams.get(filter.id);
+        if (value) result[filter.id] = new Date(value);
+      } else {
+        const value = searchParams.get(filter.id);
+        if (value) result[filter.id] = value;
+      }
+    });
+
+    return result;
+  }, [searchParams, filters]);
+
+  // Update URL with debouncing for smooth UX
+  const updateFilters = useDebouncedCallback(
+    (updates: Record<string, FilterValue>) => {
+      const params = new URLSearchParams(searchParams);
+
+      // Clear old values
+      filters.forEach((filter) => {
+        params.delete(filter.id);
+        if (filter.type === "range") {
+          params.delete(`${filter.id}-min`);
+          params.delete(`${filter.id}-max`);
+        }
+      });
+
+      // Set new values
+      Object.entries({ ...activeFilters, ...updates }).forEach(
+        ([key, value]) => {
+          if (value === null || value === undefined || value === false) {
+            return; // Don't include in URL
+          }
+
+          const filter = filters.find((f) => f.id === key);
+          if (!filter) return;
+
+          if (filter.type === "multi" && Array.isArray(value)) {
+            value.forEach((v) => params.append(key, v));
+          } else if (filter.type === "range" && Array.isArray(value)) {
+            params.set(`${key}-min`, value[0].toString());
+            params.set(`${key}-max`, value[1].toString());
+          } else if (filter.type === "date" && value instanceof Date) {
+            params.set(key, value.toISOString());
+          } else if (filter.type === "toggle" && value === true) {
+            params.set(key, "true");
+          } else if (value) {
+            params.set(key, value.toString());
+          }
+        }
+      );
+
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    300
+  );
+
+  const clearFilters = () => {
+    router.push(pathname, { scroll: false });
+  };
+
+  const activeCount = Object.keys(activeFilters).length;
+
+  const FilterContent = (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Sliders className="h-5 w-5" />
+          Filters
+          {activeCount > 0 && <Badge variant="secondary">{activeCount}</Badge>}
+        </h3>
+
+        {activeCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="h-8 px-2 text-xs"
+          >
+            Clear all
+          </Button>
+        )}
+      </div>
+
+      {/* Active Filters Display */}
+      {activeCount > 0 && (
+        <div className="flex flex-wrap gap-2 pb-4 border-b">
+          {Object.entries(activeFilters).map(([key, value]) => {
+            const filter = filters.find((f) => f.id === key);
+            if (!filter) return null;
+
+            let displayValue = "";
+            if (filter.type === "multi" && Array.isArray(value)) {
+              displayValue = `${value.length} selected`;
+            } else if (filter.type === "range" && Array.isArray(value)) {
+              const format = filter.format || ((v: number) => v.toString());
+              displayValue = `${format(value[0])} - ${format(value[1])}`;
+            } else if (filter.type === "date" && value instanceof Date) {
+              displayValue = format(value, "MMM d, yyyy");
+            } else if (filter.type === "toggle") {
+              displayValue = "On";
+            } else if (filter.type === "select") {
+              const option = filter.options.find((o) => o.value === value);
+              displayValue = option?.label || value.toString();
+            } else {
+              displayValue = value.toString();
+            }
+
+            return (
+              <Badge key={key} variant="secondary" className="gap-1">
+                <span className="text-xs">{filter.label}:</span>
+                <span className="font-medium">{displayValue}</span>
+                <button
+                  onClick={() => updateFilters({ [key]: null })}
+                  className="ml-1 hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Filter Controls */}
+      <div className="space-y-4">
+        {filters.map((filter) => (
+          <FilterControl
+            key={filter.id}
+            filter={filter}
+            value={activeFilters[filter.id]}
+            onChange={(value) => updateFilters({ [filter.id]: value })}
+          />
+        ))}
+      </div>
     </div>
   );
-};
 
-interface ClearAllFiltersButtonProps {
-  ids?: string[];
-}
+  // Mobile: Sheet
+  if (isMobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>
+          <Button variant="outline" className={cn("gap-2", className)}>
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+            {activeCount > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {activeCount}
+              </Badge>
+            )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-full sm:w-96">
+          <SheetHeader>
+            <SheetTitle className="sr-only">Filters</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6">{FilterContent}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
-const ClearAllFiltersButton = ({ ids = [] }: ClearAllFiltersButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const handleClearAllFilters = () => {
-    const params = new URLSearchParams(searchParams);
-    ids.forEach((id) => {
-      params.delete(id);
-      params.delete(`${id}-min`);
-      params.delete(`${id}-max`);
-      params.delete(`${id}-from`);
-      params.delete(`${id}-to`);
-    });
-    replace(`${pathname}?${params.toString()}`);
-  };
-
+  // Desktop: Inline
   return (
-    <Button variant="outline" size="sm" onClick={handleClearAllFilters}>
-      Clear All Filters
-    </Button>
+    <div className={cn("rounded-lg border bg-card p-6", className)}>
+      {FilterContent}
+    </div>
   );
-};
-
-interface SliderButtonProps {
-  id: string;
-  label: string;
-  min?: number;
-  max?: number;
-  step?: number;
 }
 
-const SliderButton = ({
-  id,
-  label,
-  min = 0,
-  max = 100,
-  step = 1,
-}: SliderButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
+// Individual Filter Controls
+interface FilterControlProps {
+  filter: Filter;
+  value: FilterValue;
+  onChange: (value: FilterValue) => void;
+}
 
-  const initialMin = Number(searchParams.get(id + "-min")) || min;
-  const initialMax = Number(searchParams.get(id + "-max")) || max;
-
-  const [values, setValues] = useState([initialMin, initialMax]);
-
-  const updateUrlParams = useDebouncedCallback((values) => {
-    const params = new URLSearchParams(searchParams);
-
-    if (values[0] !== min) {
-      params.set(id + "-min", values[0].toString());
-    } else {
-      params.delete(id + "-min");
-    }
-
-    if (values[1] !== max) {
-      params.set(id + "-max", values[1].toString());
-    } else {
-      params.delete(id + "-max");
-    }
-
-    replace(`${pathname}?${params.toString()}`);
-  }, 300);
-
-  const handleValueChange = (newValues: number[]) => {
-    setValues(newValues as [number, number]);
-    updateUrlParams(newValues);
-  };
-
-  const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const newMin = Number.parseInt(e.target.value);
-
-    if (!isNaN(newMin) && newMin >= min && newMin <= values[1]) {
-      handleValueChange([newMin, values[1]]);
-    }
-  };
-
-  const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const newMax: number = Number.parseInt(e.target.value);
-
-    if (!isNaN(newMax) && newMax >= values[0] && newMax <= max) {
-      handleValueChange([values[0], newMax]);
-    }
-  };
-
-  return (
-    <Popover>
-      <PopoverTrigger>
-        <Button variant="outline" size="sm">
-          {label}: {values[0]} - {values[1]}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent>
-        <Slider
-          min={min}
-          max={max}
-          step={step}
-          value={values}
-          onValueChange={handleValueChange}
-          className="mt-2 mb-4"
+function FilterControl({ filter, value, onChange }: FilterControlProps) {
+  switch (filter.type) {
+    case "select":
+      return (
+        <SelectFilterControl
+          filter={filter}
+          value={value as string}
+          onChange={onChange}
         />
-
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <Input
-              type="number"
-              value={values[0]}
-              min={min}
-              max={values[1]}
-              className="text-center"
-              onChange={handleMinChange}
-            />
-          </div>
-          <span className="text-muted-foreground">to</span>
-          <div className="flex-1">
-            <Input
-              type="number"
-              value={values[1]}
-              min={values[0]}
-              max={max}
-              className="text-center"
-              onChange={handleMaxChange}
-            />
-          </div>
-        </div>
-
-        <div className="pt-1 text-xs text-muted-foreground flex justify-between">
-          <span>Min: {min}</span>
-          <span>Max: {max}</span>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-interface ComboboxButtonProps {
-  id: string;
-  label: string;
-  options: { value: string; label: string }[];
+      );
+    case "multi":
+      return (
+        <MultiFilterControl
+          filter={filter}
+          value={value as string[]}
+          onChange={onChange}
+        />
+      );
+    case "range":
+      return (
+        <RangeFilterControl
+          filter={filter}
+          value={value as [number, number]}
+          onChange={onChange}
+        />
+      );
+    case "toggle":
+      return (
+        <ToggleFilterControl
+          filter={filter}
+          value={value as boolean}
+          onChange={onChange}
+        />
+      );
+    case "date":
+      return (
+        <DateFilterControl
+          filter={filter}
+          value={value as Date}
+          onChange={onChange}
+        />
+      );
+    default:
+      return null;
+  }
 }
 
-const ComboboxButton = ({ id, label, options }: ComboboxButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(searchParams.get(id) || null);
-
+// Select Filter
+function SelectFilterControl({
+  filter,
+  value,
+  onChange,
+}: {
+  filter: SelectFilter;
+  value?: string;
+  onChange: (value: FilterValue) => void;
+}) {
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="justify-between"
-          size="sm"
-        >
-          {label}:{" "}
-          {value
-            ? options.find((option) => option.value === value)?.label
-            : label}
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-fit p-0">
-        <Command>
-          <CommandInput
-            placeholder={`Search ${label.toLowerCase()}...`}
-            className="h-9"
-          />
-          <CommandList>
-            <CommandEmpty>No result found.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.label}
-                  value={option.label}
-                  onSelect={(selectedLabel) => {
-                    const selectedOption = options.find(
-                      (o) => o.label === selectedLabel
-                    )!;
-                    const newValue = selectedOption.value;
-                    const isSame = newValue === value;
-                    setValue(isSame ? null : newValue);
-                    const params = new URLSearchParams(searchParams);
-                    if (isSame) {
-                      params.delete(id);
-                    } else {
-                      params.set(id, newValue);
-                    }
-                    replace(`${pathname}?${params.toString()}`);
-                    setOpen(false);
-                  }}
-                >
-                  {option.label}
-                  <Check
-                    className={cn(
-                      "ml-auto",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-interface MultiComboboxButtonProps {
-  id: string;
-  label: string;
-  options: { value: string; label: string }[];
-}
-
-const MultiComboboxButton = ({
-  id,
-  label,
-  options,
-}: MultiComboboxButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const [value, setValue] = useState(searchParams.getAll(id));
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          className="justify-between relative"
-          size="sm"
-        >
-          {label}: {value.length !== 0 && `(${value.length})`}
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-fit p-0">
-        <Command>
-          <CommandInput placeholder={`Search ${label}...`} className="h-9" />
-          <CommandList>
-            <CommandEmpty>No result found.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    const isSameValue = value.includes(currentValue);
-                    const newValue = isSameValue
-                      ? value.filter((v) => v !== currentValue)
-                      : [...value, currentValue];
-
-                    setValue(newValue);
-                    const params = new URLSearchParams(searchParams);
-                    if (isSameValue) {
-                      params.delete(id, currentValue);
-                    } else {
-                      params.append(id, currentValue);
-                    }
-                    replace(`${pathname}?${params.toString()}`);
-                  }}
-                >
-                  {option.label}
-                  <Check
-                    className={cn(
-                      "ml-auto",
-                      value.includes(option.value) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-interface SwitchButtonProps {
-  id: string;
-  label: string;
-}
-
-const SwitchButton = ({ id, label }: SwitchButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const [pressed, setPressed] = useState(searchParams.get(id) === "true");
-
-  return (
-    <Toggle
-      pressed={pressed}
-      onPressedChange={(newValue) => {
-        setPressed(newValue);
-        const params = new URLSearchParams(searchParams);
-        if (newValue) {
-          params.set(id, "true");
-        } else {
-          params.delete(id);
-        }
-        replace(`${pathname}?${params.toString()}`);
-      }}
-      className={cn(
-        buttonVariants({
-          variant: "outline",
-        }),
-        "relative"
-      )}
-    >
-      {label}
-      <Check
-        className={cn(
-          "absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 h-4 w-4",
-          !pressed && "hidden"
-        )}
-      />
-    </Toggle>
-  );
-};
-
-interface CheckboxButtonProps {
-  id: string;
-  label: string;
-  options: { value: string; label: string }[];
-}
-
-const CheckboxButton = ({ id, label, options }: CheckboxButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const [values, setValues] = useState(searchParams.getAll(id));
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          {label}: {values.length ? `(${values.length})` : label}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        {options.map((option) => (
-          <DropdownMenuCheckboxItem
-            key={option.value}
-            checked={values.includes(option.value)}
-            onCheckedChange={(checked) => {
-              const newValues = checked
-                ? [...values, option.value]
-                : values.filter((value) => value !== option.value);
-              setValues(newValues);
-              const params = new URLSearchParams(searchParams);
-              if (checked) {
-                params.append(id, option.value);
-              } else {
-                params.delete(id, option.value);
-              }
-              replace(`${pathname}?${params.toString()}`);
-            }}
-          >
-            {option.label}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
-
-interface RadioButtonProps {
-  id: string;
-  label: string;
-  options: { value: string; label: string }[];
-}
-
-const RadioButton = ({ id, label, options = [] }: RadioButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const [value, setValue] = useState(
-    searchParams.get(id) || options[0]?.value || undefined
-  );
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          {label}:{" "}
-          {value
-            ? options.find((option) => option.value === value)?.label
-            : label}
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuRadioGroup
-          value={value}
-          onValueChange={(newValue) => {
-            setValue(newValue);
-            const params = new URLSearchParams(searchParams);
-            if (newValue) {
-              params.set(id, newValue);
-            } else {
-              params.delete(id);
-            }
-            replace(`${pathname}?${params.toString()}`);
-          }}
-        >
-          {options.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
+    <div className="space-y-2">
+      <Label>{filter.label}</Label>
+      <Select value={value || ""} onValueChange={(v) => onChange(v || null)}>
+        <SelectTrigger>
+          <SelectValue placeholder={`Select ${filter.label.toLowerCase()}`} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="value">Any</SelectItem>
+          {filter.options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
               {option.label}
-            </DropdownMenuRadioItem>
+            </SelectItem>
           ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </SelectContent>
+      </Select>
+    </div>
   );
-};
-
-interface DateButtonProps {
-  id: string;
-  label: string;
-  min?: Date;
-  max?: Date;
 }
 
-const DateButton = ({ id, label, min, max }: DateButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
+// Multi-select Filter
+function MultiFilterControl({
+  filter,
+  value = [],
+  onChange,
+}: {
+  filter: MultiFilter;
+  value?: string[];
+  onChange: (value: FilterValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
 
-  const dateParam = searchParams.get(id);
-  const dateVal = dateParam ? new Date(dateParam) : undefined;
-  const [date, setDate] = useState<Date | undefined>(
-    dateVal && isValidDate(dateVal) ? dateVal : undefined
-  );
+  const toggleOption = (optionValue: string) => {
+    const newValue = value.includes(optionValue)
+      ? value.filter((v) => v !== optionValue)
+      : [...value, optionValue];
+    onChange(newValue.length > 0 ? newValue : null);
+  };
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-          size="sm"
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? `${label}: ${format(date, "MMM dd, yyyy")}` : label}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={date}
-          fromDate={min}
-          toDate={max}
-          onSelect={(date) => {
-            setDate(date);
-            const params = new URLSearchParams(searchParams);
-            if (date) {
-              params.set(id, date.toString());
-            } else {
-              params.delete(id);
-            }
-            replace(`${pathname}?${params.toString()}`);
-          }}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-2">
+      <Label>{filter.label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full justify-between">
+            <span className="text-left truncate">
+              {value.length === 0
+                ? `Select ${filter.label.toLowerCase()}`
+                : `${value.length} selected`}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command>
+            <CommandInput placeholder="Search..." />
+            <CommandList>
+              <CommandEmpty>No options found.</CommandEmpty>
+              <CommandGroup>
+                {filter.options.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    onSelect={() => toggleOption(option.value)}
+                  >
+                    <div className="flex items-center space-x-2 flex-1">
+                      <div
+                        className={cn(
+                          "h-4 w-4 border rounded-sm flex items-center justify-center",
+                          value.includes(option.value) &&
+                            "bg-primary border-primary"
+                        )}
+                      >
+                        {value.includes(option.value) && (
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <span>{option.label}</span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
-};
-
-interface DateRangeButtonProps {
-  id: string;
-  label: string;
-  min?: Date;
-  max?: Date;
 }
 
-function isValidDate(value: unknown): value is Date {
-  return value instanceof Date && !isNaN(value.getTime());
-}
-
-const DateRangeButton = ({ id, label, min, max }: DateRangeButtonProps) => {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { replace } = useRouter();
-
-  const fromParam = searchParams.get(id + "-from");
-  const toParam = searchParams.get(id + "-to");
-
-  const fromDate = fromParam ? new Date(fromParam) : undefined;
-  const toDate = toParam ? new Date(toParam) : undefined;
-
-  const initialDateRange: DateRange | undefined =
-    fromDate && isValidDate(fromDate)
-      ? isValidDate(toDate)
-        ? { from: fromDate, to: toDate }
-        : { from: fromDate }
-      : undefined;
-
-  const [date, setDate] = useState<DateRange | undefined>(initialDateRange);
+// Range Filter
+function RangeFilterControl({
+  filter,
+  value,
+  onChange,
+}: {
+  filter: RangeFilter;
+  value?: [number, number];
+  onChange: (value: FilterValue) => void;
+}) {
+  const currentValue = value || [filter.min, filter.max];
+  const format = filter.format || ((v: number) => v.toString());
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-          size="sm"
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date && date.from
-            ? date.to
-              ? `${label}: ${format(date.from, "MMM dd")} - ${format(date.to, "MMM dd")}`
-              : `${label}: ${format(date.from, "MMM dd")}`
-            : label}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          initialFocus
-          mode="range"
-          defaultMonth={date?.from}
-          selected={date}
-          fixedWeeks
-          fromDate={min}
-          toDate={max}
-          onSelect={(dates) => {
-            setDate(dates);
-            const params = new URLSearchParams(searchParams);
-            if (dates?.from) {
-              params.set(id + "-from", dates.from.toString());
-            } else {
-              params.delete(id + "-from");
-            }
-            if (dates?.to) {
-              params.set(id + "-to", dates.to.toString());
-            } else {
-              params.delete(id + "-to");
-            }
-            replace(`${pathname}?${params.toString()}`);
-          }}
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <Label>{filter.label}</Label>
+        <span className="text-sm text-muted-foreground">
+          {format(currentValue[0])} - {format(currentValue[1])}
+        </span>
+      </div>
+      <div className="space-y-4">
+        <Slider
+          min={filter.min}
+          max={filter.max}
+          step={filter.step || 1}
+          value={currentValue}
+          onValueChange={(value) => onChange(value as [number, number])}
         />
-      </PopoverContent>
-    </Popover>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            min={filter.min}
+            max={currentValue[1]}
+            value={currentValue[0]}
+            onChange={(e) => {
+              const newMin = Number(e.target.value);
+              if (!isNaN(newMin)) {
+                onChange([newMin, currentValue[1]]);
+              }
+            }}
+            className="h-8"
+          />
+          <span className="flex items-center text-muted-foreground">to</span>
+          <Input
+            type="number"
+            min={currentValue[0]}
+            max={filter.max}
+            value={currentValue[1]}
+            onChange={(e) => {
+              const newMax = Number(e.target.value);
+              if (!isNaN(newMax)) {
+                onChange([currentValue[0], newMax]);
+              }
+            }}
+            className="h-8"
+          />
+        </div>
+      </div>
+    </div>
   );
-};
+}
 
-export default FilterCard;
+// Toggle Filter
+function ToggleFilterControl({
+  filter,
+  value = false,
+  onChange,
+}: {
+  filter: ToggleFilter;
+  value?: boolean;
+  onChange: (value: FilterValue) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <Label htmlFor={filter.id}>{filter.label}</Label>
+      <Switch
+        id={filter.id}
+        checked={value}
+        onCheckedChange={(checked) => onChange(checked || null)}
+      />
+    </div>
+  );
+}
+
+// Date Filter
+function DateFilterControl({
+  filter,
+  value,
+  onChange,
+}: {
+  filter: DateFilter;
+  value?: Date;
+  onChange: (value: FilterValue) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{filter.label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left font-normal"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "PPP") : "Pick a date"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0">
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={(date) => onChange(date || null)}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
