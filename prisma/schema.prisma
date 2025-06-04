@@ -488,10 +488,13 @@ model GigFaq {
 model Wallet {
   id String @id @default(uuid())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
+  isMain Boolean @default(false)
 
   name String
 
   publicKey String @unique
+
+  createdAt DateTime @default(now())
 }

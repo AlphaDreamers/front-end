@@ -14,9 +14,10 @@ import { usePathname, useSearchParams } from "next/navigation";
 interface PaginationProps {
   param?: string;
   totalPages: number;
+  className?: string;
 }
 
-const Pagination = ({ param = "page", totalPages }: PaginationProps) => {
+const Pagination = ({ param = "page", totalPages,className }: PaginationProps) => {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -29,7 +30,7 @@ const Pagination = ({ param = "page", totalPages }: PaginationProps) => {
   const currentPage = parseInt(searchParams.get(param) ?? "1");
 
   return (
-    <PaginationUI>
+    <PaginationUI className={className}>
       <PaginationContent className="m-6">
         {/* 1. Previous button if not on first page */}
         {currentPage > 1 && (

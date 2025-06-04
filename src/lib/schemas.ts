@@ -1,7 +1,5 @@
 import { z } from "zod";
 import COMMON_PASSWORDS from "./common-passwords";
-import bs58 from "bs58";
-import { Keypair } from "@solana/web3.js";
 
 // Reusable Password Schema (used in multiple forms)
 export const PasswordSchema = z
@@ -149,103 +147,114 @@ export const MneumonicsVerificationFormSchema = z.object({
 });
 
 // --- Gig Schemas ---
-
-// Reusable schema for gig features (used in CreateGigFormSchema)
-const FeatureSchema = z.object({
-  label: z
-    .string()
-    .min(1, "Feature label is required")
-    .max(100, "Feature label must be at most 100 characters"),
-});
-
-// Reusable schema for gig packages (used in CreateGigFormSchema)
-const PackageSchema = z.object({
+// Schema for creating a new gig
+export const CreateGigFormSchema = z.object({
   title: z
     .string()
-    .min(3, "Package title is required")
-    .max(50, "Package title must be at most 50 characters"),
-  deliveryTime: z
-    .number()
-    .int()
-    .positive("Delivery time must be a positive number"),
-  price: z.number().positive("Price must be a positive number"),
-  revisions: z
-    .number()
-    .int()
-    .min(0, "Revisions must be 0 or more")
-    .max(100, "Revisions must be at most 100"),
-  featureInclusions: z.array(z.boolean()),
-});
+    .min(10, "Title must be at least 10 characters")
+    .max(80, "Title must be at most 80 characters")
+    .regex(
+      /^[a-zA-Z0-9\s\-.,!?'"]+$/,
+      "Title can only contain letters, numbers, spaces, and basic punctuation"
+    ),
 
-// Schema for creating a new gig
-export const CreateGigFormSchema = z
-  .object({
-    title: z
-      .string()
-      .min(5, "Title must be at least 5 characters")
-      .max(100, "Title must be at most 100 characters"),
-    description: z
-      .string()
-      .min(20, "Description must be at least 20 characters")
-      .max(5000, "Description must be at most 5000 characters"),
-    categoryId: z.string().uuid(),
-    tags: z
-      .array(z.object({ id: z.string().uuid() }))
-      .min(1, "Please select at least one tag")
-      .max(10, "Maximum 10 tags allowed"),
-    features: z
-      .array(FeatureSchema)
-      .min(1, "Add at least one feature")
-      .max(10, "Maximum 10 features allowed"),
-    packages: z
-      .array(PackageSchema)
-      .min(1, "Add at least one package")
-      .max(3, "Maximum 3 packages allowed"),
-    images: z
-      .array(z.object({ file: z.instanceof(File), isPrimary: z.boolean() }))
-      .min(1, "Add at least one image")
-      .max(8, "Maximum 8 images allowed"),
-  })
-  .refine(
-    (data) => {
-      const firstPackageInclusionsCount =
-        data.packages[0].featureInclusions.length;
-      return data.packages.every(
-        (pkg) => pkg.featureInclusions.length === firstPackageInclusionsCount
-      );
-    },
-    { message: "All packages must have the same number of feature inclusions" }
-  )
-  .refine(
-    (data) => {
-      for (
-        let featureIndex = 0;
-        featureIndex < data.features.length;
-        featureIndex++
-      ) {
-        const isIncludedInAnyPackage = data.packages.some(
-          (pkg) => pkg.featureInclusions[featureIndex] === true
-        );
-        if (!isIncludedInAnyPackage) return false;
-      }
-      return true;
-    },
-    {
-      message: "Each feature must be included in at least one package",
-      path: ["features"],
-    }
-  )
-  .refine(
-    (data) => {
-      return data.packages.every(
-        (pkg) => pkg.featureInclusions.length === data.features.length
-      );
-    },
-    {
-      message: "Number of feature inclusions must match number of features",
-      path: ["packages"],
-    }
-  );
+  description: z
+    .string()
+    .min(50, "Description must be at least 50 characters")
+    .max(5000, "Description must be at most 5000 characters"),
+
+  categoryId: z.string().min(1, "Please select a category"),
+
+  tags: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+      })
+    )
+    .min(1, "Select at least one tag")
+    .max(5, "Maximum 5 tags allowed"),
+
+  features: z
+    .array(
+      z.object({
+        label: z
+          .string()
+          .min(2, "Feature must be at least 2 characters")
+          .max(50, "Feature must be at most 50 characters"),
+      })
+    )
+    .min(1, "Add at least one feature")
+    .max(10, "Maximum 10 features allowed"),
+
+  packages: z
+    .array(
+      z.object({
+        title: z
+          .string()
+          .min(2, "Package name must be at least 2 characters")
+          .max(30, "Package name must be at most 30 characters"),
+        deliveryTime: z
+          .number()
+          .int("Delivery time must be a whole number")
+          .min(1, "Delivery time must be at least 1 day")
+          .max(90, "Delivery time must be at most 90 days"),
+        price: z
+          .number()
+          .min(5, "Price must be at least $5")
+          .max(10000, "Price must be at most $10,000"),
+        revisions: z
+          .number()
+          .int("Revisions must be a whole number")
+          .min(-1, "Use -1 for unlimited revisions")
+          .max(100, "Maximum 100 revisions"),
+        featureInclusions: z.array(z.boolean()),
+      })
+    )
+    .min(1, "Add at least one package")
+    .max(3, "Maximum 3 packages allowed")
+    .refine(
+      (packages) => {
+        // Ensure packages have ascending prices
+        const prices = packages.map((p) => p.price);
+        return prices.every((price, i) => i === 0 || price > prices[i - 1]);
+      },
+      { message: "Package prices must increase from left to right" }
+    ),
+
+  images: z
+    .array(
+      z.object({
+        file: z.instanceof(File),
+        isPrimary: z.boolean(),
+      })
+    )
+    .min(1, "Upload at least one image")
+    .max(8, "Maximum 8 images allowed")
+    .refine((images) => images.some((img) => img.isPrimary), {
+      message: "Please select a primary image",
+    })
+    .refine(
+      (images) => {
+        return images.every((img) => {
+          const validTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp",
+          ];
+          return validTypes.includes(img.file.type);
+        });
+      },
+      { message: "Only JPEG, PNG, and WebP images are allowed" }
+    )
+    .refine(
+      (images) => {
+        return images.every((img) => img.file.size <= 5 * 1024 * 1024);
+      },
+      { message: "Each image must be less than 5MB" }
+    ),
+});
 
 // Reusable schema for updating gig features
 const UpdateFeatureSchema = z.object({

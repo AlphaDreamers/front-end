@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -15,13 +15,6 @@ import {
 import { format } from "date-fns";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "./ui/sheet";
 import { cn } from "../lib/utils";
 import { Label } from "./ui/label";
 import {
@@ -44,6 +37,13 @@ import { Slider } from "./ui/slider";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Calendar } from "./ui/calendar";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "./ui/drawer";
 
 // Types
 type FilterValue =
@@ -275,8 +275,8 @@ export default function Filters({ filters, className }: FiltersProps) {
   // Mobile: Sheet
   if (isMobile) {
     return (
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerTrigger asChild>
           <Button variant="outline" className={cn("gap-2", className)}>
             <SlidersHorizontal className="h-4 w-4" />
             Filters
@@ -286,14 +286,15 @@ export default function Filters({ filters, className }: FiltersProps) {
               </Badge>
             )}
           </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-full sm:w-96">
-          <SheetHeader>
-            <SheetTitle className="sr-only">Filters</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">{FilterContent}</div>
-        </SheetContent>
-      </Sheet>
+        </DrawerTrigger>
+
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle className="sr-only">Filters</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-6">{FilterContent}</div>
+        </DrawerContent>
+      </Drawer>
     );
   }
 

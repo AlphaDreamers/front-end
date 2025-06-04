@@ -126,8 +126,14 @@ export const encryptPrivateKey = async (
   };
 };
 
+export type EncryptedWalletData = {
+  encryptedPrivateKey: string;
+  salt: string;
+  iv: string;
+};
+
 export const decryptPrivateKey = async (
-  encryptedData: { encryptedPrivateKey: string; salt: string; iv: string },
+  encryptedData: EncryptedWalletData,
   password: string
 ): Promise<Uint8Array> => {
   const encrypted = Buffer.from(encryptedData.encryptedPrivateKey, "base64");

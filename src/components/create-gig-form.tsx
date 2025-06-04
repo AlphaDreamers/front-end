@@ -1,29 +1,25 @@
 "use client";
 
-import Image from "next/image";
-import {
-  X,
-  Plus,
-  ChevronsUpDown,
-  Check,
-  Info,
-  ListChecks,
-  Loader2,
-  LucideIcon,
-  Package,
-  Save,
-  Image as ImageIcon,
-  Award,
-} from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Prisma } from "@prisma/client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
-import Link from "next/link";
+import { toast } from "sonner";
+import {
+  Info,
+  Package,
+  Image as ImageIcon,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 
+import { createGig } from "@/lib/actions";
+import { CreateGigFormSchema } from "@/lib/schemas";
+import { cn } from "@/lib/utils";
+
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -31,90 +27,62 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Checkbox } from "./ui/checkbox";
+import { Form } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { createGig } from "@/lib/actions";
-import { CreateGigFormSchema } from "@/lib/schemas";
+// Import our reusable form components
+import FormInput from "@/components/form-fields/form-input";
+import FormTextarea from "@/components/form-fields/form-textarea";
+import FormSelect from "@/components/form-fields/form-select";
+import FormMultiSelect from "@/components/form-fields/form-multi-select";
+import FormImageUpload from "@/components/form-fields/form-image-upload";
+import FormPackages from "@/components/form-fields/form-packages";
 
 interface CreateGigFormProps {
-  categories: Prisma.CategoryGetPayload<{
-    select: { id: true; label: true };
-  }>[];
-  tags: Prisma.TagGetPayload<{
-    select: { id: true; label: true };
-  }>[];
+  categories: Array<{ id: string; title: string; icon: string; color: string }>;
+  tags: Array<{ id: string; title: string }>;
 }
 
-type TabType = "basic-info" | "features" | "packages" | "images";
+export default function CreateGigForm({
+  categories,
+  tags,
+}: CreateGigFormProps) {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
-  const { push } = useRouter();
-
-  const form = useForm({
+  const form = useForm<z.infer<typeof CreateGigFormSchema>>({
     resolver: zodResolver(CreateGigFormSchema),
     defaultValues: {
       title: "",
       description: "",
       categoryId: "",
-      tags: [{ id: "" }],
+      tags: [],
       features: [
-        {
-          label: "Standard Delivery",
-        },
-        {
-          label: "Revisions",
-        },
-        {
-          label: "Source Files",
-        },
+        { label: "Standard Delivery" },
+        { label: "Revisions Included" },
+        { label: "Source Files" },
       ],
       packages: [
         {
           title: "Basic",
           deliveryTime: 3,
-          price: 5,
+          price: 50,
           revisions: 1,
           featureInclusions: [true, false, false],
         },
         {
           title: "Standard",
           deliveryTime: 2,
-          price: 10,
+          price: 100,
           revisions: 2,
           featureInclusions: [true, true, false],
         },
         {
           title: "Premium",
           deliveryTime: 1,
-          price: 20,
-          revisions: 3,
+          price: 200,
+          revisions: -1, // Unlimited
           featureInclusions: [true, true, true],
         },
       ],
@@ -122,869 +90,213 @@ const CreateGigForm = ({ categories, tags }: CreateGigFormProps) => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof CreateGigFormSchema>) =>
-    toast.promise(async () => createGig(values), {
-      loading: "Creating gig...",
-      success: () => {
-        push("/dashboard/gigs");
+  // Calculate form completion percentage for progress bar
+  const calculateProgress = () => {
+    const values = form.getValues();
+    let completed = 0;
+    const total = 6; // Total number of required sections
 
-        return "Gig created successfully!";
-      },
-      error: (err) => {
-        const ms = err instanceof Error ? err.message : "Something went wrong";
+    if (values.title && values.description) completed++;
+    if (values.categoryId) completed++;
+    if (values.tags.length > 0) completed++;
+    if (values.features.length > 0) completed++;
+    if (values.packages.length > 0) completed++;
+    if (values.images.length > 0) completed++;
 
-        form.setError("root", {
-          type: "manual",
-          message: ms,
-        });
-
-        return ms;
-      },
-    });
-
-  const isLoading = form.formState.isSubmitting;
-
-  const [tab, setTab] = useState<TabType>("basic-info");
-
-  const handleTabNext = () => {
-    if (tab === "basic-info") {
-      setTab("features");
-    } else if (tab === "features") {
-      setTab("packages");
-    } else if (tab === "packages") {
-      setTab("images");
-    }
+    return (completed / total) * 100;
   };
 
-  const handleTabPrevious = () => {
-    if (tab === "features") {
-      setTab("basic-info");
-    } else if (tab === "packages") {
-      setTab("features");
-    } else if (tab === "images") {
-      setTab("packages");
+  const progress = calculateProgress();
+
+  const onSubmit = async (values: z.infer<typeof CreateGigFormSchema>) => {
+    setIsSubmitting(true);
+
+    try {
+      await createGig(values);
+
+      toast.success("Gig created successfully!", {
+        description: "Your gig is now live and ready for orders.",
+      });
+
+      router.push("/dashboard/gigs");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create gig";
+
+      toast.error("Failed to create gig", {
+        description: message,
+      });
+
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Create New Gig</h1>
-          <p className="text-muted-foreground mt-1">
-            Define your service and set your pricing
-          </p>
-        </div>
-      </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Header with Progress */}
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-3xl font-bold">Create New Gig</h1>
+            <p className="text-muted-foreground mt-2">
+              Fill in the details below to create your service offering
+            </p>
+          </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Tabs
-            className="flex flex-col lg:flex-row gap-8"
-            value={tab}
-            onValueChange={(val) => setTab(val as TabType)}
-          >
-            <TabsList className="w-full flex flex-row lg:flex-col lg:w-64 min-h-fit">
-              {sections.map((section) => {
-                return (
-                  <TabsTrigger
-                    key={section.id}
-                    value={section.id}
-                    className="flex items-center w-full lg:min-h-10"
-                  >
-                    <div className="flex-1 flex items-center gap-2">
-                      <section.icon />
-                      <span className={"text-sm font-medium"}>
-                        {section.label}
-                      </span>
-                    </div>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-
-            <div className="flex-1 space-y-4">
-              <TabsContent value="basic-info">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-primary">
-                      Basic Information
-                    </CardTitle>
-                    <CardDescription>
-                      Provide the essential details about your gig
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gig Title</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="I will design a professional logo for your business"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Create a clear, concise title that describes your
-                            service.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe your service in detail..."
-                              className="resize-none min-h-24"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Provide a detailed description of your service,
-                            including what clients will receive and your
-                            process.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="categoryId"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Category</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  className={cn(
-                                    "w-full justify-between",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value
-                                    ? categories.find(
-                                        (cat) => cat.id === field.value
-                                      )?.label
-                                    : "Select category"}
-                                  <ChevronsUpDown className="opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                              <Command>
-                                <CommandInput
-                                  placeholder="Search category..."
-                                  className="h-9"
-                                />
-                                <CommandList>
-                                  <CommandEmpty>
-                                    No category found.
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    {categories.map((cat) => (
-                                      <CommandItem
-                                        value={cat.label}
-                                        key={cat.id}
-                                        onSelect={() => {
-                                          form.setValue("categoryId", cat.id);
-                                        }}
-                                      >
-                                        {cat.label}
-                                        <Check
-                                          className={cn(
-                                            "ml-auto",
-                                            cat.id === field.value
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          )}
-                                        />
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <FormDescription>
-                            Choose a category that best fits your gig. This
-                            helps buyers find your service.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="tags"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tags</FormLabel>
-                          <FormControl>
-                            <div className="grid grid-cols-2 gap-4">
-                              {field.value?.map((tag, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center gap-2"
-                                >
-                                  <FormField
-                                    control={form.control}
-                                    name={`tags.${index}.id`}
-                                    render={({ field }) => (
-                                      <FormItem className="flex-1 flex flex-col">
-                                        <Popover>
-                                          <PopoverTrigger asChild>
-                                            <FormControl>
-                                              <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                className={cn(
-                                                  "w-full justify-between",
-                                                  !field.value &&
-                                                    "text-muted-foreground"
-                                                )}
-                                              >
-                                                {field.value
-                                                  ? tags.find(
-                                                      (tag) =>
-                                                        tag.id === field.value
-                                                    )?.label
-                                                  : "Select tag"}
-                                                <ChevronsUpDown className="opacity-50" />
-                                              </Button>
-                                            </FormControl>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                            <Command>
-                                              <CommandInput
-                                                placeholder="Search tag..."
-                                                className="h-9"
-                                              />
-                                              <CommandList>
-                                                <CommandEmpty>
-                                                  No tags found.
-                                                </CommandEmpty>
-                                                <CommandGroup>
-                                                  {tags.map((tag) => (
-                                                    <CommandItem
-                                                      value={tag.label}
-                                                      key={tag.id}
-                                                      onSelect={() => {
-                                                        form.setValue(
-                                                          `tags.${index}.id`,
-                                                          tag.id
-                                                        );
-                                                      }}
-                                                    >
-                                                      {tag.label}
-                                                      <Check
-                                                        className={cn(
-                                                          "ml-auto",
-                                                          tag.id === field.value
-                                                            ? "opacity-100"
-                                                            : "opacity-0"
-                                                        )}
-                                                      />
-                                                    </CommandItem>
-                                                  ))}
-                                                </CommandGroup>
-                                              </CommandList>
-                                            </Command>
-                                          </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <Button
-                                    variant="destructive"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      const updatedTags = field.value.filter(
-                                        (t) => t !== tag
-                                      );
-                                      if (updatedTags.length !== 0) {
-                                        form.setValue("tags", updatedTags);
-                                      }
-                                    }}
-                                    disabled={field.value.length <= 1}
-                                  >
-                                    <X />
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                variant="outline"
-                                className="mr-12"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  form.setValue("tags", [
-                                    ...field.value,
-                                    {
-                                      id: "",
-                                    },
-                                  ]);
-                                }}
-                              >
-                                <Plus />
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Add relevant keywords to help buyers find your gig.
-                            Press Enter or click Add after each tag.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="features">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-primary">
-                      Gig Features
-                    </CardTitle>
-                    <CardDescription>
-                      Add features that your gig will offer to buyers
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="features"
-                      render={({ field: fField }) => (
-                        <FormItem>
-                          <FormLabel>Features</FormLabel>
-                          <FormControl>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {fField.value?.map((_, index) => (
-                                <FormField
-                                  key={index}
-                                  control={form.control}
-                                  name={`features.${index}.label`}
-                                  render={({ field: singleFField }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            placeholder="e.g. Responsive Design"
-                                            {...singleFField}
-                                          />
-                                          <Button
-                                            variant="destructive"
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              if (fField.value.length >= 1) {
-                                                fField.onChange(
-                                                  fField.value.filter(
-                                                    (_, i) => i !== index
-                                                  )
-                                                );
-                                                const packages =
-                                                  form.getValues("packages");
-                                                packages.forEach(
-                                                  (pck, pkgIndex) => {
-                                                    form.setValue(
-                                                      `packages.${pkgIndex}.featureInclusions`,
-                                                      pck.featureInclusions.filter(
-                                                        (_, i) => i !== index
-                                                      )
-                                                    );
-                                                  }
-                                                );
-                                              }
-                                            }}
-                                            disabled={fField.value.length <= 1}
-                                          >
-                                            <X />
-                                          </Button>
-                                        </div>
-                                      </FormControl>
-                                    </FormItem>
-                                  )}
-                                />
-                              ))}
-
-                              <Button
-                                variant="outline"
-                                className="mr-12"
-                                onClick={(e) => {
-                                  e.preventDefault();
-
-                                  fField.onChange([
-                                    ...fField.value,
-                                    { label: "" },
-                                  ]);
-                                  const packages = form.getValues("packages");
-                                  packages.forEach((pck, pkgIndex) => {
-                                    form.setValue(
-                                      `packages.${pkgIndex}.featureInclusions`,
-                                      [...pck.featureInclusions, false]
-                                    );
-                                  });
-                                }}
-                              >
-                                <Plus />
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Add features that your gig will offer to buyers. You
-                            can add multiple features.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="packages">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-primary">
-                      Pricing Packages
-                    </CardTitle>
-                    <CardDescription>
-                      Define what you offer in each package and set your prices
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="packages"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Packages</FormLabel>
-                          <FormControl>
-                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                              {field.value.map((pkg, index) => (
-                                <Card key={index} className="bg-accent">
-                                  <CardHeader>
-                                    <CardTitle className="text-lg font-semibold">
-                                      {pkg.title || `Package ${index + 1}`}
-                                    </CardTitle>
-                                    <CardDescription>
-                                      Customize your{" "}
-                                      {pkg.title || `Package ${index + 1}`}{" "}
-                                      package
-                                    </CardDescription>
-                                  </CardHeader>
-                                  <CardContent className="flex flex-col gap-4">
-                                    <FormField
-                                      control={form.control}
-                                      name={`packages.${index}.title`}
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Package Name</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              placeholder="Enter package name"
-                                              {...field}
-                                            />
-                                          </FormControl>
-                                          <FormDescription>
-                                            This name will be visible to buyers.
-                                            Make it descriptive and appealing.
-                                          </FormDescription>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <FormField
-                                        control={form.control}
-                                        name={`packages.${index}.deliveryTime`}
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>
-                                              Delivery Time (days)
-                                            </FormLabel>
-                                            <FormControl>
-                                              <Input
-                                                type="number"
-                                                min="1"
-                                                {...field}
-                                                onChange={(e) =>
-                                                  field.onChange(
-                                                    e.target.valueAsNumber
-                                                  )
-                                                }
-                                              />
-                                            </FormControl>
-                                            <FormDescription>
-                                              Specify the delivery time for this
-                                              package.
-                                            </FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <FormField
-                                        control={form.control}
-                                        name={`packages.${index}.revisions`}
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>Revisions</FormLabel>
-                                            <FormControl>
-                                              <Input
-                                                type="number"
-                                                min="0"
-                                                {...field}
-                                                onChange={(e) =>
-                                                  field.onChange(
-                                                    e.target.valueAsNumber
-                                                  )
-                                                }
-                                              />
-                                            </FormControl>
-                                            <FormDescription>
-                                              Specify the number of revisions
-                                              included.
-                                            </FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                    </div>
-
-                                    <FormField
-                                      control={form.control}
-                                      name={`packages.${index}.price`}
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Price (SOL)</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              type="number"
-                                              min="0.01"
-                                              step="0.01"
-                                              {...field}
-                                              onChange={(e) =>
-                                                field.onChange(
-                                                  e.target.valueAsNumber
-                                                )
-                                              }
-                                            />
-                                          </FormControl>
-                                          <FormDescription>
-                                            Set the price for this package in
-                                            SOL.
-                                          </FormDescription>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={form.control}
-                                      name={`packages.${index}.featureInclusions`}
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>
-                                            Package Features
-                                          </FormLabel>
-                                          <FormControl>
-                                            <div className="flex flex-col gap-2">
-                                              {field.value?.map((_, fIndex) => (
-                                                <FormField
-                                                  key={fIndex}
-                                                  control={form.control}
-                                                  name={`packages.${index}.featureInclusions.${fIndex}`}
-                                                  render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-start space-x-1 space-y-0 rounded-md border p-2 shadow">
-                                                      <FormControl>
-                                                        <Checkbox
-                                                          checked={field.value}
-                                                          onCheckedChange={
-                                                            field.onChange
-                                                          }
-                                                        />
-                                                      </FormControl>
-                                                      <FormLabel>
-                                                        {
-                                                          form.getValues()
-                                                            .features[fIndex]
-                                                            .label
-                                                        }
-                                                      </FormLabel>
-                                                      <FormMessage />
-                                                    </FormItem>
-                                                  )}
-                                                />
-                                              ))}
-                                            </div>
-                                          </FormControl>
-                                          <FormDescription>
-                                            Select the features included in this
-                                            package.
-                                          </FormDescription>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </CardContent>
-                                </Card>
-                              ))}
-                              <Button
-                                size="lg"
-                                variant="outline"
-                                onClick={() =>
-                                  field.onChange([
-                                    ...field.value,
-                                    {
-                                      title: "",
-                                      deliveryTime: 1,
-                                      revisions: 0,
-                                      price: 0,
-                                      featureInclusions: Array(
-                                        field.value[0]?.featureInclusions
-                                          ?.length || 0
-                                      ).fill(false),
-                                    },
-                                  ])
-                                }
-                              >
-                                Add Package
-                                <Plus />
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Define the packages you offer for your gig. Each
-                            package can have a different price, delivery time,
-                            and included features.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="images">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl text-primary">
-                      Gig Images
-                    </CardTitle>
-                    <CardDescription>
-                      Upload images that showcase your work and attract buyers
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="images"
-                      render={({ field: iField }) => (
-                        <FormItem>
-                          <FormLabel>Upload Images</FormLabel>
-                          <FormControl>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {iField.value.map((_, singleIIndex) => (
-                                <FormField
-                                  key={singleIIndex}
-                                  control={form.control}
-                                  name={`images.${singleIIndex}`}
-                                  render={({ field: singleIField }) => (
-                                    <FormItem key={singleIIndex}>
-                                      <FormControl>
-                                        <Button
-                                          variant="outline"
-                                          className="relative aspect-square min-w-full h-full p-0 group"
-                                        >
-                                          <Image
-                                            src={URL.createObjectURL(
-                                              singleIField.value.file
-                                            )}
-                                            alt={singleIField.value.file.name}
-                                            fill
-                                            className="object-cover rounded"
-                                          />
-                                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                                            <Button
-                                              variant="destructive"
-                                              size="icon"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                const updatedImages =
-                                                  iField.value.filter(
-                                                    (_, i) => i !== singleIIndex
-                                                  );
-                                                if (
-                                                  updatedImages.length !== 0
-                                                ) {
-                                                  iField.onChange(
-                                                    updatedImages
-                                                  );
-                                                }
-                                              }}
-                                            >
-                                              <X />
-                                            </Button>
-                                            <Button
-                                              variant={
-                                                iField.value[singleIIndex]
-                                                  .isPrimary
-                                                  ? "default"
-                                                  : "secondary"
-                                              }
-                                              size="icon"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                const updatedImages =
-                                                  iField.value.map((img, i) => {
-                                                    return {
-                                                      ...img,
-                                                      isPrimary:
-                                                        i === singleIIndex,
-                                                    };
-                                                  });
-                                                iField.onChange(updatedImages);
-                                              }}
-                                            >
-                                              <Award />
-                                            </Button>
-                                          </div>
-                                        </Button>
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              ))}
-                              <Button className="relative aspect-square min-w-full h-full p-0">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  multiple
-                                  className="absolute opacity-0 rounded min-w-full min-h-full"
-                                  onChange={(e) => {
-                                    const files = e.target.files;
-                                    if (files) {
-                                      const fileArray = Array.from(files).map(
-                                        (file) => ({
-                                          file,
-                                          isPrimary: false,
-                                        })
-                                      );
-
-                                      iField.onChange([
-                                        ...iField.value,
-                                        ...fileArray,
-                                      ]);
-
-                                      e.target.value = "";
-                                    }
-                                  }}
-                                />
-                                <Plus className="size-12" />
-                              </Button>
-                            </div>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <div className="flex flex-col-reverse sm:flex-row justify-between gap-4">
-                <div className="flex gap-2">
-                  <Link
-                    className={buttonVariants({
-                      variant: "destructive",
-                    })}
-                    href="/dashboard/gigs"
-                  >
-                    Cancel
-                  </Link>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    disabled={isLoading || tab === "basic-info"}
-                    onClick={handleTabPrevious}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    disabled={isLoading || tab === "packages"}
-                    onClick={handleTabNext}
-                  >
-                    Next
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="ml-auto"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="mr-2" />
-                        Save & Publish
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Progress</span>
+              <span>{Math.round(progress)}% complete</span>
             </div>
-          </Tabs>
-        </form>
-      </Form>
-    </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        </div>
+
+        {/* Form Errors Alert */}
+        {form.formState.errors.root && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {form.formState.errors.root.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Section 1: Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              Basic Information
+            </CardTitle>
+            <CardDescription>Tell buyers what you're offering</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FormInput
+              control={form.control}
+              name="title"
+              label="Gig Title"
+              placeholder="I will design a professional logo for your business"
+              description="Create a clear, searchable title that describes your service"
+              required
+            />
+
+            <FormTextarea
+              control={form.control}
+              name="description"
+              label="Description"
+              placeholder="Describe your service in detail..."
+              description="Explain what you offer, your process, and what makes you unique"
+              rows={6}
+              required
+            />
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormSelect
+                control={form.control}
+                name="categoryId"
+                label="Category"
+                placeholder="Select a category"
+                options={categories.map((cat) => ({
+                  label: cat.title,
+                  value: cat.id,
+                }))}
+                description="Choose the most relevant category"
+                required
+              />
+
+              <FormMultiSelect
+                control={form.control}
+                name="tags"
+                label="Tags"
+                placeholder="Select tags"
+                options={tags.map((tag) => ({
+                  label: tag.title,
+                  value: tag.id,
+                }))}
+                description="Add keywords to help buyers find you"
+                required
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 2: Packages & Pricing */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Packages & Pricing
+            </CardTitle>
+            <CardDescription>
+              Create different tiers to offer buyers options
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FormPackages form={form} features={form.watch("features")} />
+          </CardContent>
+        </Card>
+
+        {/* Section 3: Gallery */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Gallery
+            </CardTitle>
+            <CardDescription>
+              Upload images that showcase your work (max 8 images)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FormImageUpload
+              control={form.control}
+              name="images"
+              maxImages={8}
+              description="The first image will be your gig's thumbnail"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Submit Section */}
+        <div className="flex items-center justify-between pt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard/gigs")}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+
+          <div className="flex items-center gap-4">
+            {progress === 100 && (
+              <span className="flex items-center gap-1 text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                Ready to publish
+              </span>
+            )}
+
+            <Button
+              type="submit"
+              disabled={isSubmitting || progress < 100}
+              className="min-w-[150px]"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Gig"
+              )}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Form>
   );
-};
-
-export default CreateGigForm;
-
-const sections: {
-  id: TabType;
-  label: string;
-  icon: LucideIcon;
-}[] = [
-  {
-    id: "basic-info",
-    label: "Basic Info",
-    icon: Info,
-  },
-  {
-    id: "features",
-    label: "Features",
-    icon: ListChecks,
-  },
-  {
-    id: "packages",
-    label: "Packages",
-    icon: Package,
-  },
-  {
-    id: "images",
-    label: "Images",
-    icon: ImageIcon,
-  },
-];
+}
