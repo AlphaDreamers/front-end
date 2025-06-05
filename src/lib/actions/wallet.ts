@@ -4,6 +4,7 @@ import { PublicKey } from "@solana/web3.js";
 
 import { me } from "./auth";
 import { prisma } from "../prisma";
+import { revalidatePath } from "next/cache";
 
 export const createWallet = async (values: {
   publicKey: string;
@@ -49,3 +50,69 @@ export const createWallet = async (values: {
     },
   });
 };
+
+export async function setMainWallet(walletId: string) {
+  const user = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  // Verify the wallet belongs to the user
+  const wallet = await prisma.wallet.findFirst({
+    where: {
+      id: walletId,
+      userId: user.id,
+    },
+  });
+
+  if (!wallet) {
+    throw new Error("Wallet not found");
+  }
+
+  // Update all wallets: set the selected one as main, others as not main
+  await prisma.$transaction([
+    // First, set all user's wallets to not main
+    prisma.wallet.updateMany({
+      where: { userId: user.id },
+      data: { isMain: false },
+    }),
+    // Then set the selected wallet as main
+    prisma.wallet.update({
+      where: { id: walletId },
+      data: { isMain: true },
+    }),
+  ]);
+
+  revalidatePath("/dashboard/wallets");
+}
+
+export async function deleteWallet(walletId: string) {
+  const user = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  // Verify the wallet belongs to the user and is not main
+  const wallet = await prisma.wallet.findFirst({
+    where: {
+      id: walletId,
+      userId: user.id,
+    },
+  });
+
+  if (!wallet) {
+    throw new Error("Wallet not found");
+  }
+
+  if (wallet.isMain) {
+    throw new Error("Cannot delete main wallet");
+  }
+
+  await prisma.wallet.delete({
+    where: { id: walletId },
+  });
+
+  revalidatePath("/dashboard/wallets");
+}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { me } from "@/lib/actions/auth";
+
 import { prisma } from "@/lib/prisma";
+import { me } from "@/lib/actions/auth";
 import CreateGigForm from "@/components/create-gig-form";
 
 export default async function GigCreatePage() {

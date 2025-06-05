@@ -3,15 +3,16 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useSearchParams } from "next/navigation";
-import { Shield, Clock } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, ArrowRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import {
@@ -21,21 +22,20 @@ import {
 } from "@/components/ui/input-otp";
 
 import { VerifyResetPasswordCodeFormSchema } from "@/lib/schemas";
-import { useAuthForm } from "@/hooks/use-auth-state";
 import { useCountdown } from "@/hooks/use-countdown";
 import AuthCard from "@/components/auth/auth-card";
 import {
   resendPasswordResetCode,
   verifyPasswordResetCode,
 } from "@/lib/actions/auth";
+import { toast } from "sonner";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function VerifyPasswordResetCode() {
+  const { push } = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
-  const { isLoading, handleSubmit } =
-    useAuthForm<z.infer<typeof VerifyResetPasswordCodeFormSchema>>();
-  const { timeLeft, isActive, start } = useCountdown(60);
-
   const form = useForm({
     resolver: zodResolver(VerifyResetPasswordCodeFormSchema),
     defaultValues: {
@@ -43,30 +43,54 @@ export default function VerifyPasswordResetCode() {
       code: "",
     },
   });
-
-  const onSubmit = (
+  const onSubmit = async (
     values: z.infer<typeof VerifyResetPasswordCodeFormSchema>
-  ) => {
-    handleSubmit(verifyPasswordResetCode, values, {
-      successMessage: "Code verified successfully",
-      successRedirect: `/reset-password?email=${email}&code=${values.code}`,
-      onError: (error) => {
-        form.setError("code", { message: error.message });
+  ) =>
+    toast.promise(async () => verifyPasswordResetCode(values), {
+      loading: "Verifying code...",
+      success: () => {
+        const params = new URLSearchParams(searchParams);
+        params.set("email", email);
+        params.set("code", values.code);
+        push(`/reset-password?${params.toString()}`);
+        return "Code verified successfully! You can now reset your password.";
+      },
+      error: (error) => {
+        const ms =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        form.setError("code", { message: ms });
+        return ms;
       },
     });
-  };
+  const isLoading = form.formState.isSubmitting;
+  const { timeLeft, isActive, start } = useCountdown(60);
 
   const handleResend = async () => {
-    if (isActive) return;
+    if (isActive) {
+      toast.error(
+        `Please wait ${timeLeft} seconds before resending the code again.`
+      );
+      return;
+    }
 
     start();
-    await handleSubmit(
-      async ({ email }) => resendPasswordResetCode(email),
-      { email, code: "" },
-      {
-        successMessage: "New code sent to your email",
-      }
-    );
+
+    toast.promise(async () => await resendPasswordResetCode(email), {
+      loading: "Resending reset code...",
+      success: () => {
+        form.reset();
+        return "New code sent to your email!";
+      },
+      error: (error) => {
+        const ms =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        return ms;
+      },
+    });
   };
 
   return (
@@ -74,67 +98,71 @@ export default function VerifyPasswordResetCode() {
       title="Verify Reset Code"
       description="Enter the 6-digit code sent to your email"
       footer={
-        <div className="w-full space-y-4">
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>Code expires in 24 hours</span>
-          </div>
-
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">
-              Didn&apos;t receive the code?{" "}
-            </span>
-            <Button
-              variant="link"
-              size="sm"
-              onClick={handleResend}
-              disabled={isActive || isLoading}
-              className="p-0"
-            >
-              {isActive ? `Resend in ${timeLeft}s` : "Resend code"}
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Shield className="h-3 w-3" />
-            <span>Your information is secure and encrypted</span>
-          </div>
+        <div className="text-center">
+          <span>Didn&apos;t receive the code? Check your spam folder or</span>
+          <Button
+            variant="link"
+            className="inline w-fit h-fit p-0 m-0"
+            onClick={handleResend}
+            disabled={isLoading}
+          >
+            Resend code {isActive ? `(${timeLeft}s)` : ""}
+          </Button>
         </div>
+      }
+      cardFooter={
+        <>
+          <span>Wrong email? </span>
+          <Link
+            href="/forgot-password"
+            className={cn(
+              buttonVariants({
+                variant: "link",
+                className: "inline w-fit h-fit p-0 m-0",
+              })
+            )}
+          >
+            Go back and edit
+          </Link>
+        </>
       }
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <FormField
             control={form.control}
             name="code"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex flex-col gap-4 items-center">
+                <FormLabel className="text-center text-lg font-semibold">
+                  Enter the 6-digit code below
+                </FormLabel>
                 <FormControl>
-                  <InputOTP
-                    maxLength={6}
-                    {...field}
-                    disabled={isLoading}
-                    className="justify-center"
-                  >
+                  <InputOTP maxLength={6} {...field}>
                     <InputOTPGroup>
                       {[...Array(6)].map((_, i) => (
-                        <InputOTPSlot key={i} index={i} className="h-12 w-12" />
+                        <InputOTPSlot key={i} index={i} className="size-12" />
                       ))}
                     </InputOTPGroup>
                   </InputOTP>
                 </FormControl>
-                <FormMessage className="text-center" />
+                <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isLoading}
-          >
-            {isLoading ? "Verifying..." : "Verify Code"}
+          <Button type="submit" className="w-full mt-4" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              <>
+                Verify Code
+                <ArrowRight />
+              </>
+            )}
           </Button>
         </form>
       </Form>

@@ -102,9 +102,7 @@ export const CreateNewWalletFormSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  })
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  .transform(({ confirmPassword, ...rest }) => rest);
+  });
 
 // Schema for importing an existing wallet using a mnemonic
 export const ImportWalletFormSchema = z

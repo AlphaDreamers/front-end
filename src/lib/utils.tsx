@@ -58,22 +58,6 @@ export const calculatePasswordStrength = (password: string): number => {
   );
 };
 
-export const getPasswordStrengthLabel = (strength: number): string => {
-  if (strength < 25) return "Very Weak";
-  if (strength < 50) return "Weak";
-  if (strength < 75) return "Good";
-  if (strength < 90) return "Strong";
-  return "Very Strong";
-};
-
-export const getPasswordStrengthColor = (strength: number): string => {
-  if (strength < 25) return "text-red-500";
-  if (strength < 50) return "text-orange-500";
-  if (strength < 75) return "text-yellow-500";
-  if (strength < 90) return "text-blue-500";
-  return "text-green-500";
-};
-
 export const encryptPrivateKey = async (
   privateKey: Uint8Array,
   password: string

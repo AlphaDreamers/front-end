@@ -1,25 +1,33 @@
-// src/app/(auth)/sign-in/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
-import AuthCard from "@/components/auth/auth-card";
-import FormInput from "@/components/auth/form-fields";
-import { useAuthForm } from "@/hooks/use-auth-state";
-import { SignInFormSchema } from "@/lib/schemas";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+
 import { signIn } from "@/lib/actions/auth";
+import { SignInFormSchema } from "@/lib/schemas";
+import AuthCard from "@/components/auth/auth-card";
+import PasswordInput from "@/components/password-input";
 
 export default function SignInPage() {
-  const { isLoading, handleSubmit, searchParams } =
-    useAuthForm<z.infer<typeof SignInFormSchema>>();
-  const callbackUrl = searchParams.get("callback-url") || "/dashboard";
-
+  const { push } = useRouter();
+  const searchParams = useSearchParams();
   const form = useForm({
     resolver: zodResolver(SignInFormSchema),
     defaultValues: {
@@ -27,134 +35,128 @@ export default function SignInPage() {
       password: "",
     },
   });
-
-  const onSubmit = (values: z.infer<typeof SignInFormSchema>) => {
-    handleSubmit(signIn, values, {
-      successMessage: "Welcome back!",
-      successRedirect: callbackUrl,
-      onError: (error) => {
-        // Set form-level error for invalid credentials
-        form.setError("root", {
-          type: "manual",
-          message: error.message,
-        });
+  const onSubmit = async (values: z.infer<typeof SignInFormSchema>) =>
+    toast.promise(async () => signIn(values), {
+      loading: "Signing in...",
+      success: () => {
+        const params = new URLSearchParams(searchParams);
+        const callbackUrl = params.get("callback-url") || "/";
+        params.delete("callback-url");
+        push(`${callbackUrl}?${params.toString()}`);
+        return "Welcome back!";
+      },
+      error: (error) => {
+        const ms =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        form.setError("root", { message: ms });
+        return ms;
       },
     });
-  };
+  const isLoading = form.formState.isSubmitting;
 
   return (
     <AuthCard
       title="Welcome back"
       description="Sign in to your account to continue"
       footer={
+        <div>
+          <span className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+          </span>
+          <Link
+            href="/sign-up"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Create one
+          </Link>
+        </div>
+      }
+      cardFooter={
         <>
-          {/* Primary footer action */}
-          <div className="w-full text-center">
-            <span className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-            </span>
-            <Link
-              href="/sign-up"
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Create one
-            </Link>
-          </div>
-
-          {/* Divider */}
-          <div className="relative w-full">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          {/* Alternative sign-in methods (future implementation) */}
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" disabled className="w-full">
-              <img src="/google.svg" alt="Google" className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-            <Button variant="outline" disabled className="w-full">
-              <img src="/github.svg" alt="GitHub" className="mr-2 h-4 w-4" />
-              GitHub
-            </Button>
-          </div>
-
-          {/* Security notice */}
-          <p className="text-center text-xs text-muted-foreground">
-            By signing in, you agree to our{" "}
-            <Link href="/terms" className="underline hover:text-primary">
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="underline hover:text-primary">
-              Privacy Policy
-            </Link>
-          </p>
+          By signing in, you agree to our{" "}
+          <Link
+            href="/terms-of-service"
+            className="underline hover:text-primary"
+          >
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy-policy" className="underline hover:text-primary">
+            Privacy Policy
+          </Link>
         </>
       }
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Form-level error display */}
-          {form.formState.errors.root && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {form.formState.errors.root.message}
-            </div>
-          )}
-
-          <FormInput
+          <FormField
             control={form.control}
             name="email"
-            label="Email"
-            type="email"
-            placeholder="name@example.com"
-            icon={Mail}
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Mail className="size-4" />
+                  Email address
+                  <span className="text-xs text-destructive">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    placeholder="name@example.com"
+                  />
+                </FormControl>
+                <FormDescription />
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
           <div className="space-y-2">
-            <FormInput
+            <FormField
               control={form.control}
               name="password"
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              icon={Lock}
-              required
-            />
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Lock className="size-4" />
+                      Password
+                      <span className="text-xs text-destructive">*</span>
+                    </div>
 
-            {/* Forgot password link aligned to the right */}
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary"
-              >
-                Forgot your password?
-              </Link>
-            </div>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs hover:text-primary transition-colors duration-300 text-muted-foreground"
+                    >
+                      Forgot your password?
+                    </Link>
+                  </FormLabel>
+                  <FormControl>
+                    <PasswordInput
+                      {...field}
+                      placeholder="Enter your password"
+                    />
+                  </FormControl>
+                  <FormDescription />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isLoading}
-          >
+          <Button type="submit" className="w-full mt-4" disabled={isLoading}>
             {isLoading ? (
               <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                <Loader2 className="animate-spin" />
                 Signing in...
               </>
             ) : (
               <>
                 Sign in
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight />
               </>
             )}
           </Button>

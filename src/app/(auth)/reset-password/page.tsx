@@ -1,34 +1,41 @@
 // src/app/(auth)/reset-password/page.tsx
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, CheckCircle, AlertCircle, KeyRound } from "lucide-react";
+import { Lock, KeyRound, Loader2, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
+import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import AuthCard from "@/components/auth/auth-card";
-import FormInput from "@/components/auth/form-fields";
-import { useAuthForm } from "@/hooks/use-auth-state";
-import { usePasswordStrength } from "@/hooks/use-password-strength";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { calculatePasswordStrength, cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+
 import { ResetPasswordFormSchema } from "@/lib/schemas";
 import { resetPassword } from "@/lib/actions/auth";
+import AuthCard from "@/components/auth/auth-card";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
+import PasswordInput from "@/components/password-input";
 
 export default function ResetPasswordPage() {
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const { push } = useRouter();
+
   const searchParams = useSearchParams();
-  const router = useRouter();
   const email = searchParams.get("email") || undefined;
   const code = searchParams.get("code") || undefined;
-
-  const { isLoading, handleSubmit } =
-    useAuthForm<z.infer<typeof ResetPasswordFormSchema>>();
-  const [isSuccess, setIsSuccess] = useState(false);
-
   const form = useForm({
     resolver: zodResolver(ResetPasswordFormSchema),
     defaultValues: {
@@ -38,157 +45,121 @@ export default function ResetPasswordPage() {
       confirmNewPassword: "",
     },
   });
+  const onSubmit = async (values: z.infer<typeof ResetPasswordFormSchema>) =>
+    toast.promise(async () => resetPassword(values), {
+      loading: "Resetting password...",
+      success: () => {
+        push("/sign-in");
 
-  const password = form.watch("newPassword");
-  const { strength } = usePasswordStrength(password);
-
-  const onSubmit = async (values: z.infer<typeof ResetPasswordFormSchema>) => {
-    await handleSubmit(resetPassword, values, {
-      onError: (error) => {
-        form.setError("root", { message: error.message });
+        return "Password reset successful! You can now sign in with your new password.";
+      },
+      error: (error) => {
+        const ms =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        form.setError("root", { message: ms });
+        return ms;
       },
     });
 
-    // Show success state instead of immediate redirect
-    setIsSuccess(true);
-
-    // Redirect after a short delay
-    setTimeout(() => {
-      router.push("/sign-in");
-    }, 3000);
-  };
-
-  // Success state UI
-  if (isSuccess) {
-    return (
-      <AuthCard
-        title="Password reset successful!"
-        description="Your password has been updated"
-      >
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-          </div>
-
-          <p className="text-center text-sm text-muted-foreground">
-            You can now sign in with your new password.
-            <br />
-            Redirecting to sign in page...
-          </p>
-
-          <Button
-            onClick={() => router.push("/sign-in")}
-            className="w-full"
-            variant="outline"
-          >
-            Go to Sign In
-          </Button>
-        </div>
-      </AuthCard>
-    );
-  }
+  const isLoading = form.formState.isSubmitting;
 
   return (
     <AuthCard
       title="Reset your password"
       description="Choose a new password for your account"
       footer={
-        <div className="w-full space-y-4">
-          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-amber-800 dark:text-amber-200">
-              Choose a strong password that you haven&apos;t used before
-            </AlertDescription>
-          </Alert>
-
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">
-              Remember your password?{" "}
-            </span>
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => router.push("/sign-in")}
-              className="p-0 h-auto font-medium"
-            >
-              Sign in instead
-            </Button>
-          </div>
-        </div>
+        <>
+          <span>Remember your password?</span>
+          <Link
+            href="/sign-in"
+            className={cn(
+              buttonVariants({
+                variant: "link",
+              }),
+              "py-0 px-1 m-0 h-fit w-fit font-medium inline"
+            )}
+          >
+            Sign in
+          </Link>
+          instead
+        </>
       }
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Form error */}
-          {form.formState.errors.root && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {form.formState.errors.root.message}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Hidden fields for email and code if they come from URL */}
-          {email && code && (
-            <Alert>
-              <AlertDescription>
-                Resetting password for: <strong>{email}</strong>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <FormInput
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-4"
+        >
+          <div>
+            <FormField
               control={form.control}
               name="newPassword"
-              label="New password"
-              type="password"
-              placeholder="Enter your new password"
-              icon={Lock}
-              required
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Lock className="size-4" />
+                    New Password
+                    <span className="text-xs text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <PasswordInput
+                      {...field}
+                      placeholder="Enter your new password"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setPasswordStrength(
+                          calculatePasswordStrength(e.target.value)
+                        );
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription />
+                  <FormMessage />
+                </FormItem>
+              )}
             />
 
-            {/* Live password strength feedback */}
-            {password && (
-              <PasswordStrengthIndicator
-                strength={strength}
-                color={
-                  strength < 50
-                    ? "text-red-500"
-                    : strength < 75
-                      ? "text-amber-500"
-                      : "text-green-500"
-                }
-                label={
-                  strength < 50 ? "Weak" : strength < 75 ? "Good" : "Strong"
-                }
-              />
-            )}
+            <PasswordStrengthIndicator strength={passwordStrength} />
           </div>
 
-          <FormInput
+          <FormField
             control={form.control}
             name="confirmNewPassword"
-            label="Confirm new password"
-            type="password"
-            placeholder="Re-enter your new password"
-            icon={KeyRound}
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <KeyRound className="size-4" />
+                  Confirm New Password
+                  <span className="text-xs text-destructive">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="password"
+                    placeholder="Re-enter your new password"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Please re-enter your new password to confirm.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isLoading || strength < 50}
-          >
+          <Button type="submit" className="w-full mt-4" disabled={isLoading}>
             {isLoading ? (
               <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                <Loader2 className="animate-spin" />
                 Resetting password...
               </>
             ) : (
-              "Reset password"
+              <>
+                <span>Reset password</span>
+                <ArrowRight />
+              </>
             )}
           </Button>
         </form>

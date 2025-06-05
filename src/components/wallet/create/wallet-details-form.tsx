@@ -1,18 +1,28 @@
-// src/components/wallet/create/wallet-details-form.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Wallet, Lock, ArrowRight, KeyRound } from "lucide-react";
+import { Wallet, Lock, ArrowRight, KeyRound, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useState } from "react";
 
-import { Form } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import FormInput from "@/components/auth/form-fields";
-import { useAuthForm } from "@/hooks/use-auth-state";
+import { Input } from "@/components/ui/input";
+
 import { CreateNewWalletFormSchema } from "@/lib/schemas";
 import { calculatePasswordStrength } from "@/lib/utils";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
+import PasswordInput from "@/components/password-input";
 
 interface WalletDetailsFormProps {
   onSubmit: (
@@ -21,11 +31,9 @@ interface WalletDetailsFormProps {
 }
 
 export default function WalletDetailsForm({
-  onSubmit,
+  onSubmit: handleNextStep,
 }: WalletDetailsFormProps) {
-  const { isLoading, handleSubmit } =
-    useAuthForm<z.infer<typeof CreateNewWalletFormSchema>>();
-
+  const [passwordStrength, setPasswordStrength] = useState(0);
   const form = useForm({
     resolver: zodResolver(CreateNewWalletFormSchema),
     defaultValues: {
@@ -34,96 +42,115 @@ export default function WalletDetailsForm({
       confirmPassword: "",
     },
   });
-
-  const password = form.watch("password");
-  const passwordStrength = calculatePasswordStrength(password);
-
-  const handleFormSubmit = (
-    values: z.infer<typeof CreateNewWalletFormSchema>
-  ) => {
-    handleSubmit(onSubmit, values, {
-      successMessage: "Wallet generated successfully!",
-      onError: (error) => {
-        form.setError("root", { message: error.message });
+  const onSubmit = async (values: z.infer<typeof CreateNewWalletFormSchema>) =>
+    toast.promise(async () => handleNextStep(values), {
+      loading: "Creating wallet...",
+      success: () => "Wallet generated successfully!",
+      error: (error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        form.setError("root", { message });
+        return message;
       },
     });
-  };
+  const isLoading = form.formState.isSubmitting;
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleFormSubmit)}
-        className="space-y-4"
-      >
-        {form.formState.errors.root && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {form.formState.errors.root.message}
-          </div>
-        )}
-
-        <FormInput
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
           control={form.control}
           name="name"
-          label="Wallet Name"
-          placeholder="My Solana Wallet"
-          icon={Wallet}
-          description="Choose a name to identify this wallet"
-          required
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Wallet className="size-4" />
+                Wallet Name
+                <span className="text-xs text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="My Solana Wallet" />
+              </FormControl>
+              <FormDescription>
+                This name will help you identify your wallet
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
         <div className="space-y-2">
-          <FormInput
+          <FormField
             control={form.control}
             name="password"
-            label="Wallet Password"
-            type="password"
-            placeholder="Create a strong password"
-            icon={Lock}
-            description="This password encrypts your wallet on this device"
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Lock className="size-4" />
+                  Wallet Password
+                  <span className="text-xs text-destructive">*</span>
+                </FormLabel>
+                <FormControl>
+                  <div className="flex flex-col gap-1">
+                    <PasswordInput
+                      {...field}
+                      placeholder="Create a strong password"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setPasswordStrength(
+                          calculatePasswordStrength(e.target.value)
+                        );
+                      }}
+                    />
+                    <PasswordStrengthIndicator strength={passwordStrength} />
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  This password encrypts your wallet on this device
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-
-          {password && (
-            <PasswordStrengthIndicator
-              strength={passwordStrength}
-              color={
-                passwordStrength < 50
-                  ? "text-red-500"
-                  : passwordStrength < 75
-                    ? "text-amber-500"
-                    : "text-green-500"
-              }
-              label={
-                passwordStrength < 50
-                  ? "Weak"
-                  : passwordStrength < 75
-                    ? "Good"
-                    : "Strong"
-              }
-            />
-          )}
         </div>
 
-        <FormInput
+        <FormField
           control={form.control}
           name="confirmPassword"
-          label="Confirm Password"
-          type="password"
-          placeholder="Re-enter your password"
-          icon={KeyRound}
-          required
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <KeyRound className="size-4" />
+                Confirm Password
+                <span className="text-xs text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="password"
+                  placeholder="Re-enter your password"
+                />
+              </FormControl>
+              <FormDescription>
+                Please re-enter your password to confirm
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+        <Button type="submit" className="w-full mt-4" disabled={isLoading}>
           {isLoading ? (
             <>
-              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+              <Loader2 className="animate-spin" />
               Creating wallet...
             </>
           ) : (
             <>
               Create Wallet
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight />
             </>
           )}
         </Button>
