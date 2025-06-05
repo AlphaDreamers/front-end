@@ -141,3 +141,8 @@ export interface OrderDetails {
     price: number;
   };
 }
+
+export type KeyValuePair = {
+  id: string;
+  title: string;
+};

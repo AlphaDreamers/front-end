@@ -8,9 +8,15 @@ interface AuthCardProps {
   cardFooter?: React.ReactNode;
 }
 
-const AuthCard = ({ title, description, children, footer,cardFooter }: AuthCardProps) => {
+const AuthCard = ({
+  title,
+  description,
+  children,
+  footer,
+  cardFooter,
+}: AuthCardProps) => {
   return (
-    <div className="animate-in fade-in-50 zoom-in-95 duration-300 max-w-md">
+    <div className="animate-in fade-in-50 zoom-in-95 duration-300 max-w-md mx-auto">
       <div className="space-y-2 text-center mb-8 mx-auto">
         <h1 className="text-4xl font-bold tracking-tight text-primary">
           {title}

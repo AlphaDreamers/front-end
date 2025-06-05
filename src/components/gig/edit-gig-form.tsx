@@ -13,10 +13,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  ArrowLeft,
 } from "lucide-react";
 
-import { createGig } from "@/lib/actions/gig";
-import { CreateGigFormSchema } from "@/lib/schemas";
+import { updateGig } from "@/lib/actions";
+import { EditGigFormSchema } from "@/lib/schemas";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,58 +40,59 @@ import FormMultiSelect from "@/components/form-fields/form-multi-select";
 import FormImageUpload from "@/components/form-fields/form-image-upload";
 import FormPackages from "@/components/form-fields/form-packages";
 
-interface CreateGigFormProps {
+// Define the shape of data we expect from the page
+interface EditGigFormProps {
+  gig: {
+    id: string;
+    title: string;
+    description: string;
+    categoryId: string;
+    tags: string[];
+    features: Array<{ id: string; label: string }>;
+    packages: Array<{
+      id: string;
+      title: string;
+      deliveryTime: number;
+      price: number;
+      revisions: number;
+      featureInclusions: boolean[];
+    }>;
+    images: Array<{
+      type: "existing";
+      id: string;
+      url: string;
+      isPrimary: boolean;
+    }>;
+  };
   categories: Array<{ id: string; title: string; icon: string; color: string }>;
   tags: Array<{ id: string; title: string }>;
 }
 
-export default function CreateGigForm({
+export default function EditGigForm({
+  gig,
   categories,
   tags,
-}: CreateGigFormProps) {
+}: EditGigFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof CreateGigFormSchema>>({
-    resolver: zodResolver(CreateGigFormSchema),
+  // Initialize the form with existing gig data
+  const form = useForm<z.infer<typeof EditGigFormSchema>>({
+    resolver: zodResolver(EditGigFormSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      categoryId: "",
-      tags: [],
-      features: [
-        { label: "Standard Delivery" },
-        { label: "Revisions Included" },
-        { label: "Source Files" },
-      ],
-      packages: [
-        {
-          title: "Basic",
-          deliveryTime: 3,
-          price: 50,
-          revisions: 1,
-          featureInclusions: [true, false, false],
-        },
-        {
-          title: "Standard",
-          deliveryTime: 2,
-          price: 100,
-          revisions: 2,
-          featureInclusions: [true, true, false],
-        },
-        {
-          title: "Premium",
-          deliveryTime: 1,
-          price: 200,
-          revisions: -1, // Unlimited
-          featureInclusions: [true, true, true],
-        },
-      ],
-      images: [],
+      id: gig.id,
+      title: gig.title,
+      description: gig.description,
+      categoryId: gig.categoryId,
+      tags: gig.tags,
+      features: gig.features,
+      packages: gig.packages,
+      images: gig.images,
     },
   });
 
   // Calculate form completion percentage for progress bar
+  // This is the same logic as the create form
   const calculateProgress = () => {
     const values = form.getValues();
     let completed = 0;
@@ -107,22 +110,23 @@ export default function CreateGigForm({
 
   const progress = calculateProgress();
 
-  const onSubmit = async (values: z.infer<typeof CreateGigFormSchema>) => {
+  const onSubmit = async (values: z.infer<typeof EditGigFormSchema>) => {
     setIsSubmitting(true);
 
     try {
-      await createGig(values);
+      await updateGig(values);
 
-      toast.success("Gig created successfully!", {
-        description: "Your gig is now live and ready for orders.",
+      toast.success("Gig updated successfully!", {
+        description: "Your changes have been saved.",
       });
 
-      router.push("/dashboard/gigs");
+      // Navigate back to the gig details or dashboard
+      router.push(`/dashboard/gigs/${gig.id}`);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to create gig";
+        error instanceof Error ? error.message : "Failed to update gig";
 
-      toast.error("Failed to create gig", {
+      toast.error("Failed to update gig", {
         description: message,
       });
 
@@ -138,11 +142,21 @@ export default function CreateGigForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {/* Header with Progress */}
         <div className="space-y-4">
-          <div>
-            <h1 className="text-3xl font-bold">Create New Gig</h1>
-            <p className="text-muted-foreground mt-2">
-              Fill in the details below to create your service offering
-            </p>
+          <div className="flex items-center gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Edit Gig</h1>
+              <p className="text-muted-foreground mt-2">
+                Update your service details and settings
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -171,9 +185,7 @@ export default function CreateGigForm({
               <Info className="h-5 w-5" />
               Basic Information
             </CardTitle>
-            <CardDescription>
-              Tell buyers what you&apos;re offering
-            </CardDescription>
+            <CardDescription>Update your service details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <FormInput
@@ -233,7 +245,7 @@ export default function CreateGigForm({
               Packages & Pricing
             </CardTitle>
             <CardDescription>
-              Create different tiers to offer buyers options
+              Update your service tiers and pricing
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,7 +261,7 @@ export default function CreateGigForm({
               Gallery
             </CardTitle>
             <CardDescription>
-              Upload images that showcase your work (max 8 images)
+              Update images that showcase your work (max 8 images)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -257,7 +269,7 @@ export default function CreateGigForm({
               control={form.control}
               name="images"
               maxImages={8}
-              description="The first image will be your gig's thumbnail"
+              description="The first image will be your gig's thumbnail. You can replace existing images or add new ones."
             />
           </CardContent>
         </Card>
@@ -267,7 +279,7 @@ export default function CreateGigForm({
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/dashboard/gigs")}
+            onClick={() => router.back()}
             disabled={isSubmitting}
           >
             Cancel
@@ -277,22 +289,22 @@ export default function CreateGigForm({
             {progress === 100 && (
               <span className="flex items-center gap-1 text-sm text-green-600">
                 <CheckCircle2 className="h-4 w-4" />
-                Ready to publish
+                Ready to update
               </span>
             )}
 
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || progress < 100}
               className="min-w-[150px]"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  Updating...
                 </>
               ) : (
-                "Create Gig"
+                "Update Gig"
               )}
             </Button>
           </div>

@@ -15,6 +15,14 @@ enum MessageStatus {
   FAILED
 }
 
+enum ContactMessageType {
+  TESTIMONIAL
+  COMPLAINT
+  SUPPORT
+  FEEDBACK
+  GENERAL_INQUIRY
+}
+
 enum SocialLinkType {
   X
   GITHUB
@@ -71,8 +79,32 @@ enum MessageType {
   SYSTEM
 }
 
-enum ContactMessageType {
-  TESTIMONIAL
+enum FeedbackCategory {
+  GENERAL
+  FEATURE_REQUEST
+  BUG_REPORT
+  UI_UX
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
 
 model ContactMessage {
@@ -80,12 +112,22 @@ model ContactMessage {
 
   type ContactMessageType
 
-  author             User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  testimonialContent TestimonialContent?
-
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
   authorId String?
 
+  guestEmail String?
+
+  testimonialContent TestimonialContent?
+  complaintContent   ComplaintContent?
+  supportContent     SupportContent?
+  feedbackContent    FeedbackContent?
+  generalContent     GeneralContent?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([type, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model TestimonialContent {
@@ -94,9 +136,53 @@ model TestimonialContent {
   content String
   rating  Int
 
-  contactMessage ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+}
 
-  contactMessageId String @unique
+model ComplaintContent {
+  id String @id @default(uuid())
+
+  orderId     String
+  description String
+
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  status ComplaintStatus @default(PENDING)
+}
+
+model SupportContent {
+  id String @id @default(uuid())
+
+  subject     String
+  description String
+
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  priority SupportPriority @default(NORMAL)
+  status   SupportStatus   @default(OPEN)
+}
+
+model FeedbackContent {
+  id String @id @default(uuid())
+
+  message  String
+  category FeedbackCategory @default(GENERAL)
+
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+}
+
+model GeneralContent {
+  id String @id @default(uuid())
+
+  subject String?
+  message String  @db.Text
+
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
 }
 
 model PortfolioItem {
@@ -266,6 +352,8 @@ model Image {
   fileId          String
   gigId           String?
   portfolioItemId String?
+
+  createdAt DateTime @default(now())
 }
 
 model Package {
@@ -292,6 +380,8 @@ model GigFeature {
   packageFeatures PackageFeature[]
 
   gigId String
+
+  createdAt DateTime @default(now())
 }
 
 model PackageFeature {
@@ -397,7 +487,7 @@ model Message {
   chatId String
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([chatId, createdAt])
 }

@@ -255,107 +255,155 @@ export const CreateGigFormSchema = z.object({
 });
 
 // Reusable schema for updating gig features
-const UpdateFeatureSchema = z.object({
-  id: z.string().uuid().optional(),
-  tempId: z.string().optional(),
-  label: z
-    .string()
-    .min(1, "Feature label is required")
-    .max(100, "Feature label must be at most 100 characters"),
-});
+// Add this to your existing schemas.ts file
 
-// Reusable schema for updating gig packages
-const UpdatePackageSchema = z.object({
-  id: z.string().uuid().optional(),
-  title: z
-    .string()
-    .min(3, "Package title is required")
-    .max(50, "Package title must be at most 50 characters"),
-  deliveryTime: z
-    .number()
-    .int()
-    .positive("Delivery time must be a positive number"),
-  price: z.number().positive("Price must be a positive number"),
-  revisions: z
-    .number()
-    .int()
-    .min(0, "Revisions must be 0 or more")
-    .max(100, "Revisions must be at most 100"),
-  featureInclusions: z.array(z.boolean()),
-});
-
-// Schema for updating an existing gig
-export const UpdateGigFormSchema = z
+// Enhanced schema for editing gigs that handles both existing and new data
+export const EditGigFormSchema = z
   .object({
-    id: z.string().uuid(),
+    // The gig ID is required for editing
+    id: z.string().uuid("Invalid gig ID"),
+
+    // Basic gig information
     title: z
       .string()
-      .min(5, "Title must be at least 5 characters")
-      .max(100, "Title must be at most 100 characters"),
+      .min(10, "Title must be at least 10 characters")
+      .max(80, "Title must be at most 80 characters")
+      .regex(
+        /^[a-zA-Z0-9\s\-.,!?'"]+$/,
+        "Title can only contain letters, numbers, spaces, and basic punctuation"
+      ),
+
     description: z
       .string()
-      .min(20, "Description must be at least 20 characters")
+      .min(50, "Description must be at least 50 characters")
       .max(5000, "Description must be at most 5000 characters"),
-    categoryId: z.string().uuid(),
+
+    categoryId: z.string().uuid("Please select a valid category"),
+
+    // Tags - for editing, we only need the IDs since tags are selected from existing ones
     tags: z
-      .array(z.object({ id: z.string().uuid() }))
-      .min(1, "Please select at least one tag")
-      .max(10, "Maximum 10 tags allowed"),
+      .array(z.string().uuid("Invalid tag ID"))
+      .min(1, "Select at least one tag")
+      .max(5, "Maximum 5 tags allowed"),
+
+    // Features can be existing (with ID) or new (with tempId for tracking)
     features: z
-      .array(UpdateFeatureSchema)
-      .min(1, "Add at least one feature")
-      .max(10, "Maximum 10 features allowed"),
-    packages: z
-      .array(UpdatePackageSchema)
-      .min(1, "Add at least one package")
-      .max(3, "Maximum 3 packages allowed"),
-    images: z
       .array(
         z.object({
-          id: z.string().uuid().optional(),
-          url: z.string().url("Must be a valid URL"),
+          id: z.string().uuid().optional(), // Existing features have database IDs
+          tempId: z.string().optional(), // New features get temporary IDs for tracking
+          label: z
+            .string()
+            .min(2, "Feature must be at least 2 characters")
+            .max(50, "Feature must be at most 50 characters"),
         })
       )
-      .min(1, "Add at least one image")
-      .max(8, "Maximum 8 images allowed"),
+      .min(1, "Add at least one feature")
+      .max(10, "Maximum 10 features allowed"),
+
+    // Packages can also be existing or new
+    packages: z
+      .array(
+        z.object({
+          id: z.string().uuid().optional(), // Existing packages have database IDs
+          tempId: z.string().optional(), // New packages get temporary IDs
+          title: z
+            .string()
+            .min(2, "Package name must be at least 2 characters")
+            .max(30, "Package name must be at most 30 characters"),
+          deliveryTime: z
+            .number()
+            .int("Delivery time must be a whole number")
+            .min(1, "Delivery time must be at least 1 day")
+            .max(90, "Delivery time must be at most 90 days"),
+          price: z
+            .number()
+            .min(5, "Price must be at least $5")
+            .max(10000, "Price must be at most $10,000"),
+          revisions: z
+            .number()
+            .int("Revisions must be a whole number")
+            .min(-1, "Use -1 for unlimited revisions")
+            .max(100, "Maximum 100 revisions"),
+          featureInclusions: z.array(z.boolean()),
+        })
+      )
+      .min(1, "Add at least one package")
+      .max(3, "Maximum 3 packages allowed")
+      .refine(
+        (packages) => {
+          // Ensure packages have ascending prices
+          const prices = packages.map((p) => p.price);
+          return prices.every((price, i) => i === 0 || price > prices[i - 1]);
+        },
+        { message: "Package prices must increase from left to right" }
+      ),
+
+    // Images can be existing (URL only) or new (File object)
+    images: z
+      .array(
+        z.discriminatedUnion("type", [
+          // Existing images from the database
+          z.object({
+            type: z.literal("existing"),
+            id: z.string().uuid(),
+            url: z.string().url("Must be a valid URL"),
+            isPrimary: z.boolean(),
+          }),
+          // New images being uploaded
+          z.object({
+            type: z.literal("new"),
+            file: z.instanceof(File),
+            isPrimary: z.boolean(),
+            tempId: z.string(), // For tracking in the UI
+          }),
+        ])
+      )
+      .min(1, "Upload at least one image")
+      .max(8, "Maximum 8 images allowed")
+      .refine((images) => images.some((img) => img.isPrimary), {
+        message: "Please select a primary image",
+      })
+      .refine(
+        (images) => {
+          // Validate file types for new images
+          return images.every((img) => {
+            if (img.type === "new") {
+              const validTypes = [
+                "image/jpeg",
+                "image/jpg",
+                "image/png",
+                "image/webp",
+              ];
+              return validTypes.includes(img.file.type);
+            }
+            return true; // Existing images are already validated
+          });
+        },
+        { message: "Only JPEG, PNG, and WebP images are allowed" }
+      )
+      .refine(
+        (images) => {
+          // Validate file sizes for new images
+          return images.every((img) => {
+            if (img.type === "new") {
+              return img.file.size <= 5 * 1024 * 1024; // 5MB limit
+            }
+            return true; // Existing images don't need size validation
+          });
+        },
+        { message: "Each image must be less than 5MB" }
+      ),
   })
   .refine(
     (data) => {
-      const firstPackageInclusionsCount =
-        data.packages[0].featureInclusions.length;
-      return data.packages.every(
-        (pkg) => pkg.featureInclusions.length === firstPackageInclusionsCount
-      );
-    },
-    { message: "All packages must have the same number of feature inclusions" }
-  )
-  .refine(
-    (data) => {
-      for (
-        let featureIndex = 0;
-        featureIndex < data.features.length;
-        featureIndex++
-      ) {
-        const isIncludedInAnyPackage = data.packages.some(
-          (pkg) => pkg.featureInclusions[featureIndex] === true
-        );
-        if (!isIncludedInAnyPackage) return false;
-      }
-      return true;
-    },
-    {
-      message: "Each feature must be included in at least one package",
-      path: ["features"],
-    }
-  )
-  .refine(
-    (data) => {
+      // Ensure all packages have the same number of feature inclusions as features
       return data.packages.every(
         (pkg) => pkg.featureInclusions.length === data.features.length
       );
     },
     {
-      message: "Number of feature inclusions must match number of features",
+      message: "Package features must match the number of gig features",
       path: ["packages"],
     }
   );
