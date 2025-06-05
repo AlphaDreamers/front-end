@@ -13,6 +13,7 @@ import {
 import { PASSWORD_SCHEMA_CONDITIONS_COUNT, PasswordSchema } from "./schemas";
 import { encode } from "bs58";
 import { Message } from "./types";
+import { SocialLinkType } from "@prisma/client";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

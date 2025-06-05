@@ -17,12 +17,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  FEEDBACK_CATEGORY_LABELS,
-  FeedbackContentSchema,
-} from "@/lib/schemas/contact";
+import { FeedbackContentSchema } from "@/lib/schemas/contact";
 import ContactPageTemplate from "@/components/contact/contact-page-template";
 import { me } from "@/lib/actions/auth";
+import ContactForm from "@/components/contact/contact-form";
+
+const FEEDBACK_CATEGORY_LABELS = {
+  GENERAL: "General Feedback",
+  FEATURE_REQUEST: "Feature Request",
+  BUG_REPORT: "Bug Report",
+  UI_UX: "User Interface/Experience",
+};
 
 export default async function ContactPage() {
   const user = await me();

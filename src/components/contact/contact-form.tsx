@@ -19,13 +19,12 @@ import {
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 
-import { submitContactMessage } from "@/lib/actions/contact";
-
 interface ContactFormProps<TSchema extends ZodTypeAny> {
   isAuth: boolean;
   schema: TSchema;
   children: (form: UseFormReturn<z.infer<TSchema>>) => React.ReactNode;
   defaultValues?: z.infer<TSchema>;
+  action: (values: z.infer<TSchema>) => Promise<void>;
 }
 
 const ContactForm = <TSchema extends ZodTypeAny>({
@@ -33,6 +32,7 @@ const ContactForm = <TSchema extends ZodTypeAny>({
   schema,
   children,
   defaultValues,
+  action,
 }: ContactFormProps<TSchema>) => {
   const router = useRouter();
 
@@ -42,7 +42,7 @@ const ContactForm = <TSchema extends ZodTypeAny>({
   });
 
   const onSubmit = async (values: z.infer<typeof schema>) =>
-    toast.promise(async () => submitContactMessage(values), {
+    toast.promise(async () => action(values), {
       loading: "Sending your message...",
       success: () => {
         router.push("/contact-us/success");

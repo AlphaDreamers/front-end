@@ -41,7 +41,7 @@ export default function ContactSuccessPage() {
               24-48 hours during business days.
             </p>
             <p className="text-sm text-gray-300">
-              If your inquiry is urgent, please don't hesitate to reach out
+              If your inquiry is urgent, please don&apos;t hesitate to reach out
               through our support channels.
             </p>
           </div>

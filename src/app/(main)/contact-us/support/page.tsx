@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-import { PRIORITY_LABELS, SupportContentSchema } from "@/lib/schemas/contact";
+import { SupportContentSchema } from "@/lib/schemas/contact";
 import ContactPageTemplate from "@/components/contact/contact-page-template";
 import ContactForm from "@/components/contact/contact-form";
 import { me } from "@/lib/actions/auth";
