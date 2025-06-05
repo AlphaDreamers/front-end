@@ -14,253 +14,189 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY as string);
 
-export async function sendTestimonialMessage(
-  values: z.infer<typeof TestimonialContentSchema>
+// Helper function to reduce duplication
+async function createContactMessage(
+  type:
+    | "TESTIMONIAL"
+    | "COMPLAINT"
+    | "SUPPORT"
+    | "FEEDBACK"
+    | "GENERAL_INQUIRY",
+  requiresAuth: boolean = false
 ) {
   const user = await me();
 
-  if (!user) {
-    throw new Error("Authentication required for testimonial submissions");
+  if (requiresAuth && !user) {
+    throw new Error("Please log in to submit this type of message");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const contactMessage = await tx.contactMessage.create({
-      data: {
-        type: "TESTIMONIAL",
-        authorId: user.id,
-      },
-    });
-
-    await tx.testimonialContent.create({
-      data: {
-        contactMessageId: contactMessage.id,
-        rating: values.rating,
-        content: values.content,
-      },
-    });
-
-    return await tx.contactMessage.findUnique({
-      where: { id: contactMessage.id },
-      include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        testimonialContent: true,
-      },
-    });
+  const contactMessage = await prisma.contactMessage.create({
+    data: {
+      type,
+      authorId: user?.id || null,
+      guestEmail: user ? null : undefined, // Will be set by individual functions
+    },
   });
 
+  return { contactMessage, user };
+}
+
+export async function sendTestimonialMessage(
+  values: z.infer<typeof TestimonialContentSchema>
+) {
+  const { contactMessage, user } = await createContactMessage(
+    "TESTIMONIAL",
+    true
+  );
+
+  await prisma.testimonialContent.create({
+    data: {
+      contactMessageId: contactMessage.id,
+      rating: values.rating,
+      content: values.content,
+    },
+  });
+
+  // Send notification email
   resend.emails
     .send({
       from: "BlueFrog <notifications@bluefrog.com>",
       to: ["marketing@bluefrog.com"],
       subject: "New Testimonial Received",
-      text: `New testimonial from ${user.firstName} ${user.lastName} (${user.email}):\nRating: ${values.rating}\nContent: ${values.content}`,
+      text: `New testimonial from ${user!.firstName} ${user!.lastName}:\nRating: ${values.rating}\nContent: ${values.content}`,
     })
     .catch(console.error);
-
-  return { success: true, data: result };
 }
 
 export async function sendComplaintMessage(
   values: z.infer<typeof ComplaintContentSchema>
 ) {
-  const user = await me();
+  const { contactMessage, user } = await createContactMessage(
+    "COMPLAINT",
+    true
+  );
 
-  if (!user) {
-    throw new Error("Authentication required for complaint submissions");
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    const contactMessage = await tx.contactMessage.create({
-      data: {
-        type: "COMPLAINT",
-        authorId: user.id,
-      },
-    });
-
-    await tx.complaintContent.create({
-      data: {
-        contactMessageId: contactMessage.id,
-        orderId: values.orderId,
-        description: values.description,
-        status: "PENDING",
-      },
-    });
-
-    return await tx.contactMessage.findUnique({
-      where: { id: contactMessage.id },
-      include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        complaintContent: true,
-      },
-    });
+  await prisma.complaintContent.create({
+    data: {
+      contactMessageId: contactMessage.id,
+      orderId: values.orderId,
+      description: values.description,
+      status: "PENDING",
+    },
   });
 
   resend.emails
     .send({
       from: "BlueFrog <notifications@bluefrog.com>",
-      to: ["customerservice@bluefrog.com"],
+      to: ["support@bluefrog.com"],
       subject: "New Complaint Received",
-      text: `New complaint from ${user.firstName} ${user.lastName} (${user.email}):\nOrder ID: ${values.orderId}\nDescription: ${values.description}`,
+      text: `New complaint from ${user!.firstName} ${user!.lastName}:\nOrder ID: ${values.orderId}\nDescription: ${values.description}`,
     })
     .catch(console.error);
-
-  return { success: true, data: result };
 }
 
 export async function sendSupportMessage(
   values: z.infer<typeof SupportContentSchema>
 ) {
-  const user = await me();
+  const { contactMessage, user } = await createContactMessage("SUPPORT");
 
-  if (!user && !values.guestEmail) {
-    throw new Error("Email is required for guest submissions");
+  // Update contact message with guest email if needed
+  if (!user && values.guestEmail) {
+    await prisma.contactMessage.update({
+      where: { id: contactMessage.id },
+      data: { guestEmail: values.guestEmail },
+    });
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const contactMessage = await tx.contactMessage.create({
-      data: {
-        type: "SUPPORT",
-        authorId: user?.id || null,
-        guestEmail: user ? null : values.guestEmail,
-      },
-    });
-
-    await tx.supportContent.create({
-      data: {
-        contactMessageId: contactMessage.id,
-        subject: values.subject,
-        description: values.description,
-        priority: values.priority || "NORMAL",
-        status: "OPEN",
-      },
-    });
-
-    return await tx.contactMessage.findUnique({
-      where: { id: contactMessage.id },
-      include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        supportContent: true,
-      },
-    });
+  await prisma.supportContent.create({
+    data: {
+      contactMessageId: contactMessage.id,
+      subject: values.subject,
+      description: values.description,
+      priority: values.priority || "NORMAL",
+      status: "OPEN",
+    },
   });
 
   const sender = user
-    ? `${user.firstName} ${user.lastName} (${user.email})`
+    ? `${user.firstName} ${user.lastName}`
     : `Guest (${values.guestEmail})`;
+
   resend.emails
     .send({
       from: "BlueFrog <notifications@bluefrog.com>",
       to: ["support@bluefrog.com"],
       subject: "New Support Request",
-      text: `New support request from ${sender}:\nSubject: ${values.subject}\nDescription: ${values.description}\nPriority: ${values.priority || "NORMAL"}`,
+      text: `New support request from ${sender}:\nSubject: ${values.subject}\nPriority: ${values.priority}\nDescription: ${values.description}`,
     })
     .catch(console.error);
-
-  return { success: true, data: result };
 }
 
 export async function sendFeedbackMessage(
   values: z.infer<typeof FeedbackContentSchema>
 ) {
-  const user = await me();
+  const { contactMessage, user } = await createContactMessage("FEEDBACK");
 
-  const result = await prisma.$transaction(async (tx) => {
-    const contactMessage = await tx.contactMessage.create({
-      data: {
-        type: "FEEDBACK",
-        authorId: user?.id || null,
-        guestEmail: user ? null : values.guestEmail,
-      },
-    });
-
-    await tx.feedbackContent.create({
-      data: {
-        contactMessageId: contactMessage.id,
-        message: values.message,
-        category: values.category || "GENERAL",
-      },
-    });
-
-    return await tx.contactMessage.findUnique({
+  if (!user && values.guestEmail) {
+    await prisma.contactMessage.update({
       where: { id: contactMessage.id },
-      include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        feedbackContent: true,
-      },
+      data: { guestEmail: values.guestEmail },
     });
+  }
+
+  await prisma.feedbackContent.create({
+    data: {
+      contactMessageId: contactMessage.id,
+      message: values.message,
+      category: values.category || "GENERAL",
+    },
   });
 
   const sender = user
-    ? `${user.firstName} ${user.lastName} (${user.email})`
+    ? `${user.firstName} ${user.lastName}`
     : `Guest (${values.guestEmail})`;
+
   resend.emails
     .send({
       from: "BlueFrog <notifications@bluefrog.com>",
       to: ["feedback@bluefrog.com"],
       subject: "New Feedback Received",
-      text: `New feedback from ${sender}:\nCategory: ${values.category || "GENERAL"}\nMessage: ${values.message}`,
+      text: `New feedback from ${sender}:\nCategory: ${values.category}\nMessage: ${values.message}`,
     })
     .catch(console.error);
-
-  return { success: true, data: result };
 }
 
 export async function sendGeneralInquiryMessage(
   values: z.infer<typeof GeneralContentSchema>
 ) {
-  const user = await me();
+  const { contactMessage, user } =
+    await createContactMessage("GENERAL_INQUIRY");
 
-  if (!user && !values.guestEmail) {
-    throw new Error("Email is required for guest submissions");
+  if (!user && values.guestEmail) {
+    await prisma.contactMessage.update({
+      where: { id: contactMessage.id },
+      data: { guestEmail: values.guestEmail },
+    });
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const contactMessage = await tx.contactMessage.create({
-      data: {
-        type: "GENERAL_INQUIRY",
-        authorId: user?.id || null,
-        guestEmail: user ? null : values.guestEmail,
-      },
-    });
-
-    await tx.generalContent.create({
-      data: {
-        contactMessageId: contactMessage.id,
-        subject: values.subject || null,
-        message: values.message,
-      },
-    });
-
-    return await tx.contactMessage.findUnique({
-      where: { id: contactMessage.id },
-      include: {
-        author: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        generalContent: true,
-      },
-    });
+  await prisma.generalContent.create({
+    data: {
+      contactMessageId: contactMessage.id,
+      subject: values.subject || null,
+      message: values.message,
+    },
   });
 
   const sender = user
-    ? `${user.firstName} ${user.lastName} (${user.email})`
+    ? `${user.firstName} ${user.lastName}`
     : `Guest (${values.guestEmail})`;
+
   resend.emails
     .send({
       from: "BlueFrog <notifications@bluefrog.com>",
       to: ["info@bluefrog.com"],
       subject: "New General Inquiry",
-      text: `New general inquiry from ${sender}:\nSubject: ${values.subject || "N/A"}\nMessage: ${values.message}`,
+      text: `New inquiry from ${sender}:\nSubject: ${values.subject || "N/A"}\nMessage: ${values.message}`,
     })
     .catch(console.error);
-
-  return { success: true, data: result };
 }

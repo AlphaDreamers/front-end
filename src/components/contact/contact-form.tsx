@@ -24,7 +24,7 @@ interface ContactFormProps<TSchema extends ZodTypeAny> {
   schema: TSchema;
   children?: (form: UseFormReturn<z.infer<TSchema>>) => React.ReactNode;
   defaultValues?: z.infer<TSchema>;
-  action: (values: z.infer<TSchema>) => Promise<void>;
+  action: (values: z.infer<TSchema>) => Promise<void>; // Make this required
 }
 
 const ContactForm = <TSchema extends ZodTypeAny>({
@@ -46,7 +46,6 @@ const ContactForm = <TSchema extends ZodTypeAny>({
       loading: "Sending your message...",
       success: () => {
         router.push("/contact-us/success");
-
         return "Message sent successfully! We'll get back to you soon.";
       },
       error: (error) => {
@@ -67,8 +66,7 @@ const ContactForm = <TSchema extends ZodTypeAny>({
         onSubmit={form.handleSubmit(onSubmit)}
         className="flex flex-col gap-4"
       >
-        {/* Guest Email Field - Only for non-authenticated users */}
-        {isAuth && (
+        {!isAuth && (
           <FormField
             control={form.control}
             name="guestEmail"
@@ -115,4 +113,5 @@ const ContactForm = <TSchema extends ZodTypeAny>({
     </Form>
   );
 };
+
 export default ContactForm;

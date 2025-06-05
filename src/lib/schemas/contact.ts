@@ -4,9 +4,9 @@ export const BaseContactSchema = z.object({
   guestEmail: z.string().email("Please enter a valid email address").optional(),
 });
 
-// Individual content schemas for each message type
 export const TestimonialContentSchema = z
   .object({
+    type: z.literal("TESTIMONIAL"),
     rating: z
       .number()
       .int("Rating must be a whole number")
@@ -21,14 +21,11 @@ export const TestimonialContentSchema = z
 
 export const ComplaintContentSchema = z
   .object({
+    type: z.literal("COMPLAINT"),
     orderId: z
       .string()
       .min(1, "Order ID is required")
-      .max(50, "Order ID is too long")
-      .regex(
-        /^[A-Z0-9\-_]+$/i,
-        "Order ID can only contain letters, numbers, hyphens, and underscores"
-      ),
+      .max(50, "Order ID is too long"),
     description: z
       .string()
       .min(20, "Please provide a detailed description (at least 20 characters)")
@@ -38,6 +35,7 @@ export const ComplaintContentSchema = z
 
 export const SupportContentSchema = z
   .object({
+    type: z.literal("SUPPORT"),
     subject: z
       .string()
       .min(1, "Subject is required")
@@ -52,6 +50,7 @@ export const SupportContentSchema = z
 
 export const FeedbackContentSchema = z
   .object({
+    type: z.literal("FEEDBACK"),
     message: z
       .string()
       .min(5, "Please provide more details (at least 5 characters)")
@@ -64,6 +63,7 @@ export const FeedbackContentSchema = z
 
 export const GeneralContentSchema = z
   .object({
+    type: z.literal("GENERAL_INQUIRY"),
     subject: z
       .string()
       .max(100, "Subject must be at most 100 characters")
@@ -75,25 +75,119 @@ export const GeneralContentSchema = z
   })
   .merge(BaseContactSchema);
 
-// Enum mapping for display purposes
-export const MESSAGE_TYPE_LABELS = {
-  TESTIMONIAL: "Share Your Experience",
-  COMPLAINT: "Report an Issue",
-  SUPPORT: "Get Help",
-  FEEDBACK: "Improve Our Platform",
-  GENERAL_INQUIRY: "General Question",
+export const ContactMessageSchema = z.discriminatedUnion("type", [
+  TestimonialContentSchema,
+  ComplaintContentSchema,
+  SupportContentSchema,
+  FeedbackContentSchema,
+  GeneralContentSchema,
+]);
+
+export type ContactMessageData = z.infer<typeof ContactMessageSchema>;
+export type TestimonialData = z.infer<typeof TestimonialContentSchema>;
+export type ComplaintData = z.infer<typeof ComplaintContentSchema>;
+export type SupportData = z.infer<typeof SupportContentSchema>;
+export type FeedbackData = z.infer<typeof FeedbackContentSchema>;
+export type GeneralData = z.infer<typeof GeneralContentSchema>;
+
+export const MESSAGE_TYPE_CONFIG = {
+  TESTIMONIAL: {
+    label: "Share Your Experience",
+    description: "Tell others about your positive experience with BlueFrog",
+    requiresAuth: true,
+    schema: TestimonialContentSchema,
+    route: "/contact-us/testimonial",
+    icon: "Star" as const,
+    color: "text-yellow-500" as const,
+    bgColor: "bg-yellow-500/10" as const,
+    borderColor: "border-yellow-500/20" as const,
+  },
+  COMPLAINT: {
+    label: "Report an Issue",
+    description: "Report problems with orders or user behavior",
+    requiresAuth: true,
+    schema: ComplaintContentSchema,
+    route: "/contact-us/complaint",
+    icon: "AlertTriangle" as const,
+    color: "text-red-500" as const,
+    bgColor: "bg-red-500/10" as const,
+    borderColor: "border-red-500/20" as const,
+  },
+  SUPPORT: {
+    label: "Get Technical Support",
+    description: "Get help with technical issues or account problems",
+    requiresAuth: false,
+    schema: SupportContentSchema,
+    route: "/contact-us/support",
+    icon: "HelpCircle" as const,
+    color: "text-blue-500" as const,
+    bgColor: "bg-blue-500/10" as const,
+    borderColor: "border-blue-500/20" as const,
+  },
+  FEEDBACK: {
+    label: "Share Feedback",
+    description: "Help us improve the platform with your suggestions",
+    requiresAuth: false,
+    schema: FeedbackContentSchema,
+    route: "/contact-us/feedback",
+    icon: "MessageSquare" as const,
+    color: "text-green-500" as const,
+    bgColor: "bg-green-500/10" as const,
+    borderColor: "border-green-500/20" as const,
+  },
+  GENERAL_INQUIRY: {
+    label: "General Question",
+    description: "Ask questions or get general information",
+    requiresAuth: false,
+    schema: GeneralContentSchema,
+    route: "/contact-us/general",
+    icon: "Mail" as const,
+    color: "text-purple-500" as const,
+    bgColor: "bg-purple-500/10" as const,
+    borderColor: "border-purple-500/20" as const,
+  },
 } as const;
+
+export function getConfigForType<T extends keyof typeof MESSAGE_TYPE_CONFIG>(
+  type: T
+): (typeof MESSAGE_TYPE_CONFIG)[T] {
+  return MESSAGE_TYPE_CONFIG[type];
+}
+
+export function validateMessageType(
+  type: string
+): type is keyof typeof MESSAGE_TYPE_CONFIG {
+  return type in MESSAGE_TYPE_CONFIG;
+}
 
 export const PRIORITY_LABELS = {
   LOW: "Low Priority",
   NORMAL: "Normal Priority",
   HIGH: "High Priority",
-  URGENT: "Urgent",
+  URGENT: "Urgent - Immediate Attention Needed",
 } as const;
 
 export const FEEDBACK_CATEGORY_LABELS = {
   GENERAL: "General Feedback",
   FEATURE_REQUEST: "Feature Request",
   BUG_REPORT: "Bug Report",
-  UI_UX: "User Interface/Experience",
+  UI_UX: "User Interface/Experience Feedback",
 } as const;
+
+export const getMessageTypeLabel = (
+  type: keyof typeof MESSAGE_TYPE_CONFIG
+): string => {
+  return MESSAGE_TYPE_CONFIG[type].label;
+};
+
+export const getPriorityLabel = (
+  priority: keyof typeof PRIORITY_LABELS
+): string => {
+  return PRIORITY_LABELS[priority];
+};
+
+export const getFeedbackCategoryLabel = (
+  category: keyof typeof FEEDBACK_CATEGORY_LABELS
+): string => {
+  return FEEDBACK_CATEGORY_LABELS[category];
+};

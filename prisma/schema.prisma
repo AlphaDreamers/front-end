@@ -426,6 +426,9 @@ model Review {
   title       String
   description String
 
+  sellerResponse    String?
+  sellerRespondedAt DateTime?
+
   author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
   order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   gig    Gig?  @relation(fields: [gigId], references: [id], onDelete: SetNull)
@@ -435,6 +438,10 @@ model Review {
   gigId    String?
 
   createdAt DateTime @default(now())
+
+  // Add indexes for better query performance
+  @@index([gigId, createdAt])
+  @@index([sellerResponse])
 }
 
 model Skill {

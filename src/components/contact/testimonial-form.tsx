@@ -1,7 +1,6 @@
 "use client";
 
 import { MessageCircle, Star } from "lucide-react";
-
 import {
   FormControl,
   FormDescription,
@@ -11,8 +10,8 @@ import {
   FormMessage,
 } from "../ui/form";
 import { Textarea } from "../ui/textarea";
-
 import { TestimonialContentSchema } from "@/lib/schemas/contact";
+import { sendTestimonialMessage } from "@/lib/actions/contact";
 import ContactForm from "./contact-form";
 import Rating from "../rating";
 
@@ -21,17 +20,17 @@ interface TestimonialFormProps {
   email?: string;
 }
 
-const TestimonialForm = ({
-  isAuth,
-  email = undefined,
-}: TestimonialFormProps) => {
+const TestimonialForm = ({ isAuth, email }: TestimonialFormProps) => {
   return (
     <ContactForm
       schema={TestimonialContentSchema}
       isAuth={isAuth}
       defaultValues={{
         guestEmail: email,
+        rating: 0,
+        content: "",
       }}
+      action={sendTestimonialMessage}
     >
       {(form) => (
         <>
@@ -90,4 +89,5 @@ const TestimonialForm = ({
     </ContactForm>
   );
 };
+
 export default TestimonialForm;

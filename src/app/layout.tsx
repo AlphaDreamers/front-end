@@ -39,8 +39,10 @@ export default async function RootLayout({
           >
             <SidebarProvider>
               <SidebarInset>
-                <div className="min-h-screen container mx-auto py-4 px-4">
-                  {children}
+                <div className="bg-gradient-to-b from-background to-primary/25">
+                  <div className="container mx-auto py-4 px-4 min-h-screen">
+                    {children}
+                  </div>
                 </div>
 
                 <Toaster richColors />

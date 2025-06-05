@@ -146,3 +146,15 @@ export type KeyValuePair = {
   id: string;
   title: string;
 };
+
+export interface Review {
+  id: string;
+  gigId: string;
+  gigTitle: string;
+  author: User;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  solanaTx: string;
+  response?: string;
+}
