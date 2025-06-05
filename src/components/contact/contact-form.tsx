@@ -22,7 +22,7 @@ import { Button } from "../ui/button";
 interface ContactFormProps<TSchema extends ZodTypeAny> {
   isAuth: boolean;
   schema: TSchema;
-  children: (form: UseFormReturn<z.infer<TSchema>>) => React.ReactNode;
+  children?: (form: UseFormReturn<z.infer<TSchema>>) => React.ReactNode;
   defaultValues?: z.infer<TSchema>;
   action: (values: z.infer<TSchema>) => Promise<void>;
 }
@@ -30,7 +30,7 @@ interface ContactFormProps<TSchema extends ZodTypeAny> {
 const ContactForm = <TSchema extends ZodTypeAny>({
   isAuth,
   schema,
-  children,
+  children = () => null,
   defaultValues,
   action,
 }: ContactFormProps<TSchema>) => {

@@ -74,3 +74,26 @@ export const GeneralContentSchema = z
       .max(1500, "Message must be at most 1500 characters"),
   })
   .merge(BaseContactSchema);
+
+// Enum mapping for display purposes
+export const MESSAGE_TYPE_LABELS = {
+  TESTIMONIAL: "Share Your Experience",
+  COMPLAINT: "Report an Issue",
+  SUPPORT: "Get Help",
+  FEEDBACK: "Improve Our Platform",
+  GENERAL_INQUIRY: "General Question",
+} as const;
+
+export const PRIORITY_LABELS = {
+  LOW: "Low Priority",
+  NORMAL: "Normal Priority",
+  HIGH: "High Priority",
+  URGENT: "Urgent",
+} as const;
+
+export const FEEDBACK_CATEGORY_LABELS = {
+  GENERAL: "General Feedback",
+  FEATURE_REQUEST: "Feature Request",
+  BUG_REPORT: "Bug Report",
+  UI_UX: "User Interface/Experience",
+} as const;
