@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Ubuntu_Sans } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import ThemeProvider from "@/components/ui/theme-provider";
 
 import SessionProvider from "@/components/session-provider";
-import Navbar from "@/components/nav-bar";
+import NavbarWrapper from "@/components/navigation/navbar-wrapper";
 
 import "./globals.css";
 
@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 
 const ubuntuSans = Ubuntu_Sans({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-ubuntu-sans",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "700"],
 });
 
 export default async function RootLayout({
@@ -30,26 +30,22 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${ubuntuSans.className} antialiased`}>
-        <SessionProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SidebarProvider>
-              <SidebarInset>
-                <div className="bg-gradient-to-b from-background to-primary/25">
-                  <div className="container mx-auto py-4 px-4 min-h-screen">
-                    {children}
-                  </div>
-                </div>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NavbarWrapper />
 
-                <Toaster richColors />
-              </SidebarInset>
-            </SidebarProvider>
-          </ThemeProvider>
-        </SessionProvider>
+          <div className="bg-gradient-to-b from-background to-primary/25">
+            <div className="container mx-auto pt-[calc(2rem+64px)] px-4 min-h-screen">
+              {children}
+            </div>
+          </div>
+
+          <Toaster richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

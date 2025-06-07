@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 import GigCard from "@/components/gig-card";
 import Pagination from "@/components/pagination";
-import SearchBar from "@/components/search-bar";
+import { SearchBar } from "@/components/search-bar";
 import FilterCard from "@/components/filter-card";
 import { Gig } from "@/lib/types";
 
@@ -71,7 +71,7 @@ export default async function BrowseGigsPage({
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        <FilterCard config={[]} className="lg:w-64 h-fit w-full" />
+        <FilterCard filters={[]} className="lg:w-64 h-fit w-full" />
 
         <div className="flex-1">
           <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">

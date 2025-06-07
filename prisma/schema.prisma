@@ -539,6 +539,8 @@ model Badge {
   title       String
   description String
   condition   String
+  icon        String
+  color       String
 
   userBadges UserBadgeProgress[]
   milestones BadgeMilestone[]
@@ -594,4 +596,13 @@ model Wallet {
   publicKey String @unique
 
   createdAt DateTime @default(now())
+}
+
+model FAQ {
+  id        String   @id @default(uuid())
+  question  String // e.g., "How do I connect my Solana wallet?"
+  answer    String // e.g., "Go to /dashboard, click 'Connect Wallet', and follow Phantom prompts."
+  category  String? // e.g., "Solana", "Orders", "Reviews"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

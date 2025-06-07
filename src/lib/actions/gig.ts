@@ -5,6 +5,8 @@ import { CreateGigFormSchema } from "../schemas";
 import { me } from "./auth";
 import { prisma } from "../prisma";
 import { EditGigFormSchema } from "@/lib/schemas";
+import { Gig } from "../types";
+import { Prisma } from "@prisma/client";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
@@ -506,4 +508,99 @@ export const deleteGig = async (gigId: string) => {
   await prisma.gig.delete({
     where: { id: gigId },
   });
+};
+
+export const getGigs = async (
+  args: Omit<Prisma.GigFindManyArgs, "select" | "include">
+): Promise<Gig[]> => {
+  const gigs = await prisma.gig.findMany({
+    ...args,
+    select: {
+      id: true,
+      packages: {
+        select: {
+          price: true,
+        },
+      },
+      title: true,
+      description: true,
+      images: {
+        select: {
+          isPrimary: true,
+          file: {
+            select: {
+              url: true,
+            },
+          },
+        },
+      },
+      reviews: {
+        select: {
+          rating: true,
+        },
+      },
+      tags: {
+        select: {
+          title: true,
+          id: true,
+        },
+      },
+      seller: {
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          publicKey: true,
+          avatar: true,
+          badgeProgress: {
+            where: {
+              isFeatured: true,
+            },
+            select: {
+              badge: {
+                select: {
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return gigs.map((gig) => ({
+    id: gig.id,
+    image:
+      gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
+    startsAtPrice: gig.packages.reduce(
+      (min, pkg) => Math.min(min, pkg.price),
+      Infinity
+    ),
+    title: gig.title,
+    description: gig.description,
+    ratingCount: gig.reviews.length,
+    averageRating:
+      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
+      (gig.reviews.length || 1),
+    tags: gig.tags.map((tag) => ({
+      id: tag.id,
+      label: tag.title,
+    })),
+    seller: {
+      id: gig.seller.id,
+      username: gig.seller.username,
+      firstName: gig.seller.firstName,
+      lastName: gig.seller.lastName,
+      publicKey: gig.seller.publicKey,
+      badge:
+        gig.seller.badgeProgress.length > 0
+          ? {
+              title: gig.seller.badgeProgress[0].badge.title,
+            }
+          : null,
+      avatar: gig.seller.avatar,
+    },
+  }));
 };

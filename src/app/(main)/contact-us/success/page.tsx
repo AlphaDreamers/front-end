@@ -82,8 +82,8 @@ export default function ContactSuccessPage() {
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-violet-500 rounded-full mt-2 flex-shrink-0"></div>
                 <p>
-                  You'll receive a response via email or through your BlueFrog
-                  account notifications
+                  You&apos;ll receive a response via email or through your
+                  BlueFrog account notifications
                 </p>
               </div>
               <div className="flex items-start gap-3">

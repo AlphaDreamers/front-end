@@ -46,9 +46,12 @@ export async function me() {
         username: true,
         firstName: true,
         lastName: true,
+        isKycVerified: true,
         _count: {
           select: {
-            notifications: true,
+            notifications: {
+              where: { isRead: false },
+            },
           },
         },
       },

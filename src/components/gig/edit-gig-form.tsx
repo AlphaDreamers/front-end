@@ -33,12 +33,12 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Import our reusable form components
-import FormInput from "@/components/form-fields/form-input";
-import FormTextarea from "@/components/form-fields/form-textarea";
-import FormSelect from "@/components/form-fields/form-select";
-import FormMultiSelect from "@/components/form-fields/form-multi-select";
-import FormImageUpload from "@/components/form-fields/form-image-upload";
-import FormPackages from "@/components/form-fields/form-packages";
+import FormInput from "@/components/forms/form-input";
+import FormTextarea from "@/components/forms/form-textarea";
+import FormSelect from "@/components/forms/form-select";
+import FormMultiSelect from "@/components/forms/form-multi-select";
+import FormImageUpload from "@/components/forms/form-image-upload";
+import FormPackages from "@/components/forms/form-packages";
 
 // Define the shape of data we expect from the page
 interface EditGigFormProps {

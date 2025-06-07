@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import ActiveItemsCard from "@/components/dashboard/active-items-card";
-import WalletCard from "@/components/dashboard/wallet-card";
 import RecentActivityCard from "@/components/dashboard/recent-activity-card";
 import { me } from "@/lib/actions/auth";
 import { StatsSummary } from "@/components/dashboard/stats-summary";
@@ -60,7 +59,6 @@ export default async function DashboardPage() {
         {/* Main content grid */}
         <div className="flex flex-col lg:flex-row  gap-6">
           {/* Wallet widget */}
-          <WalletCard />
 
           {/* Recent activity */}
           <RecentActivityCard notifications={[]} />

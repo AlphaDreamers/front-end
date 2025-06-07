@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Badge" ALTER COLUMN "color" DROP DEFAULT,
+ALTER COLUMN "icon" DROP DEFAULT;
