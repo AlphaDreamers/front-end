@@ -244,6 +244,7 @@ model User {
   readMessages      Message[]           @relation("MessageReadBy")
   contactMessages   ContactMessage[]
   wallets           Wallet[]
+  preferences       UserPreferences?
   country           String
   languages         String[]
 
@@ -276,12 +277,13 @@ model Order {
   deadline DateTime
   status   OrderStatus @default(WAITING_FOR_PAYMENT)
 
-  package Package @relation(fields: [packageId], references: [id], onDelete: Restrict)
-  review  Review?
-  chat    Chat?
-  buyer   User    @relation(name: "Buyer", fields: [buyerId], references: [id], onDelete: Restrict)
-  seller  User    @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Restrict)
-  gig     Gig?    @relation(fields: [gigId], references: [id], onDelete: SetNull)
+  package     Package      @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  review      Review?
+  chat        Chat?
+  buyer       User         @relation(name: "Buyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller      User         @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Restrict)
+  gig         Gig?         @relation(fields: [gigId], references: [id], onDelete: SetNull)
+  transaction Transaction?
 
   packageId String
   buyerId   String
@@ -289,10 +291,6 @@ model Order {
   gigId     String?
 
   createdAt DateTime @default(now())
-}
-
-model Transaction {
-  id String @id @default(uuid())
 }
 
 model Notification {
@@ -593,9 +591,11 @@ model GigFaq {
 model Wallet {
   id String @id @default(uuid())
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-  isMain Boolean @default(false)
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+  isMain               Boolean       @default(false)
+  transactionsSender   Transaction[] @relation("Sender")
+  transactionsReceiver Transaction[] @relation("Receiver")
 
   name String
 
@@ -608,7 +608,47 @@ model FAQ {
   id        String   @id @default(uuid())
   question  String // e.g., "How do I connect my Solana wallet?"
   answer    String // e.g., "Go to /dashboard, click 'Connect Wallet', and follow Phantom prompts."
-  category  String? // e.g., "Solana", "Orders", "Reviews"
+  createdAt DateTime @default(now())
+}
+
+model UserPreferences {
+  id       String @id @default(uuid())
+  userId   String @unique // 1:1 with User
+  user     User   @relation(fields: [userId], references: [id])
+  timezone String @default("UTC") // e.g., "America/New_York"
+  language String @default("en_US") // e.g., "en_US", "fr_FR"
+
+  // Notification preferences
+  ordersEnabled   Boolean @default(true)
+  ordersEmail     Boolean @default(true)
+  ordersInApp     Boolean @default(true)
+  messagesEnabled Boolean @default(true)
+  messagesEmail   Boolean @default(true)
+  messagesInApp   Boolean @default(true)
+  reviewsEnabled  Boolean @default(true)
+  reviewsEmail    Boolean @default(false)
+  reviewsInApp    Boolean @default(true)
+
+  // Quiet hours
+  quietHoursEnabled   Boolean @default(false)
+  quietHoursStartTime String? // e.g., "22:00" (HH:MM)
+  quietHoursEndTime   String? // e.g., "08:00" (HH:MM)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  txId       String   @id
+  amount     Float // Amount in SOL 
+  sender     Wallet   @relation("Sender", fields: [senderId], references: [id])
+  receiver   Wallet   @relation("Receiver", fields: [receiverId], references: [id])
+  order      Order?   @relation(fields: [orderId], references: [id])
+  createdAt  DateTime @default(now())
+  senderId   String
+  receiverId String
+  orderId    String?  @unique
+
+  @@index([txId])
+  @@index([orderId])
 }

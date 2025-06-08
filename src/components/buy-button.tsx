@@ -2,14 +2,16 @@
 
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { orderPackage } from "@/lib/actions";
+import { orderPackage } from "@/lib/actions/order";
 import { useRouter } from "next/navigation";
+import { ComponentProps } from "react";
 
-interface BuyButtonProps {
+interface BuyButtonProps
+  extends Omit<ComponentProps<typeof Button>, "onClick"> {
   packageId: string;
 }
 
-const BuyButton = ({ packageId }: BuyButtonProps) => {
+const BuyButton = ({ packageId, ...props }: BuyButtonProps) => {
   const { push } = useRouter();
 
   return (
@@ -29,9 +31,8 @@ const BuyButton = ({ packageId }: BuyButtonProps) => {
           },
         })
       }
-    >
-      Enter
-    </Button>
+      {...props}
+    />
   );
 };
 

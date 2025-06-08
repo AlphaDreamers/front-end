@@ -108,7 +108,7 @@ export default function Filters({ filters, className }: FiltersProps) {
 
   // Check if mobile
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -579,3 +579,22 @@ function DateFilterControl({
     </div>
   );
 }
+
+export const FilterCardSkeletion = () => {
+  return (
+    <div className="rounded-lg border bg-card p-6 space-y-4 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="h-6 w-24 bg-gray-300 rounded" />
+        <div className="h-6 w-16 bg-gray-300 rounded" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-32 bg-gray-300 rounded" />
+        <div className="h-10 w-full bg-gray-300 rounded" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-32 bg-gray-300 rounded" />
+        <div className="h-10 w-full bg-gray-300 rounded" />
+      </div>
+    </div>
+  );
+};

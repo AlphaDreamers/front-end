@@ -1,8 +1,4 @@
-"use client";
-
 import { Check, X } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { Prisma } from "@prisma/client";
 import {
   Table,
   TableBody,
@@ -11,30 +7,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { GigPackage } from "@/lib/types/gig";
+import OrderConfirmationButton from "./order-confirmation-dialog";
 
 interface PackageComparisonProps {
-  packages: Prisma.PackageGetPayload<{
-    select: {
-      id: true;
-      title: true;
-      price: true;
-      revisions: true;
-      deliveryTime: true;
-      features: {
-        select: {
-          isIncluded: true;
-          feature: {
-            select: {
-              id: true;
-              label: true;
-            };
-          };
-        };
-      };
-    };
-  }>[];
+  packages: GigPackage[];
 }
 
 export default function PackageComparison({
@@ -45,32 +22,29 @@ export default function PackageComparison({
 
   // Get all unique features across all packages
   const allFeatures = Array.from(
-    new Set(
-      sortedPackages.flatMap((pkg) =>
-        pkg.features.map((feature) => feature.feature.id)
-      )
-    )
-  ).map((featureId) => {
-    const feature = sortedPackages
+    sortedPackages
       .flatMap((pkg) => pkg.features)
-      .find((f) => f.feature.id === featureId);
-
-    return {
-      id: featureId,
-      label: feature?.feature.label || "",
-    };
-  });
+      .reduce((map, feature) => {
+        if (!map.has(feature.id)) {
+          map.set(feature.id, {
+            id: feature.id,
+            label: feature.label || "",
+          });
+        }
+        return map;
+      }, new Map<string, { id: string; label: string }>())
+      .values()
+  );
 
   // Function to check if a feature is included in a package
   const isFeatureIncluded = (packageId: string, featureId: string) => {
     const pkg = packages.find((p) => p.id === packageId);
     if (!pkg) return false;
 
-    const feature = pkg.features.find((f) => f.feature.id === featureId);
+    const feature = pkg.features.find((f) => f.id === featureId);
     return feature?.isIncluded || false;
   };
 
-  // For desktop view, use a comparison table
   return (
     <div className="hidden lg:block overflow-x-auto">
       <Table>
@@ -129,12 +103,15 @@ export default function PackageComparison({
             <TableCell />
             {sortedPackages.map((pkg) => (
               <TableCell key={pkg.id} className="text-center">
-                <Link
-                  href={`/gigs/${pkg.id}/order`}
-                  className={cn("w-1/2", buttonVariants({ size: "sm" }))}
-                >
-                  {"Order Now"}
-                </Link>
+                <OrderConfirmationButton
+                  title={pkg.title}
+                  revisions={pkg.revisions}
+                  deliveryTime={pkg.deliveryTime}
+                  price={pkg.price}
+                  packageId={pkg.id}
+                  variant="outline"
+                  size="sm"
+                />
               </TableCell>
             ))}
           </TableRow>

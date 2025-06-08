@@ -1,6 +1,6 @@
 import { z } from "zod";
-import COMMON_PASSWORDS from "./common-passwords";
-import { COUNTRIES } from "./countries";
+import COMMON_PASSWORDS from "./data/common-passwords";
+import { COUNTRIES } from "./data/countries";
 
 // Reusable Password Schema (used in multiple forms)
 export const PasswordSchema = z

@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import * as LucideIcons from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Achievement } from "@/lib/types/verification";
-import { getIconComponent, getTierConfig } from "@/lib/utils/verification";
+import { getTierConfig } from "@/lib/utils/verification";
+import { Tier } from "@prisma/client";
 
 interface AchievementsCardProps {
   achievements: Achievement[];
@@ -52,8 +54,6 @@ export function AchievementsCard({
   showLimit = 6,
 }: AchievementsCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedAchievement, setSelectedAchievement] =
-    useState<Achievement | null>(null);
 
   // Group achievements by tier for better organization
   const groupedAchievements = achievements.reduce(
@@ -67,9 +67,6 @@ export function AchievementsCard({
     },
     {} as Record<string, Achievement[]>
   );
-
-  // Get featured achievements
-  const featuredAchievements = achievements.filter((a) => a.isFeatured);
 
   // Determine which achievements to show
   const displayedAchievements = isExpanded
@@ -109,32 +106,53 @@ export function AchievementsCard({
           </div>
         ) : (
           <>
-            {/* Featured achievements section */}
-            {featuredAchievements.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Featured on Profile
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  {featuredAchievements.slice(0, 2).map((achievement) => (
-                    <FeaturedAchievementCard
-                      key={achievement.id}
-                      achievement={achievement}
-                      onClick={() => setSelectedAchievement(achievement)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* All achievements grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-4">
               {displayedAchievements.map((achievement) => (
-                <AchievementCard
-                  key={achievement.id}
-                  achievement={achievement}
-                  onClick={() => setSelectedAchievement(achievement)}
-                />
+                <Dialog key={achievement.id}>
+                  <DialogTrigger>
+                    <AchievementCard achievement={achievement} />
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-3">
+                        <AchievementIcon achievement={achievement} size="lg" />
+                        {achievement.title}
+                      </DialogTitle>
+                      <DialogDescription className="mt-3 space-y-3">
+                        <p>{achievement.description}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3.5" />
+                            Earned{" "}
+                            {formatDistanceToNow(achievement.earnedAt, {
+                              addSuffix: true,
+                            })}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              getTierConfig(achievement.tier).color,
+                              getTierConfig(achievement.tier).borderColor
+                            )}
+                          >
+                            {getTierConfig(achievement.tier).label}
+                          </Badge>
+                        </div>
+                        {achievement.isFeatured ? (
+                          <div className="flex items-center gap-2 text-sm text-primary">
+                            <Star className="size-3.5 fill-current" />
+                            Featured on your profile
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            Not featured on your profile
+                          </div>
+                        )}
+                      </DialogDescription>
+                    </DialogHeader>
+                  </DialogContent>
+                </Dialog>
               ))}
             </div>
 
@@ -143,7 +161,7 @@ export function AchievementsCard({
               <div className="mt-6 flex items-center justify-center gap-4 text-xs">
                 {Object.entries(groupedAchievements).map(
                   ([tier, tierAchievements]) => {
-                    const tierConfig = getTierConfig(tier as any);
+                    const tierConfig = getTierConfig(tier as Tier);
                     return (
                       <div key={tier} className="flex items-center gap-1">
                         <div className={cn("font-medium", tierConfig.color)}>
@@ -165,7 +183,7 @@ export function AchievementsCard({
       {hasMoreToShow && (
         <>
           <Separator />
-          <CardFooter className="pt-4">
+          <CardFooter>
             <Button
               variant="outline"
               className="w-full"
@@ -173,12 +191,12 @@ export function AchievementsCard({
             >
               {isExpanded ? (
                 <>
-                  <ChevronUp className="size-4 mr-2" />
+                  <ChevronUp />
                   Show Less
                 </>
               ) : (
                 <>
-                  <ChevronDown className="size-4 mr-2" />
+                  <ChevronDown />
                   Show {achievements.length - showLimit} More
                 </>
               )}
@@ -186,55 +204,6 @@ export function AchievementsCard({
           </CardFooter>
         </>
       )}
-
-      {/* Achievement detail dialog */}
-      <Dialog
-        open={!!selectedAchievement}
-        onOpenChange={() => setSelectedAchievement(null)}
-      >
-        <DialogContent>
-          {selectedAchievement && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3">
-                  <AchievementIcon
-                    achievement={selectedAchievement}
-                    size="lg"
-                  />
-                  {selectedAchievement.title}
-                </DialogTitle>
-                <DialogDescription className="mt-3 space-y-3">
-                  <p>{selectedAchievement.description}</p>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      Earned{" "}
-                      {formatDistanceToNow(selectedAchievement.earnedAt, {
-                        addSuffix: true,
-                      })}
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        getTierConfig(selectedAchievement.tier).color,
-                        getTierConfig(selectedAchievement.tier).borderColor
-                      )}
-                    >
-                      {getTierConfig(selectedAchievement.tier).label}
-                    </Badge>
-                  </div>
-                  {selectedAchievement.isFeatured && (
-                    <div className="flex items-center gap-2 text-sm text-primary">
-                      <Star className="size-3.5 fill-current" />
-                      Featured on your profile
-                    </div>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
@@ -242,17 +211,20 @@ export function AchievementsCard({
 // Individual achievement card component
 interface AchievementCardProps {
   achievement: Achievement;
-  onClick: () => void;
 }
 
-function AchievementCard({ achievement, onClick }: AchievementCardProps) {
+function AchievementCard({ achievement }: AchievementCardProps) {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Card
-            className="aspect-square flex items-center justify-center bg-accent hover:bg-accent/80 transition-all cursor-pointer group"
-            onClick={onClick}
+            className={cn(
+              "cursor-pointer aspect-square flex items-center justify-center group transition-all hover:scale-[101%]",
+              Math.random() < 0.25 // 10% chance to be featured
+                ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"
+                : "bg-accent hover:bg-accent/80"
+            )}
           >
             <CardContent className="text-center p-4">
               <AchievementIcon achievement={achievement} />
@@ -273,85 +245,6 @@ function AchievementCard({ achievement, onClick }: AchievementCardProps) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  );
-}
-
-// Featured achievement card with special styling
-interface FeaturedAchievementCardProps {
-  achievement: Achievement;
-  onClick: () => void;
-}
-
-function FeaturedAchievementCard({
-  achievement,
-  onClick,
-}: FeaturedAchievementCardProps) {
-  const tierConfig = getTierConfig(achievement.tier);
-
-  return (
-    <Card
-      className={cn(
-        "relative overflow-hidden cursor-pointer transition-all hover:scale-105",
-        "bg-gradient-to-br from-primary/5 to-primary/10",
-        "border-primary/20"
-      )}
-      onClick={onClick}
-    >
-      <div className="absolute top-2 right-2">
-        <Star className="size-3.5 text-primary fill-primary" />
-      </div>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <AchievementIcon achievement={achievement} size="sm" />
-          <div className="flex-1 min-w-0">
-            <h5 className="font-medium text-sm truncate">
-              {achievement.title}
-            </h5>
-            <p className={cn("text-xs", tierConfig.color)}>
-              {tierConfig.label}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Achievement icon component
-interface AchievementIconProps {
-  achievement: Achievement;
-  size?: "sm" | "md" | "lg";
-}
-
-function AchievementIcon({ achievement, size = "md" }: AchievementIconProps) {
-  const IconComponent = getIconComponent(achievement.icon);
-  const tierConfig = getTierConfig(achievement.tier);
-
-  const sizeClasses = {
-    sm: "size-10",
-    md: "size-16",
-    lg: "size-20",
-  };
-
-  const iconSizes = {
-    sm: 20,
-    md: 28,
-    lg: 36,
-  };
-
-  return (
-    <div
-      className={cn(
-        "rounded-full flex items-center justify-center border-2 transition-all",
-        "group-hover:scale-110",
-        sizeClasses[size],
-        tierConfig.borderColor,
-        tierConfig.bgColor
-      )}
-      style={{ color: achievement.color }}
-    >
-      <IconComponent size={iconSizes[size]} />
-    </div>
   );
 }
 
@@ -388,5 +281,31 @@ export function AchievementsCardSkeleton() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Achievement icon component
+interface AchievementIconProps {
+  achievement: Achievement;
+  size?: "sm" | "md" | "lg";
+}
+
+function AchievementIcon({ achievement }: AchievementIconProps) {
+  const IconComponent = (LucideIcons[
+    achievement.icon as keyof typeof LucideIcons
+  ] || LucideIcons.Award) as LucideIcons.LucideIcon;
+  const tierConfig = getTierConfig(achievement.tier);
+
+  return (
+    <div
+      className={cn(
+        "rounded-full flex items-center justify-center border-2 transition-all mx-auto group-hover:scale-110 size-16",
+        tierConfig.borderColor,
+        tierConfig.bgColor
+      )}
+      style={{ color: achievement.color }}
+    >
+      <IconComponent size={28} />
+    </div>
   );
 }

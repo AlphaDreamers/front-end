@@ -276,45 +276,6 @@ export const updateProfile = async (
   }
 };
 
-export const orderPackage = async (packageId: string) => {
-  const user = await me();
-  if (!user?.isVerified) throw new Error("User not authenticated");
-
-  const gigPackage = await prisma.package.findUnique({
-    where: { id: packageId },
-    include: {
-      gig: {
-        select: {
-          id: true,
-          title: true,
-          sellerId: true,
-        },
-      },
-    },
-  });
-
-  if (!gigPackage) throw new Error("Package not found");
-
-  await prisma.order.create({
-    data: {
-      status: "WAITING_FOR_PAYMENT",
-      buyerId: user.id,
-      sellerId: gigPackage.gig.sellerId,
-      packageId: gigPackage.id,
-      deadline: new Date(
-        Date.now() + gigPackage.deliveryTime * 24 * 60 * 60 * 1000 // Convert delivery time to milliseconds
-      ),
-      gigId: gigPackage.gig.id,
-      chat: {
-        create: {
-          buyerId: user.id,
-          sellerId: gigPackage.gig.sellerId,
-        },
-      },
-    },
-  });
-};
-
 export const confirmPayment = async (orderId: string) => {
   const user = await me();
   if (!user?.isVerified) throw new Error("User not authenticated");

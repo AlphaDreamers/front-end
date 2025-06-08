@@ -1,7 +1,4 @@
-// src/app/(dashboard)/dashboard/verification-center/page.tsx
-
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import Async from "@/components/async";
 import { me } from "@/lib/actions/auth";
 import {
@@ -143,69 +140,42 @@ export default async function VerificationCenterPage() {
       </div>
 
       {/* Dashboard Statistics */}
-      <Suspense fallback={<DashboardStatsCardsSkeleton />}>
-        <Async fetch={() => getDashboardStats()}>
-          {(stats) => <DashboardStatsCards stats={stats} />}
-        </Async>
-      </Suspense>
+      <Async
+        fetch={() => getDashboardStats()}
+        fallback={<DashboardStatsCardsSkeleton />}
+      >
+        {(stats) => <DashboardStatsCards stats={stats} />}
+      </Async>
 
       {/* Main Content Grid */}
       <div className="flex flex-col md:flex-row gap-6">
         {/* Left Column - Verification Status and Badges */}
         <div className="flex-1 space-y-6">
           {/* Verification Status Card */}
-          <Suspense fallback={<VerificationStatusCardSkeleton />}>
-            <Async fetch={() => getVerificationStatus(user.id)}>
-              {(status) => <VerificationStatusCard status={status} />}
-            </Async>
-          </Suspense>
+          <Async
+            fetch={() => getVerificationStatus(user.id)}
+            fallback={<VerificationStatusCardSkeleton />}
+          >
+            {(status) => <VerificationStatusCard status={status} />}
+          </Async>
 
           {/* Badges Card */}
-          <Suspense fallback={<BadgesCardSkeleton />}>
-            <Async fetch={getBadgesWithProgress}>
-              {(badges) => <BadgesCard badges={badges} />}
-            </Async>
-          </Suspense>
+          <Async
+            fetch={getBadgesWithProgress}
+            fallback={<BadgesCardSkeleton />}
+          >
+            {(badges) => <BadgesCard badges={badges} />}
+          </Async>
         </div>
 
         {/* Right Column - Achievements */}
         <div className="w-full md:max-w-md">
-          <Suspense fallback={<AchievementsCardSkeleton />}>
-            <Async fetch={getUserAchievements}>
-              {(achievements) => (
-                <AchievementsCard achievements={achievements} />
-              )}
-            </Async>
-          </Suspense>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Page loading skeleton
-export function VerificationCenterPageSkeleton() {
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl text-primary font-bold mb-2">
-          Verification Center
-        </h2>
-        <p className="text-muted-foreground">
-          Complete verification steps to increase visibility and trust with
-          buyers.
-        </p>
-      </div>
-
-      <DashboardStatsCardsSkeleton />
-
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1 space-y-6">
-          <VerificationStatusCardSkeleton />
-          <BadgesCardSkeleton />
-        </div>
-        <div className="w-full md:max-w-md">
-          <AchievementsCardSkeleton />
+          <Async
+            fetch={getUserAchievements}
+            fallback={<AchievementsCardSkeleton />}
+          >
+            {(achievements) => <AchievementsCard achievements={achievements} />}
+          </Async>
         </div>
       </div>
     </div>

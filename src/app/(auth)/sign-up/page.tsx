@@ -52,7 +52,7 @@ import { signUp } from "@/lib/actions/auth";
 import AuthCard from "@/components/auth/auth-card";
 import PasswordInput from "@/components/password-input";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/data/countries";
 
 export default function SignUpPage() {
   const [passwordStrength, setPasswordStrength] = useState(0);

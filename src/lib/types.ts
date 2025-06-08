@@ -4,18 +4,6 @@ export type LucideIconName = keyof typeof icons;
 
 export type Color = "purple" | "green" | "gray" | "blue" | "green" | "yellow";
 
-type User = {
-  id: string;
-  username: string;
-  avatar: string | null;
-  firstName: string;
-  lastName: string;
-  publicKey: string | null;
-  badge: {
-    title: string;
-  } | null;
-};
-
 export type Chat = {
   id: string;
   buyer: User;
@@ -261,4 +249,17 @@ export interface GigSearchParams {
   "price-max"?: string;
   rating?: string;
   dateAdded?: string;
+}
+
+export interface User {
+  firstName: string;
+  lastName: string;
+  username: string;
+  badge: {
+    title: string;
+    tier: string;
+    color: string;
+    icon: LucideIconName;
+  } | null;
+  avatar: string | null;
 }

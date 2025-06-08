@@ -7,6 +7,7 @@ import { prisma } from "../prisma";
 import { EditGigFormSchema } from "@/lib/schemas";
 import { Gig } from "../types";
 import { Prisma } from "@prisma/client";
+import { DetailedGig } from "../types/gig";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
@@ -700,12 +701,10 @@ export const getGigs = async (
 };
 
 export const getGigCount = async (
-  where?: Prisma.GigWhereInput
+  args?: Prisma.GigCountArgs
 ): Promise<number> => {
   const count = await prisma.gig.count({
-    where: {
-      ...where,
-    },
+    ...args,
   });
   return count;
 };
@@ -746,4 +745,158 @@ export const toggleBookmark = async (gigId: string) => {
       },
     });
   }
+};
+
+export const getDetailedGig = async (
+  gigId: string
+): Promise<DetailedGig | null> => {
+  const gig = await prisma.gig.findUnique({
+    where: { id: gigId },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      images: {
+        select: {
+          file: {
+            select: {
+              url: true,
+            },
+          },
+        },
+      },
+      seller: {
+        select: {
+          firstName: true,
+          lastName: true,
+          username: true,
+          avatar: true,
+          badgeProgress: {
+            where: {
+              isFeatured: true,
+            },
+            select: {
+              highestTier: true,
+              badge: {
+                select: {
+                  title: true,
+                  icon: true,
+                  color: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      reviews: {
+        select: {
+          id: true,
+          rating: true,
+          orderId: true,
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+              username: true,
+              avatar: true,
+            },
+          },
+          title: true,
+          description: true,
+          createdAt: true,
+          sellerResponse: true,
+        },
+      },
+      faqs: {
+        select: {
+          id: true,
+          question: true,
+          answer: true,
+        },
+      },
+      packages: {
+        select: {
+          id: true,
+          price: true,
+          title: true,
+          deliveryTime: true,
+          revisions: true,
+          features: {
+            select: {
+              id: true,
+              isIncluded: true,
+              feature: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!gig) {
+    return null;
+  }
+
+  return {
+    id: gig.id,
+    title: gig.title,
+    description: gig.description,
+    images: gig.images.map((img) => img.file.url),
+    seller: {
+      firstName: gig.seller.firstName,
+      lastName: gig.seller.lastName,
+      username: gig.seller.username,
+      avatar: gig.seller.avatar,
+      badge:
+        gig.seller.badgeProgress.length > 0
+          ? {
+              tier: gig.seller.badgeProgress[0].highestTier,
+              title: gig.seller.badgeProgress[0].badge.title,
+              icon: gig.seller.badgeProgress[0].badge.icon,
+              color: gig.seller.badgeProgress[0].badge.color,
+            }
+          : null,
+    },
+    avgRating:
+      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
+      (gig.reviews.length || 1),
+    reviewCount: gig.reviews.length,
+    reviews: gig.reviews.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      orderId: review.orderId,
+      author: {
+        firstName: review.author!.firstName,
+        lastName: review.author!.lastName,
+        username: review.author!.username,
+        avatar: review.author!.avatar,
+      },
+      title: review.title,
+      description: review.description,
+      createdAt: review.createdAt,
+      sellerResponse: review.sellerResponse || null,
+    })),
+    packages: gig.packages.map((pkg) => ({
+      id: pkg.id,
+      price: pkg.price,
+      title: pkg.title,
+      deliveryTime: pkg.deliveryTime,
+      revisions: pkg.revisions,
+      features: pkg.features.map((feature) => ({
+        id: feature.feature.id,
+        label: feature.feature.title,
+        isIncluded: feature.isIncluded,
+      })),
+    })),
+    faqs: gig.faqs.map((faq) => ({
+      id: faq.id,
+      question: faq.question,
+      answer: faq.answer,
+    })),
+  };
 };

@@ -39,7 +39,7 @@ export default async function RootLayout({
             <NavbarWrapper />
 
             <div className="bg-gradient-to-b from-background to-primary/25">
-              <div className="container mx-auto pt-[calc(2rem+64px)] px-4 min-h-screen">
+              <div className="container mx-auto pt-[calc(2rem+64px)] pb-8 px-4 min-h-screen">
                 {children}
               </div>
             </div>

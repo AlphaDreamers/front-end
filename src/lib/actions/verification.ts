@@ -172,12 +172,6 @@ export async function getUserAchievements(): Promise<Achievement[]> {
   }
 
   const userBadges = await prisma.userBadgeProgress.findMany({
-    where: {
-      userId: user.id,
-      highestTier: {
-        not: "NONE",
-      },
-    },
     include: {
       badge: {
         include: {
