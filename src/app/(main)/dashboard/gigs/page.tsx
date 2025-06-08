@@ -6,29 +6,20 @@ import { redirect } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import DashboardGigCard from "@/components/dashboard-gig-card";
+import DashboardGigCard from "@/components/gig/dashboard-gig-card";
 import Filters from "@/components/filter-card";
-import { SearchBar } from "@/components/search-bar";
+import SearchBar from "@/components/search-bar";
 import { prisma } from "@/lib/prisma";
 import { me } from "@/lib/actions/auth";
 import Pagination from "@/components/pagination";
-import { DashboardGig } from "@/lib/types";
+import { DashboardGig, GigSearchParams } from "@/lib/types";
 
 const GIGS_PER_PAGE = 10;
 
 export default async function GigsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    q?: string;
-    category?: string;
-    "price-min"?: string;
-    "price-max"?: string;
-    rating?: string;
-    hasOrders?: string;
-    sortBy?: string;
-    page?: string;
-  }>;
+  searchParams: Promise<GigSearchParams>;
 }) {
   const user = await me();
 

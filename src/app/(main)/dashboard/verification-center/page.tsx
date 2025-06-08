@@ -22,9 +22,8 @@ import {
   AchievementsCard,
   AchievementsCardSkeleton,
 } from "@/components/verification/achievements-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Shield, Award, Trophy, TrendingUp, Star } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Shield, Award, Trophy, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Dashboard stats component

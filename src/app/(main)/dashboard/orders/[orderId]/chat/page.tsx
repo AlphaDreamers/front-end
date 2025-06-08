@@ -2,8 +2,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { getChatByOrderId, getOrderDetails } from "@/lib/actions/chat";
 import { me } from "@/lib/actions/auth";
-import { ChatProvider } from "@/components/chat/chat-provider";
 import { ChatContainer } from "@/components/chat/chat-container";
+import { ChatProvider } from "@/hooks/use-chat";
 
 export default async function ChatPage({
   params,
@@ -32,22 +32,11 @@ export default async function ChatPage({
     return notFound();
   }
 
-  // Determine user role in this chat
-  const userRole = chat.buyer.id === user.id ? "buyer" : "seller";
-  const otherUser = userRole === "buyer" ? chat.seller : chat.buyer;
-
   return (
     <ChatProvider
       chatId={chat.id}
-      orderId={orderId}
-      currentUser={{
-        id: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        avatar: user.avatar,
-        role: userRole,
-      }}
-      otherUser={otherUser}
       initialMessages={chat.messages}
+      currentUser={user}
     >
       <div className="h-full flex flex-col bg-background">
         <ChatContainer order={order} />

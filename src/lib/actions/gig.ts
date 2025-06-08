@@ -158,6 +158,91 @@ export const createGig = async (
   }
 };
 
+export const getUpdateGigFormGig = async (
+  gigId: string
+): Promise<z.infer<typeof EditGigFormSchema>> => {
+  const user = await me();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const gig = await prisma.gig.findUnique({
+    where: { id: gigId, sellerId: user.id },
+    select: {
+      category: true,
+      title: true,
+      description: true,
+      tags: {
+        select: { id: true, title: true },
+      },
+      features: {
+        select: { id: true, title: true },
+      },
+      packages: {
+        select: {
+          id: true,
+          title: true,
+          deliveryTime: true,
+          price: true,
+          revisions: true,
+          features: {
+            select: {
+              id: true,
+              isIncluded: true,
+              feature: {
+                select: { id: true, title: true },
+              },
+            },
+          },
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          isPrimary: true,
+          file: {
+            select: { id: true, url: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!gig) {
+    throw new Error("Gig not found");
+  }
+
+  return {
+    id: gigId,
+    title: gig.title,
+    description: gig.description,
+    categoryId: gig.category?.id ?? "", // Fallback to empty string if category is null
+    tags: gig.tags.map((tag) => tag.id),
+    features: gig.features.map((feature) => ({
+      id: feature.id,
+      label: feature.title,
+    })),
+    packages: gig.packages.map((pkg) => ({
+      id: pkg.id,
+      title: pkg.title,
+      deliveryTime: pkg.deliveryTime,
+      price: pkg.price,
+      revisions: pkg.revisions,
+      featureInclusions: gig.features.map(
+        (feature) =>
+          pkg.features.find((f) => f.feature.id === feature.id)?.isIncluded ??
+          false
+      ),
+    })),
+    images: gig.images.map((image) => ({
+      type: "existing" as const,
+      id: image.id,
+      url: image.file.url,
+      isPrimary: image.isPrimary,
+    })),
+  };
+};
+
 export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
   try {
     // 1. Authenticate the user
@@ -513,6 +598,7 @@ export const deleteGig = async (gigId: string) => {
 export const getGigs = async (
   args: Omit<Prisma.GigFindManyArgs, "select" | "include">
 ): Promise<Gig[]> => {
+  const user = await me();
   const gigs = await prisma.gig.findMany({
     ...args,
     select: {
@@ -558,6 +644,7 @@ export const getGigs = async (
               isFeatured: true,
             },
             select: {
+              highestTier: true,
               badge: {
                 select: {
                   title: true,
@@ -567,10 +654,16 @@ export const getGigs = async (
           },
         },
       },
+      bookmarks: {
+        where: {
+          id: user?.id,
+        },
+      },
     },
   });
 
   return gigs.map((gig) => ({
+    isBookmarked: gig.bookmarks.length > 0,
     id: gig.id,
     image:
       gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
@@ -598,9 +691,59 @@ export const getGigs = async (
         gig.seller.badgeProgress.length > 0
           ? {
               title: gig.seller.badgeProgress[0].badge.title,
+              tier: gig.seller.badgeProgress[0].highestTier,
             }
           : null,
       avatar: gig.seller.avatar,
     },
   }));
+};
+
+export const getGigCount = async (
+  where?: Prisma.GigWhereInput
+): Promise<number> => {
+  const count = await prisma.gig.count({
+    where: {
+      ...where,
+    },
+  });
+  return count;
+};
+
+export const toggleBookmark = async (gigId: string) => {
+  const user = await me();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const isBookmarked = await prisma.gig.count({
+    where: {
+      id: gigId,
+      bookmarks: {
+        some: {
+          id: user.id,
+        },
+      },
+    },
+  });
+
+  if (isBookmarked > 0) {
+    await prisma.gig.update({
+      where: { id: gigId },
+      data: {
+        bookmarks: {
+          disconnect: { id: user.id },
+        },
+      },
+    });
+  } else {
+    await prisma.gig.update({
+      where: { id: gigId },
+      data: {
+        bookmarks: {
+          connect: { id: user.id },
+        },
+      },
+    });
+  }
 };

@@ -1,117 +1,73 @@
 "use client";
 
-import Image from "next/image";
-import { Prisma } from "@prisma/client";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
-
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-
 import Rating from "@/components/rating";
-import { Skeleton } from "../ui/skeleton";
-import Link from "next/link";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { Review } from "@/lib/types";
 
-interface ReviewCardProps {
-  review: Prisma.ReviewGetPayload<{
-    select: {
-      author: {
-        select: {
-          avatar: true;
-          firstName: true;
-          lastName: true;
-          username: true;
-        };
-      };
-      title: true;
-      description: true;
-      rating: true;
-      createdAt: true;
-    };
-  }>;
+export interface ReviewCardProps {
+  review: Review;
+  className?: string;
 }
 
-const MAX_LENGTH = 200;
-
-const ReviewCard = ({ review }: ReviewCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const shouldTruncate =
-    !!review.description && review.description.length > MAX_LENGTH;
-  const displayText =
-    review.description && shouldTruncate && !isExpanded
-      ? `${review.description.substring(0, MAX_LENGTH)}...`
-      : review.description;
+export function ReviewCard({ review, className }: ReviewCardProps) {
+  const reviewerName = review.author
+    ? `${review.author.firstName} ${review.author.lastName}`
+    : "Anonymous User";
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex flex-row items-center gap-2.5">
-          <Link
-            href={`/profile/${review.author.username}`}
-            className="rounded-full overflow-hidden"
-          >
-            <Image
-              src={review.author.avatar || "/avatar-placeholder.png"}
-              alt={`${review.author.firstName} ${review.author.lastName}`}
-              width={40}
-              height={40}
-            />
-          </Link>
+    <Card className={cn("h-full", className)}>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+        <div className="flex items-start gap-3 flex-1">
+          <Image
+            src={review.author?.avatar || "/avatar-fallback.png"}
+            alt={reviewerName}
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full border object-cover flex-shrink-0"
+          />
 
-          <div className="flex flex-col">
-            <Link
-              href={`/profile/${review.author.username}`}
-              className="tracking-wide font-semibold"
-            >
-              {review.author.firstName} {review.author.lastName}
-            </Link>
-            <Link
-              href={`/profile/${review.author.username}`}
-              className="text-xs text-muted-foreground -mt-0.5"
-            >
-              @{review.author.username}
-            </Link>
-            <time
-              dateTime={review.createdAt.toISOString()}
-              className="text-xs text-muted-foreground mt-0.5"
-            >
-              {formatDistanceToNow(review.createdAt)}
-            </time>
+          {/* User info section */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-1">
+              <h4 className="font-semibold text-base truncate">
+                {reviewerName}
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                @{review.author?.username || "anonymous"}
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-end">
-          <Rating rating={review.rating} />
-          <div className="text-xs text-muted-foreground mt-1">
-            {review.rating} out of 5
-          </div>
+
+        {/* Rating always positioned consistently */}
+        <div className="flex-shrink-0">
+          <Rating rating={review.rating} size={18} />
         </div>
       </CardHeader>
 
-      <CardContent>
-        <h3 className="text-xl font-semibold mb-3">{review.title}</h3>
-        <div className="leading-relaxed">
-          {displayText}
-          {shouldTruncate && (
-            <button
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className={buttonVariants({
-                variant: "link",
-                size: "sm",
-                className: "inline p-0 m-0",
-              })}
-            >
-              {isExpanded ? " Show less" : " Show more"}
-            </button>
-          )}
+      <CardContent className="pt-0">
+        {/* Review title if exists */}
+        {review.title && (
+          <h5 className="font-medium text-sm mb-2 line-clamp-1">
+            {review.title}
+          </h5>
+        )}
+
+        <p className="text-muted-foreground text-sm leading-relaxed line-clamp-4">
+          {review.description}
+        </p>
+
+        <div className="mt-3 pt-3 border-t">
+          <span className="text-xs text-muted-foreground">
+            {formatDistanceToNow(new Date(review.createdAt), {
+              addSuffix: true,
+            })}
+          </span>
         </div>
       </CardContent>
     </Card>
   );
-};
-
-export default ReviewCard;
-
-export const ReviewCardSkeleton = () => {
-  return <Skeleton className="h-48 w-full rounded-xl" />;
-};
+}

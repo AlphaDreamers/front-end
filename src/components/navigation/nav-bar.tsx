@@ -1,4 +1,3 @@
-// src/components/navigation/nav-bar.tsx
 "use client";
 
 import Link from "next/link";
@@ -36,6 +35,7 @@ import MobileSidebar from "./mobile-sidebar";
 import SearchCommand from "./search-command";
 import NotificationDropdown from "./notification-dropdown";
 import { navItems, NavItem } from "./nav-items";
+import { signOut } from "@/lib/actions/auth";
 
 interface NavBarProps {
   user?: {
@@ -264,7 +264,10 @@ export default function NavBar({ user }: NavBarProps) {
                       <DropdownMenuSeparator />
 
                       {/* Sign Out */}
-                      <DropdownMenuItem className="text-destructive cursor-pointer">
+                      <DropdownMenuItem
+                        className="text-destructive cursor-pointer"
+                        onClick={signOut}
+                      >
                         <LogOut className="mr-2 h-4 w-4" />
                         Sign Out
                       </DropdownMenuItem>

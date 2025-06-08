@@ -11,7 +11,7 @@ import {
 } from "../ui/carousel";
 import { cn } from "@/lib/utils";
 
-import GigCard, { GigCardSkeleton } from "../gig-card";
+import GigCard, { GigCardSkeleton } from "../gig/gig-card";
 import { Gig } from "@/lib/types";
 import Async from "../async";
 

@@ -1,65 +1,72 @@
 import { prisma } from "@/lib/prisma";
 
-import GigCard from "@/components/gig-card";
+import GigCard, { GigCardSkeleton } from "@/components/gig/gig-card";
 import Pagination from "@/components/pagination";
-import { SearchBar } from "@/components/search-bar";
-import FilterCard from "@/components/filter-card";
-import { Gig } from "@/lib/types";
+import SearchBar from "@/components/search-bar";
+import FilterCard, { FilterType } from "@/components/filter-card";
+import { getGigCount, getGigs } from "@/lib/actions/gig";
+import { buildGigFilters } from "@/lib/utils/gig";
+import Async from "@/components/async";
+import { GigSearchParams } from "@/lib/types";
+import { getKeyValueCategories } from "@/lib/actions/category";
 
-const ITEMS_PER_PAGE = 10;
-
-interface SearchParams {
-  query?: string;
-  page?: string;
-  category?: string;
-  tags?: string[];
-  "price-min"?: string;
-  "price-max"?: string;
-  "deliveryTime-max"?: string;
-}
+const ITEMS_PER_PAGE = 20;
 
 export default async function BrowseGigsPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<GigSearchParams>;
 }) {
-  const { query } = await searchParams;
+  const params = await searchParams;
 
-  const [gigs = [], cnt = 0] = await Promise.all([
-    getFeaturedGigs(),
-    prisma.gig.count({
-      where: {
-        OR: [
-          {
-            title: {
-              contains: query,
-            },
-          },
-          {
-            seller: {
-              OR: [
-                {
-                  username: {
-                    contains: query,
-                  },
-                },
-                {
-                  firstName: {
-                    contains: query,
-                  },
-                },
-                {
-                  lastName: {
-                    contains: query,
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    }),
-  ]);
+  const filtersArgs = buildGigFilters(params, ITEMS_PER_PAGE);
+
+  const args = {
+    ...filtersArgs,
+    where: {
+      ...filtersArgs.where,
+    },
+  };
+
+  const categories = await getKeyValueCategories();
+
+  const filters: FilterType[] = [
+    {
+      id: "category",
+      label: "Category",
+      type: "multi",
+      options: categories.map((cat) => ({
+        label: cat.value,
+        value: cat.key,
+      })),
+    },
+    {
+      id: "price",
+      label: "Price",
+      type: "range",
+      min: 0,
+      max: 1000,
+      step: 10,
+    },
+    {
+      id: "rating",
+      label: "Seller Rating",
+      type: "select",
+      options: [
+        { label: "Any", value: "" },
+        { label: "1 star & up", value: "1" },
+        { label: "2 stars & up", value: "2" },
+        { label: "3 stars & up", value: "3" },
+        { label: "4 stars & up", value: "4" },
+        { label: "5 stars", value: "5" },
+      ],
+    },
+    {
+      id: "dateAdded",
+      label: "Date Added",
+      type: "date",
+    },
+  ];
 
   return (
     <div className="space-y-2 lg:space-y-8">
@@ -71,127 +78,53 @@ export default async function BrowseGigsPage({
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        <FilterCard filters={[]} className="lg:w-64 h-fit w-full" />
+        <FilterCard filters={filters} className="lg:w-64 h-fit w-full" />
 
         <div className="flex-1">
-          <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {gigs.length > 0 ? (
-              gigs.map((gig) => <GigCard key={gig.id} gig={gig} />)
-            ) : (
-              <div className="col-span-5 flex flex-col gap-2 items-center justify-center">
-                <h1 className="text-2xl font-bold">
-                  No listings found matching your criteria
-                </h1>
-                <p className="text-gray-500">
-                  Try using fewer keywords, removing some filters, or checking
-                  for typos.
-                </p>
-                <p className="text-gray-500">
-                  You can also try searching for something else.
-                </p>
-                <p className="text-gray-500">
-                  If you need help, please contact support.
-                </p>
-              </div>
-            )}
-          </div>
+          <Async
+            fetch={async () => {
+              return await Promise.all([
+                getGigs(args),
+                getGigCount(args.where),
+              ]);
+            }}
+            fallback={<GigsSkeleton />}
+          >
+            {([gigs, cnt]) => (
+              <>
+                {gigs.length > 0 ? (
+                  <>
+                    <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                      {gigs.map((gig) => (
+                        <GigCard key={gig.id} gig={gig} />
+                      ))}
+                    </div>
+                    <Pagination totalPages={Math.ceil(cnt / ITEMS_PER_PAGE)} />
+                  </>
+                ) : (
+                  <div className="col-span-5 flex flex-col gap-2 items-center justify-center py-16">
+                    <h1 className="text-2xl font-bold">No gigs found</h1>
+                    <p className="text-gray-500">Try using fewer keywords</p>
+                    <p className="text-gray-500">Remove some filters</p>
 
-          <Pagination totalPages={Math.ceil(cnt / ITEMS_PER_PAGE)} />
+                    <p className="text-gray-500">Check for typos</p>
+                  </div>
+                )}
+              </>
+            )}
+          </Async>
         </div>
       </div>
     </div>
   );
 }
 
-const getFeaturedGigs = async (): Promise<Gig[]> => {
-  const gigs = await prisma.gig.findMany({
-    take: 10,
-    select: {
-      id: true,
-      packages: {
-        select: {
-          price: true,
-        },
-      },
-      title: true,
-      description: true,
-      images: {
-        select: {
-          isPrimary: true,
-          file: {
-            select: {
-              url: true,
-            },
-          },
-        },
-      },
-      reviews: {
-        select: {
-          rating: true,
-        },
-      },
-      tags: {
-        select: {
-          title: true,
-          id: true,
-        },
-      },
-      seller: {
-        select: {
-          id: true,
-          username: true,
-          firstName: true,
-          lastName: true,
-          publicKey: true,
-          avatar: true,
-          badgeProgress: {
-            where: {
-              isFeatured: true,
-            },
-            select: {
-              badge: {
-                select: {
-                  title: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return gigs.map((gig) => ({
-    id: gig.id,
-    image:
-      gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
-    startsAtPrice: gig.packages.reduce(
-      (min, pkg) => Math.min(min, pkg.price),
-      Infinity
-    ),
-    title: gig.title,
-    description: gig.description,
-    ratingCount: gig.reviews.length,
-    averageRating:
-      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
-      (gig.reviews.length || 1),
-    tags: gig.tags.map((tag) => ({
-      id: tag.id,
-      label: tag.title,
-    })),
-    seller: {
-      id: gig.seller.id,
-      username: gig.seller.username,
-      firstName: gig.seller.firstName,
-      lastName: gig.seller.lastName,
-      publicKey: gig.seller.publicKey,
-      badge:
-        gig.seller.badgeProgress.length > 0
-          ? {
-              title: gig.seller.badgeProgress[0].badge.title,
-            }
-          : null,
-      avatar: gig.seller.avatar,
-    },
-  }));
+const GigsSkeleton = () => {
+  return (
+    <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+      {Array.from({ length: 10 }).map((_, index) => (
+        <GigCardSkeleton key={index} />
+      ))}
+    </div>
+  );
 };

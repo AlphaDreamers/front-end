@@ -196,6 +196,8 @@ model PortfolioItem {
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   userId String
+
+  createdAt DateTime @default(now())
 }
 
 model SocialLink {
@@ -242,6 +244,10 @@ model User {
   readMessages      Message[]           @relation("MessageReadBy")
   contactMessages   ContactMessage[]
   wallets           Wallet[]
+  country           String
+  languages         String[]
+
+  createdAt DateTime @default(now())
 }
 
 model UserMessage {

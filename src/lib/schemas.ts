@@ -1,5 +1,6 @@
 import { z } from "zod";
 import COMMON_PASSWORDS from "./common-passwords";
+import { COUNTRIES } from "./countries";
 
 // Reusable Password Schema (used in multiple forms)
 export const PasswordSchema = z
@@ -37,6 +38,12 @@ export const SignUpFormSchema = z
     email: z.string().email(),
     password: PasswordSchema,
     confirmPassword: z.string(),
+    countryCode: z.enum(
+      COUNTRIES.map((country) => country.code) as [string, ...string[]],
+      {
+        message: "Please select a valid country",
+      }
+    ),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",

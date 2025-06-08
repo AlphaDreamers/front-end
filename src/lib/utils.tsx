@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { PASSWORD_SCHEMA_CONDITIONS_COUNT, PasswordSchema } from "./schemas";
 import { encode } from "bs58";
-import { Message } from "./types";
-import { SocialLinkType } from "@prisma/client";
+import { DashboardReviewsSearchParams, Message } from "./types";
+import { Prisma, SocialLinkType } from "@prisma/client";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -156,12 +156,13 @@ export const decryptPrivateKey = async (
   return new Uint8Array(decrypted);
 };
 
-export function groupMessagesByDate(
-  messages: Message[]
-): Record<string, Message[]> {
+export const groupMessagesByDate = (
+  messages: Message[],
+  formatFn: typeof format = format
+): Record<string, Message[]> => {
   return messages.reduce(
     (groups, message) => {
-      const date = format(new Date(message.createdAt), "yyyy-MM-dd");
+      const date = formatFn(new Date(message.createdAt), "yyyy-MM-dd");
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -170,7 +171,7 @@ export function groupMessagesByDate(
     },
     {} as Record<string, Message[]>
   );
-}
+};
 
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -188,3 +189,55 @@ export function formatOrderStatus(status: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
+
+export const getDashboardReviewsFilters = ({
+  page = 1,
+  q,
+  sortBy,
+  order,
+  filterBy,
+}: DashboardReviewsSearchParams): Omit<
+  Prisma.ReviewFindManyArgs,
+  "select" | "include"
+> => {
+  const where: Prisma.ReviewWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      {
+        author: {
+          OR: [
+            { firstName: { contains: q, mode: "insensitive" } },
+            { lastName: { contains: q, mode: "insensitive" } },
+            { username: { contains: q, mode: "insensitive" } },
+          ],
+        },
+      },
+    ];
+  }
+
+  if (filterBy === "responded") {
+    where.sellerResponse = { not: null };
+  } else if (filterBy === "unresponded") {
+    where.sellerResponse = null;
+  }
+
+  const orderBy: Prisma.ReviewOrderByWithRelationInput = {};
+
+  if (sortBy === "createdAt") {
+    orderBy.createdAt = order === "asc" ? "asc" : "desc";
+  } else if (sortBy === "rating") {
+    orderBy.rating = order === "asc" ? "asc" : "desc";
+  } else {
+    orderBy.createdAt = "desc"; // Default to createdAt descending
+  }
+
+  return {
+    skip: (page - 1) * 10,
+    take: 10,
+    where,
+    orderBy,
+  } 
+};

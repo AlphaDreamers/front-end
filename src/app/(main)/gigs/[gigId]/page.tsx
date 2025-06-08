@@ -198,7 +198,7 @@ export default async function GigDetailsPage({
         <ImageCarousel
           images={gig.images
             .filter((image) => image.file.url)
-            .map((image) => image.url || "")}
+            .map((image) => image.file.url || "")}
           alt={gig.title}
         />
 

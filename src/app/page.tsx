@@ -4,6 +4,7 @@ import { CategoriesShowcase } from "@/components/home/categories-showcase";
 import TestimonialsSection from "@/components/home/testimonials-section";
 import { prisma } from "@/lib/prisma";
 import { Category, Color, Gig, LucideIconName, Testimonial } from "@/lib/types";
+import { getTestimonials } from "@/lib/actions/review";
 
 const getCategories = async (): Promise<Category[]> => {
   const categories = await prisma.category.findMany({
@@ -123,62 +124,6 @@ const getFeaturedGigs = async (): Promise<Gig[]> => {
   }));
 };
 
-const getTestimonials = async (): Promise<Testimonial[]> => {
-  const testimonials = await prisma.testimonialContent.findMany({
-    select: {
-      id: true,
-      content: true,
-      rating: true,
-      contactMessage: {
-        select: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              publicKey: true,
-              avatar: true,
-              badgeProgress: {
-                where: {
-                  isFeatured: true,
-                },
-                select: {
-                  badge: {
-                    select: {
-                      title: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return testimonials.map((testimonial) => ({
-    id: testimonial.id,
-    content: testimonial.content,
-    rating: testimonial.rating,
-    author: {
-      id: testimonial.contactMessage.author!.id,
-      username: testimonial.contactMessage.author!.username,
-      firstName: testimonial.contactMessage.author!.firstName,
-      lastName: testimonial.contactMessage.author!.lastName,
-      publicKey: testimonial.contactMessage.author!.publicKey,
-      avatar: testimonial.contactMessage.author!.avatar,
-      badge:
-        testimonial.contactMessage.author!.badgeProgress.length > 0
-          ? {
-              title:
-                testimonial.contactMessage.author!.badgeProgress[0].badge.title,
-            }
-          : null,
-    },
-  }));
-};
 
 export default async function HomePage() {
   return (

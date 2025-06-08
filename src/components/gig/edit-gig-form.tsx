@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,16 +10,15 @@ import {
   Package,
   Image as ImageIcon,
   Loader2,
-  AlertCircle,
-  CheckCircle2,
   ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 
-import { updateGig } from "@/lib/actions";
+import { updateGig } from "@/lib/actions/gig";
 import { EditGigFormSchema } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -30,7 +28,6 @@ import {
 } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Import our reusable form components
 import FormInput from "@/components/forms/form-input";
@@ -39,33 +36,13 @@ import FormSelect from "@/components/forms/form-select";
 import FormMultiSelect from "@/components/forms/form-multi-select";
 import FormImageUpload from "@/components/forms/form-image-upload";
 import FormPackages from "@/components/forms/form-packages";
+import { KeyValuePair } from "@/lib/types";
+import Link from "next/link";
 
-// Define the shape of data we expect from the page
 interface EditGigFormProps {
-  gig: {
-    id: string;
-    title: string;
-    description: string;
-    categoryId: string;
-    tags: string[];
-    features: Array<{ id: string; label: string }>;
-    packages: Array<{
-      id: string;
-      title: string;
-      deliveryTime: number;
-      price: number;
-      revisions: number;
-      featureInclusions: boolean[];
-    }>;
-    images: Array<{
-      type: "existing";
-      id: string;
-      url: string;
-      isPrimary: boolean;
-    }>;
-  };
-  categories: Array<{ id: string; title: string; icon: string; color: string }>;
-  tags: Array<{ id: string; title: string }>;
+  gig: z.infer<typeof EditGigFormSchema>;
+  categories: KeyValuePair[];
+  tags: KeyValuePair[];
 }
 
 export default function EditGigForm({
@@ -74,25 +51,26 @@ export default function EditGigForm({
   tags,
 }: EditGigFormProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize the form with existing gig data
   const form = useForm<z.infer<typeof EditGigFormSchema>>({
     resolver: zodResolver(EditGigFormSchema),
-    defaultValues: {
-      id: gig.id,
-      title: gig.title,
-      description: gig.description,
-      categoryId: gig.categoryId,
-      tags: gig.tags,
-      features: gig.features,
-      packages: gig.packages,
-      images: gig.images,
-    },
+    defaultValues: gig,
   });
+  const onSubmit = async (values: z.infer<typeof EditGigFormSchema>) =>
+    toast.promise(async () => updateGig(values), {
+      loading: "Updating gig...",
+      success: () => {
+        router.push(`/dashboard/gigs`);
+        return "Gig updated successfully!";
+      },
+      error: (err) => {
+        const ms = err instanceof Error ? err.message : "Failed to update gig";
+        form.setError("root", { message: ms });
+        return ms;
+      },
+    });
+  const isLoading = form.formState.isSubmitting;
 
-  // Calculate form completion percentage for progress bar
-  // This is the same logic as the create form
   const calculateProgress = () => {
     const values = form.getValues();
     let completed = 0;
@@ -110,47 +88,23 @@ export default function EditGigForm({
 
   const progress = calculateProgress();
 
-  const onSubmit = async (values: z.infer<typeof EditGigFormSchema>) => {
-    setIsSubmitting(true);
-
-    try {
-      await updateGig(values);
-
-      toast.success("Gig updated successfully!", {
-        description: "Your changes have been saved.",
-      });
-
-      // Navigate back to the gig details or dashboard
-      router.push(`/dashboard/gigs/${gig.id}`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to update gig";
-
-      toast.error("Failed to update gig", {
-        description: message,
-      });
-
-      // Scroll to top to show error
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {/* Header with Progress */}
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
+            <Link
+              href="/dashboard/gigs"
+              className={cn(
+                buttonVariants({
+                  variant: "ghost",
+                  size: "icon",
+                })
+              )}
             >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+              <ArrowLeft />
+            </Link>
             <div>
               <h1 className="text-3xl font-bold">Edit Gig</h1>
               <p className="text-muted-foreground mt-2">
@@ -167,16 +121,6 @@ export default function EditGigForm({
             <Progress value={progress} className="h-2" />
           </div>
         </div>
-
-        {/* Form Errors Alert */}
-        {form.formState.errors.root && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {form.formState.errors.root.message}
-            </AlertDescription>
-          </Alert>
-        )}
 
         {/* Section 1: Basic Information */}
         <Card>
@@ -257,7 +201,7 @@ export default function EditGigForm({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5" />
+              <ImageIcon className="size-5" />
               Gallery
             </CardTitle>
             <CardDescription>
@@ -274,40 +218,28 @@ export default function EditGigForm({
           </CardContent>
         </Card>
 
-        {/* Submit Section */}
-        <div className="flex items-center justify-between pt-6">
+        <div className="flex items-center justify-between mt-4">
           <Button
-            type="button"
             variant="outline"
             onClick={() => router.back()}
-            disabled={isSubmitting}
+            disabled={isLoading}
           >
             Cancel
           </Button>
 
-          <div className="flex items-center gap-4">
-            {progress === 100 && (
-              <span className="flex items-center gap-1 text-sm text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
-                Ready to update
-              </span>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <span>Update Gig</span>
+                <ArrowRight />
+              </>
             )}
-
-            <Button
-              type="submit"
-              disabled={isSubmitting || progress < 100}
-              className="min-w-[150px]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Gig"
-              )}
-            </Button>
-          </div>
+          </Button>
         </div>
       </form>
     </Form>

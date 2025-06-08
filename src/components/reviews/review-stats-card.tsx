@@ -71,3 +71,34 @@ const ReviewStatsCard = ({
 };
 
 export default ReviewStatsCard;
+
+export const ReviewStatsCardSkeleton = () => {
+  return (
+    <Card className="animate-pulse">
+      <CardHeader className="flex flex-row justify-between">
+        <CardTitle className="text-2xl bg-gray-200 h-6 w-1/2" />
+        <div className="flex flex-col gap-1 items-end">
+          <div className="flex items-center gap-2">
+            <div className="bg-gray-200 h-6 w-6 rounded-full" />
+            <span className="text-sm font-light bg-gray-200 h-4 w-16" />
+          </div>
+          <span className="text-sm text-muted-foreground bg-gray-200 h-4 w-24" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {[...Array(5)].map((_, index) => (
+          <div key={index} className="flex items-center gap-8">
+            <div className="flex items-center gap-2">
+              <div className="bg-gray-200 h-6 w-6 rounded-full" />
+              <span className="text-sm text-muted-foreground font-medium w-8 bg-gray-200 h-4" />
+            </div>
+            <div className="flex items-center flex-1 gap-2 ml-2">
+              <div className="bg-gray-200 flex-1 h-2" />
+              <span className="text-sm text-muted-foreground font-medium w-8 bg-gray-200 h-4" />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+};

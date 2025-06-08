@@ -15,8 +15,8 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import GigDeleteButton from "./gig/gig-delete-button";
-import Rating from "./rating";
+import GigDeleteButton from "./gig-delete-button";
+import Rating from "../rating";
 import { DashboardGig } from "@/lib/types";
 
 interface DashboardGigCardProps {

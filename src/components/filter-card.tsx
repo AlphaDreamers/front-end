@@ -87,7 +87,7 @@ interface DateFilter extends BaseFilter {
   type: "date";
 }
 
-type Filter =
+export type FilterType =
   | SelectFilter
   | MultiFilter
   | RangeFilter
@@ -95,7 +95,7 @@ type Filter =
   | DateFilter;
 
 interface FiltersProps {
-  filters: Filter[];
+  filters: FilterType[];
   className?: string;
 }
 
@@ -380,7 +380,7 @@ function SelectFilterControl({
         <SelectContent>
           <SelectItem value="value">Any</SelectItem>
           {filter.options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
+            <SelectItem key={option.value} value={option.value || "value"}>
               {option.label}
             </SelectItem>
           ))}

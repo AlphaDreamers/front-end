@@ -13,6 +13,9 @@ import {
   AtSign,
   KeyRound,
   Loader2,
+  MapPin,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -29,13 +32,27 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
-import { calculatePasswordStrength } from "@/lib/utils";
+import { calculatePasswordStrength, cn } from "@/lib/utils";
 import { SignUpFormSchema } from "@/lib/schemas";
 import { signUp } from "@/lib/actions/auth";
 import AuthCard from "@/components/auth/auth-card";
 import PasswordInput from "@/components/password-input";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
+import { COUNTRIES } from "@/lib/countries";
 
 export default function SignUpPage() {
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -239,6 +256,77 @@ export default function SignUpPage() {
                   <Input {...field} placeholder="Re-enter your password" />
                 </FormControl>
                 <FormDescription />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="countryCode"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>
+                  <MapPin className="size-4" />
+                  Country
+                  <span className="text-xs text-destructive">*</span>
+                </FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value
+                          ? COUNTRIES.find(
+                              (country) => country.code === field.value
+                            )?.label
+                          : "Select country"}
+                        <ChevronsUpDown className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search country..."
+                        className="h-9"
+                      />
+                      <CommandList>
+                        <CommandEmpty>No countries found.</CommandEmpty>
+                        <CommandGroup>
+                          {COUNTRIES.map((country) => (
+                            <CommandItem
+                              value={country.label}
+                              key={country.code}
+                              onSelect={() => {
+                                form.setValue("countryCode", country.code);
+                              }}
+                            >
+                              {country.label}
+                              <Check
+                                className={cn(
+                                  "ml-auto",
+                                  country.code === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  This helps us provide localized content and services
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

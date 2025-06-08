@@ -1,5 +1,7 @@
+"use client";
+
 import { Prisma } from "@prisma/client";
-import GigCard from "./gig-card";
+import GigCard from "./gig/gig-card";
 import DashboardGigCard from "./dashboard-gig-card";
 
 interface GigsGalleryProps {

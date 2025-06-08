@@ -1,110 +1,106 @@
+// src/components/profile/profile-header.tsx
 import Image from "next/image";
-import { Check, Edit, Shield } from "lucide-react";
-import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { formatDistanceToNow } from "date-fns";
+import { Calendar, Shield, Star } from "lucide-react";
 
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-
-import ContactSellerFormDialog from "./contact-seller-form-dialog";
+import { ProfileUser } from "@/lib/types";
 
 interface ProfileHeaderProps {
-  user: Prisma.UserGetPayload<{
-    select: {
-      id: true;
-      username: true;
-      firstName: true;
-      lastName: true;
-      avatar: true;
-      banner: true;
-      isKycVerified: true;
-      headline: true;
-      bio: true;
-      badgeProgress: {
-        select: {
-          isFeatured: true;
-          highestTier: true;
-          badge: {
-            select: {
-              title: true;
-            };
-          };
-        };
-      };
-    };
-  }>;
-  isMe: boolean;
-  isAuth: boolean;
+  user: ProfileUser;
 }
 
-export function ProfileHeader({ user, isMe }: ProfileHeaderProps) {
-  const featuredBadge = user.badgeProgress.find((badge) => badge.isFeatured);
-
+export default function ProfileHeader({ user }: ProfileHeaderProps) {
   return (
-    <div className="overflow-hidden rounded-t-xl">
-      {/* Banner Image */}
-      <Image
-        src={user.banner || "/banner-fallback.jpg"}
-        alt="Profile Banner"
-        width={1200}
-        height={400}
-        className="h-48 w-full object-cover border-b"
-      />
+    <Card className="overflow-hidden">
+      <div className="relative h-48 md:h-64">
+        <Image
+          src={user.banner || "/banner-fallback.jpg"}
+          alt="Profile Banner"
+          fill
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+      </div>
 
-      <div className="-mt-16 px-6 pb-6">
-        <div className="flex flex-col items-start sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-end gap-4">
-            <Image
-              src={user.avatar || "/avatar-fallback.png"}
-              alt="Profile Picture"
-              width={128}
-              height={128}
-              className="size-32 rounded-full border-4 border-accent bg-accent/50 object-cover"
-            />
+      <div className="relative px-6 pb-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-16">
+          <Image
+            src={user.avatar || "/avatar-fallback.png"}
+            alt={user.firstName}
+            width={128}
+            height={128}
+            className="size-32 rounded-full border-4 border-background"
+          />
 
-            <div className="mb-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">
-                  {user.firstName} {user.lastName}
-                </h1>
-                {user.isKycVerified && (
-                  <Badge>
-                    <Check /> Verified
-                  </Badge>
-                )}
-              </div>
-              <div className="text-muted-foreground">@{user.username}</div>
-              {featuredBadge && (
-                <div className="mt-1 flex items-center">
-                  <Badge variant="outline">
-                    <Shield /> {featuredBadge?.highestTier}{" "}
-                    {featuredBadge?.badge.title}
-                  </Badge>
-                </div>
+          <div className="flex-1 text-center sm:text-left space-y-2">
+            <div className="flex items-center gap-2 justify-center sm:justify-start">
+              <h1 className="text-2xl font-bold">
+                {user.firstName} {user.lastName}
+              </h1>
+              {user.featuredBadge && (
+                <Badge variant="secondary">
+                  {user.featuredBadge.tier} {user.featuredBadge.title}
+                </Badge>
               )}
             </div>
+
+            <p className="text-muted-foreground">@{user.username}</p>
+
+            {user.isKycVerified && (
+              <Badge className="bg-green-600">
+                <Shield className="size-3 mr-1" />
+                Verified
+              </Badge>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="mt-4 flex gap-2 sm:mt-0">
-            {isMe ? (
-              <Link href="/profile/edit" className={buttonVariants({})}>
-                <Edit /> Edit Profile
-              </Link>
-            ) : (
-              <ContactSellerFormDialog user={user} />
-            )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <Stat value={user.stats.totalGigs} label="Gigs" />
+            <Stat
+              value={user.stats.averageRating.toFixed(1)}
+              label="Rating"
+              icon={<Star className="size-4 text-yellow-500 fill-yellow-500" />}
+            />
+            <Stat value={user.stats.totalReviews} label="Reviews" />
+            <Stat value={user.stats.completedOrders} label="Orders" />
           </div>
         </div>
 
         {user.headline && (
-          <div className="mt-6">
-            <h2 className="text-xl font-medium text-muted-foreground">
-              {user.headline}
-            </h2>
-          </div>
+          <h2 className="text-xl font-medium mt-4">{user.headline}</h2>
         )}
+
+        {user.bio && <p className="text-muted-foreground mt-2">{user.bio}</p>}
+
+        <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+          <Calendar className="size-4" />
+          <span>
+            Joined {formatDistanceToNow(user.joinedAt, { addSuffix: true })}
+          </span>
+        </div>
       </div>
+    </Card>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  icon,
+}: {
+  value: string | number;
+  label: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-2xl font-bold flex items-center justify-center gap-1">
+        {icon}
+        {value}
+      </p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

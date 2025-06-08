@@ -1,5 +1,6 @@
 import { Star, Eye, Award } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 import {
   Card,
@@ -7,12 +8,13 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { buttonVariants } from "./ui/button";
-import { Badge } from "./ui/badge";
-import Link from "next/link";
-import { Gig } from "@/lib/types";
-import { Skeleton } from "./ui/skeleton";
+import { buttonVariants } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 import { cn } from "@/lib/utils";
+
+import { Gig } from "@/lib/types";
+import BookmarkToggle from "./bookmark-toggle";
 
 interface GigCardProps {
   gig: Gig;
@@ -20,7 +22,7 @@ interface GigCardProps {
 
 const GigCard = ({ gig }: GigCardProps) => {
   return (
-    <Card className="h-full overflow-hidden hover:border-primary transition-all duration-300">
+    <Card className="group h-full overflow-hidden hover:border-primary transition-all duration-300">
       {/* Image with price overlay */}
       <CardHeader className="relative">
         <Image
@@ -93,17 +95,20 @@ const GigCard = ({ gig }: GigCardProps) => {
           {gig.startsAtPrice} SOL
         </div>
 
-        <Link
-          className={buttonVariants({
-            variant: "outline",
-            size: "sm",
-            className: "flex items-center gap-2",
-          })}
-          href={`/gigs/${gig.id}`}
-        >
-          <Eye />
-          View
-        </Link>
+        <div className="flex gap-2 items-center">
+          <BookmarkToggle gigId={gig.id} />
+          <Link
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "flex items-center gap-2",
+            })}
+            href={`/gigs/${gig.id}`}
+          >
+            <Eye />
+            View
+          </Link>
+        </div>
       </CardFooter>
     </Card>
   );

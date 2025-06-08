@@ -44,28 +44,31 @@ export interface Category {
   color: Color;
 }
 
-export interface Testimonial {
-  id: string;
-  author: User;
-  content: string;
-  rating: number;
-}
-
-interface Tag {
-  id: string;
-  label: string;
-}
-
 export interface Gig {
   id: string;
-  seller: User;
+  seller: {
+    id: string;
+    username: string;
+    avatar: string | null;
+    firstName: string;
+    lastName: string;
+    publicKey: string | null;
+    badge: {
+      title: string;
+      tier: string;
+    } | null;
+  };
   image: string;
   startsAtPrice: number;
-  tags: Tag[];
+  tags: {
+    id: string;
+    label: string;
+  }[];
   title: string;
   description: string;
   averageRating: number;
   ratingCount: number;
+  isBookmarked: boolean;
 }
 
 interface GigPackage {
@@ -88,48 +91,37 @@ export interface DashboardGig {
   totalOrders: number;
 }
 
-export type MessageStatus =
-  | "sending"
-  | "sent"
-  | "delivered"
-  | "read"
-  | "failed";
+export type MessageStatus = "sent" | "delivered" | "failed";
 
-export type Message =
+export type Message = {
+  id: string;
+  createdAt: Date;
+} & (
   | {
-      id: string;
-      senderId: string | null;
-      status?: MessageStatus;
-      createdAt: Date;
-      isRead: boolean;
+      senderId: string;
+      status: MessageStatus;
       type: "TEXT";
       content: { text: string };
+      sender: {
+        avatar: string | null;
+        firstName: string;
+        lastName: string;
+        username: string;
+      };
     }
   | {
-      id: string;
-      senderId: string | null;
-      status?: MessageStatus;
-      createdAt: Date;
-      isRead: boolean;
+      senderId: string;
+      status: MessageStatus;
       type: "MEDIA";
       content: { urls: string[] };
     }
   | {
-      id: string;
-      senderId: string | null;
-      status?: MessageStatus;
-      createdAt: Date;
-      isRead: boolean;
+      senderId: null;
+      status: null;
       type: "SYSTEM";
       content: { type: string; content: string };
-    };
-
-export interface ChatUser {
-  id: string;
-  name: string;
-  avatar: string | null;
-  role?: "buyer" | "seller";
-}
+    }
+);
 
 export interface OrderDetails {
   id: string;
@@ -143,18 +135,130 @@ export interface OrderDetails {
 }
 
 export type KeyValuePair = {
-  id: string;
-  title: string;
+  key: string;
+  value: string;
 };
 
+export interface ProfileUser {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatar: string | null;
+  banner: string | null;
+  headline: string | null;
+  bio: string | null;
+  isKycVerified: boolean;
+  joinedAt: Date;
+  featuredBadge: {
+    title: string;
+    tier: string;
+  } | null;
+  skills: {
+    id: string;
+    title: string;
+    level: number;
+  }[];
+  socialLinks: {
+    id: string;
+    type: string;
+    url: string;
+  }[];
+  stats: {
+    totalGigs: number;
+    averageRating: number;
+    totalReviews: number;
+    completedOrders: number;
+  };
+}
+
+export interface ProfilePortfolioItem {
+  id: string;
+  title: string;
+  description: string | null;
+  url: string | null;
+  images: {
+    id: string;
+    url: string;
+    isPrimary: boolean;
+  }[];
+}
+
+export interface ProfileReview {
+  id: string;
+  rating: number;
+  title: string;
+  description: string;
+  author: {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  } | null;
+  createdAt: Date;
+  sellerResponse: string | null;
+  sellerRespondedAt: Date | null;
+}
+
+// types/reviews.ts
+
+// Base Review type that represents the common structure
 export interface Review {
   id: string;
-  gigId: string;
-  gigTitle: string;
-  author: User;
   rating: number;
-  comment: string;
-  createdAt: string;
-  solanaTx: string;
-  response?: string;
+  title: string;
+  description: string;
+  createdAt: Date;
+  author: {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  } | null;
+}
+
+// Dashboard Review extends Review with seller response capabilities and order/gig info
+export interface DashboardReview extends Review {
+  sellerResponse: string | null;
+  sellerRespondedAt: Date | null;
+  order: {
+    id: string;
+  };
+  gig: {
+    id: string;
+    title: string;
+  };
+}
+
+// Testimonial type for homepage testimonials
+export interface Testimonial {
+  id: string;
+  rating: number;
+  content: string;
+  author: {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  };
+}
+
+export interface ReviewStats {
+  total: number;
+  average: number;
+  distribution: Record<number, number>;
+}
+
+export interface GigSearchParams {
+  q?: string;
+  page?: string;
+  category?: string;
+  "price-min"?: string;
+  "price-max"?: string;
+  rating?: string;
+  dateAdded?: string;
 }

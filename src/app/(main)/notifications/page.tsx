@@ -1,23 +1,20 @@
-// src/app/(dashboard)/notifications/page.tsx
-
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Settings2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { SearchBar } from "@/components/search-bar";
+import SearchBar from "@/components/search-bar";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
 import { me } from "@/lib/actions/auth";
 import { getNotifications } from "@/lib/actions/notifications";
 
 import { NotificationType } from "@prisma/client";
-import { NotificationFilters as NotificationFiltersType } from "@/lib/types/notifications";
 import {
-  NotificationFilters,
   NotificationList,
   NotificationListSkeleton,
-} from "@/components/notificatons";
+} from "@/components/notificatons/notification-list";
+import Filters from "@/components/filter-card";
 
 const NOTIFICATIONS_PER_PAGE = 10;
 
@@ -100,7 +97,6 @@ async function NotificationsContent({
   );
 }
 
-// Main page component
 export default async function NotificationsPage({
   searchParams,
 }: {
@@ -140,12 +136,11 @@ export default async function NotificationsPage({
         <SearchBar
           placeholder="Search your notifications..."
           className="w-full"
-          defaultValue={params.search}
         />
 
         {/* Mobile filters - shown as a sheet on small screens */}
         <div className="lg:hidden">
-          <NotificationFilters asSheet />
+          <Filters filters={[]} />
         </div>
       </div>
 
@@ -153,7 +148,7 @@ export default async function NotificationsPage({
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
         {/* Desktop filters sidebar */}
         <div className="hidden lg:block">
-          <NotificationFilters />
+          <Filters filters={[]} />
         </div>
 
         {/* Notifications list */}

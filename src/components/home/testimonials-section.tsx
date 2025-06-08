@@ -1,14 +1,14 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import Rating from "@/components/rating";
-import Image from "next/image";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+
 import { Testimonial } from "@/lib/types";
 import Async from "../async";
-import { Skeleton } from "../ui/skeleton";
+import TestimonialCard, {
+  TestimonialsCardSkeleton,
+} from "../reviews/testimonial-card";
 
 interface TestimonialSectionProps {
   getTestimonials: () => Promise<Testimonial[]>;
@@ -34,11 +34,6 @@ function TestimonialsSection({ getTestimonials }: TestimonialSectionProps) {
               skipSnaps: false,
               dragFree: true,
             }}
-            autoScrollOpts={{
-              playOnInit: true,
-              stopOnInteraction: false,
-              speed: 0.5,
-            }}
             className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]"
           >
             <CarouselContent className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
@@ -54,38 +49,7 @@ function TestimonialsSection({ getTestimonials }: TestimonialSectionProps) {
                         className="md:basis-1/2 lg:basis-1/3"
                       >
                         <div className="p-1">
-                          <Card className="h-54">
-                            <CardHeader className="flex items-center gap-3">
-                              <Image
-                                src={
-                                  testimonial.author.avatar ||
-                                  "/avatar-fallback.jpg"
-                                }
-                                alt="Testimonial Image"
-                                width={40}
-                                height={40}
-                                className="rounded-full size-12"
-                              />
-
-                              <div className="flex-1">
-                                <h4 className="font-semibold">
-                                  {testimonial.author.firstName}{" "}
-                                  {testimonial.author.lastName}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {testimonial.author.username}
-                                </p>
-                              </div>
-
-                              <Rating rating={testimonial.rating} />
-                            </CardHeader>
-
-                            <CardContent>
-                              <blockquote className="text-muted-foreground leading-relaxed line-clamp-3">
-                                &ldquo;{testimonial.content}&rdquo;
-                              </blockquote>
-                            </CardContent>
-                          </Card>
+                          <TestimonialCard testimonial={testimonial} />
                         </div>
                       </CarouselItem>
                     ))
@@ -114,25 +78,7 @@ const TestimonialsSectionSkeleton = () => {
   return Array.from({ length: 5 }).map((_, index) => (
     <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
       <div className="p-1">
-        <Card className="h-54">
-          <CardHeader className="flex items-center gap-3">
-            <Skeleton className="rounded-full size-12" />
-
-            <div className="flex-1">
-              <Skeleton className="font-semibold" />
-              <Skeleton />
-            </div>
-
-            <Skeleton className="w-24 h-6" />
-          </CardHeader>
-
-          <CardContent>
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-7/8 mt-2" />
-            <Skeleton className="h-4 w-11/12 mt-2" />
-            <Skeleton className="h-4 w-4/5 mt-2" />
-          </CardContent>
-        </Card>
+        <TestimonialsCardSkeleton />
       </div>
     </CarouselItem>
   ));
