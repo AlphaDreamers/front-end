@@ -3,24 +3,24 @@
 import { ChatHeader } from "./chat-header";
 import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
-import { ConnectionStatus } from "./connection-status";
-import { OrderDetails } from "@/lib/types";
-import { useChat } from "@/hooks/use-chat";
+import { useChat } from "./chat-provider";
 
 interface ChatContainerProps {
-  order: OrderDetails;
+  orderId: string;
 }
 
-export function ChatContainer({ order }: ChatContainerProps) {
-  const { isConnected, error } = useChat();
+export function ChatContainer({ orderId }: ChatContainerProps) {
+  const { isConnected } = useChat();
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
-      <ChatHeader order={order} />
+    <div className="flex flex-col h-full">
+      <ChatHeader orderId={orderId} />
 
-      {/* Connection status bar */}
+      {/* Connection indicator - minimal UI feedback */}
       {!isConnected && (
-        <ConnectionStatus isConnected={isConnected} error={error} />
+        <div className="bg-yellow-500/10 text-yellow-600 text-sm text-center py-2">
+          Reconnecting...
+        </div>
       )}
 
       <ChatMessages />

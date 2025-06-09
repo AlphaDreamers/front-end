@@ -6,13 +6,6 @@ export type LucideIconName = keyof typeof icons;
 
 export type Color = "purple" | "green" | "gray" | "blue" | "green" | "yellow";
 
-export type Chat = {
-  id: string;
-  buyer: User;
-  seller: User;
-  messages: Message[];
-};
-
 export interface JWTToken {
   id: string;
 }
@@ -25,38 +18,6 @@ export const CLODUINARY_CONFIG = {
 };
 
 export type UploadPreset = keyof typeof CLODUINARY_CONFIG;
-
-export type MessageStatus = "sent" | "delivered" | "failed";
-
-export type Message = {
-  id: string;
-  createdAt: Date;
-} & (
-  | {
-      senderId: string;
-      status: MessageStatus;
-      type: "TEXT";
-      content: { text: string };
-      sender: {
-        avatar: string | null;
-        firstName: string;
-        lastName: string;
-        username: string;
-      };
-    }
-  | {
-      senderId: string;
-      status: MessageStatus;
-      type: "MEDIA";
-      content: { urls: string[] };
-    }
-  | {
-      senderId: null;
-      status: null;
-      type: "SYSTEM";
-      content: { type: string; content: string };
-    }
-);
 
 export interface OrderDetails {
   id: string;
@@ -392,3 +353,52 @@ export type EncryptedWalletData = {
   salt: string;
   iv: string;
 };
+
+// lib/types/chat.ts
+
+export interface Message {
+  id: string;
+  chatId: string;
+  senderId: string;
+  content: string; // Text content
+  mediaUrls: string[]; // Array of Cloudinary URLs
+  status: "sending" | "sent" | "failed";
+  createdAt: Date;
+}
+
+export interface ChatUser {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface ChatData {
+  id: string;
+  currentUserId: string;
+  otherUser: ChatUser;
+  orderId: string;
+  messages: Message[];
+}
+
+export interface ChatContextValue {
+  messages: Message[];
+  sendMessage: (content: string, files?: File[]) => Promise<void>;
+  isConnected: boolean;
+  currentUserId: string;
+  otherUser: ChatUser;
+}
+
+// Socket event types for type safety
+export interface SocketEvents {
+  // Client to server
+  "join-chat": { chatId: string; userId: string };
+  "send-message": { message: Omit<Message, "createdAt">; chatId: string };
+
+  // Server to client
+  "new-message": Message;
+  "message-saved": { tempId: string; savedMessage: Message };
+  "message-failed": { tempId: string };
+  connect: void;
+  disconnect: void;
+  error: string;
+}

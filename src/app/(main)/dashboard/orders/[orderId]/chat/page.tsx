@@ -1,40 +1,34 @@
-import { notFound, redirect } from "next/navigation";
+// app/orders/[orderId]/chat/page.tsx
 
-import { getChatByOrderId, getOrderDetails } from "@/lib/actions/chat";
-import { me } from "@/lib/actions/auth";
-import { ChatContainer } from "@/components/chat/chat-container";
+import { redirect } from "next/navigation";
+import { getChatByOrderId } from "@/lib/actions/chat";
 import { ChatProvider } from "@/components/chat/chat-provider";
+import { ChatContainer } from "@/components/chat/chat-container";
 
-export default async function ChatPage({
-  params,
-}: {
-  params: Promise<{ orderId: string }>;
-}) {
-  const { orderId } = await params;
-  const user = await me();
+interface ChatPageProps {
+  params: {
+    orderId: string;
+  };
+}
 
-  if (!user?.isVerified) {
-    redirect(`/sign-in?callback-url=/dashboard/orders/${orderId}/chat`);
-  }
+export default async function ChatPage({ params }: ChatPageProps) {
+  // Fetch chat data server-side
+  const chatData = await getChatByOrderId(params.orderId);
 
-  const [chat, order] = await Promise.all([
-    getChatByOrderId(orderId),
-    getOrderDetails(orderId),
-  ]);
-
-  if (!chat || !order) {
-    return notFound();
+  if (!chatData) {
+    redirect("/dashboard");
   }
 
   return (
-    <ChatProvider
-      chatId={chat.id}
-      initialMessages={chat.messages}
-      currentUser={user}
-    >
-      <div className="h-full flex flex-col bg-background">
-        <ChatContainer order={order} />
-      </div>
-    </ChatProvider>
+    <div className="h-screen flex flex-col">
+      <ChatProvider
+        chatId={chatData.id}
+        currentUserId={chatData.currentUserId}
+        otherUser={chatData.otherUser}
+        initialMessages={chatData.messages}
+      >
+        <ChatContainer orderId={params.orderId} />
+      </ChatProvider>
+    </div>
   );
 }

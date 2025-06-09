@@ -25,52 +25,27 @@ app.prepare().then(() => {
   });
 
   io.on("connection", (socket) => {
-    console.log("New client connected:", socket.id);
+    console.log("Client connected:", socket.id);
 
+    // Handle joining a chat room
     socket.on("join-chat", async ({ chatId, userId }) => {
       try {
-        // Verify user has access to chat
+        // Verify user has access to this chat
         const chat = await prisma.chat.findFirst({
           where: {
             id: chatId,
             OR: [{ buyerId: userId }, { sellerId: userId }],
           },
-          select: {
-            id: true,
-          },
         });
 
         if (!chat) {
-          socket.emit("error", "Access denied");
+          socket.emit("error", "Access denied to this chat");
           return;
         }
 
+        // Join the chat room
         socket.join(chatId);
         console.log(`User ${userId} joined chat ${chatId}`);
-
-        // Mark unread messages as delivered
-        await prisma.message.updateMany({
-          where: {
-            chatId,
-            textContent: {
-              userMessage: {
-                userId: {
-                  not: userId,
-                },
-              },
-            },
-            NOT: {
-              readBy: {
-                some: {
-                  id: userId,
-                },
-              },
-            },
-          },
-          data: {
-            // This would need a status field in the schema
-          },
-        });
       } catch (error) {
         console.error("Error joining chat:", error);
         socket.emit("error", "Failed to join chat");
@@ -78,64 +53,31 @@ app.prepare().then(() => {
     });
 
     // Handle sending messages
-    socket.on(
-      "message",
-      async ({ message, chatId }: { message: Message; chatId: string }) => {
-        try {
-          // Broadcast to other users in the chat immediately
-          socket.to(chatId).emit("message", message);
-
-          // Save to database
-          const savedMessage = await saveMessage(message, chatId);
-
-          // Emit confirmation with saved message
-          io.to(chatId).emit("message-saved", {
-            message: savedMessage,
-            tempId: message.id,
-          });
-        } catch (error) {
-          console.error("Error saving message:", error);
-          socket.emit("message-error", {
-            tempId: message.id,
-            error: "Failed to save message",
-          });
-        }
-      }
-    );
-
-    // Handle typing indicators
-    socket.on("typing-start", ({ chatId, userId, userName }) => {
-      socket.to(chatId).emit("typing-start", { userId, userName });
-    });
-
-    socket.on("typing-stop", ({ chatId, userId }) => {
-      socket.to(chatId).emit("typing-stop", { userId });
-    });
-
-    // Handle message status updates
-    socket.on("message-delivered", async ({ messageId, chatId }) => {
-      socket.to(chatId).emit("message-delivered", { messageId });
-    });
-
-    socket.on("message-read", async ({ messageId, chatId, userId }) => {
+    socket.on("send-message", async ({ message, chatId }) => {
       try {
-        // Update in database
-        await prisma.message.update({
-          where: { id: messageId },
-          data: {
-            readBy: {
-              connect: { id: userId },
-            },
-          },
-        });
+        // Step 1: Immediately broadcast to other users in the chat
+        const messageWithTimestamp: Message = {
+          ...message,
+          createdAt: new Date(),
+        };
+        socket.to(chatId).emit("new-message", messageWithTimestamp);
 
-        socket.to(chatId).emit("message-read", { messageId, userId });
+        // Step 2: Save to database
+        const savedMessage = await saveMessageToDatabase(message, chatId);
+
+        // Step 3: Notify all clients (including sender) of successful save
+        io.to(chatId).emit("message-saved", {
+          tempId: message.id,
+          savedMessage,
+        });
       } catch (error) {
-        console.error("Error marking message as read:", error);
+        console.error("Error processing message:", error);
+
+        // Notify sender of failure
+        socket.emit("message-failed", { tempId: message.id });
       }
     });
 
-    // Handle disconnect
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
     });
@@ -146,104 +88,76 @@ app.prepare().then(() => {
   });
 });
 
-// Helper function to save messages
-async function saveMessage(message: Message, chatId: string): Promise<Message> {
-  const userId = message.senderId!;
+async function saveMessageToDatabase(
+  message: Omit<Message, "createdAt">,
+  chatId: string
+): Promise<Message> {
+  // Create the message in the database
+  const dbMessage = await prisma.message.create({
+    data: {
+      type: message.mediaUrls.length > 0 ? "MEDIA" : "TEXT",
+      status: "SENT", // Map to your Prisma enum
+      chatId,
 
-  if (message.type === "TEXT") {
-    const saved = await prisma.message.create({
-      data: {
-        type: "TEXT",
-        chatId,
-        textContent: {
-          create: {
-            text: message.content.text,
-            userMessage: {
+      // Create the appropriate content based on message type
+      ...(message.mediaUrls.length > 0
+        ? {
+            // For media messages
+            mediaContent: {
               create: {
-                userId,
+                files: {
+                  create: message.mediaUrls.map((url) => ({
+                    url,
+                    type: "IMAGE",
+                  })),
+                },
+                userMessage: {
+                  create: {
+                    userId: message.senderId,
+                  },
+                },
               },
             },
-          },
-        },
-        readBy: {
-          connect: { id: userId },
-        },
-      },
-      include: {
-        textContent: {
-          include: {
-            userMessage: true,
-          },
-        },
-        readBy: true,
-      },
-    });
-
-    return {
-      id: saved.id,
-      type: "TEXT",
-      content: { text: saved.textContent!.text },
-      senderId: userId,
-      status: "sent",
-      createdAt: saved.createdAt,
-      isRead: false,
-    };
-  }
-
-  if (message.type === "MEDIA") {
-    // First create media files
-    const mediaFiles = await Promise.all(
-      message.content.urls.map((url) =>
-        prisma.mediaFile.create({
-          data: {
-            url,
-            type: "IMAGE",
-          },
-        })
-      )
-    );
-
-    const saved = await prisma.message.create({
-      data: {
-        type: "MEDIA",
-        chatId,
-        mediaContent: {
-          create: {
-            files: {
-              connect: mediaFiles.map((f) => ({ id: f.id })),
-            },
-            userMessage: {
+          }
+        : {
+            // For text messages
+            textContent: {
               create: {
-                userId,
+                text: message.content,
+                userMessage: {
+                  create: {
+                    userId: message.senderId,
+                  },
+                },
               },
             },
-          },
-        },
-        readBy: {
-          connect: { id: userId },
+          }),
+    },
+
+    // Include the created relations to return complete data
+    include: {
+      textContent: {
+        include: {
+          userMessage: true,
         },
       },
-      include: {
-        mediaContent: {
-          include: {
-            files: true,
-            userMessage: true,
-          },
+      mediaContent: {
+        include: {
+          files: true,
+          userMessage: true,
         },
-        readBy: true,
       },
-    });
+    },
+  });
 
-    return {
-      id: saved.id,
-      type: "MEDIA",
-      content: { urls: saved.mediaContent!.files.map((f) => f.url) },
-      senderId: userId,
-      status: "sent",
-      createdAt: saved.createdAt,
-      isRead: false,
-    };
-  }
-
-  throw new Error(`Unsupported message type: ${message.type}`);
+  // Transform database message to our simplified Message type
+  return {
+    id: dbMessage.id,
+    chatId: dbMessage.chatId,
+    senderId: message.senderId,
+    content: dbMessage.textContent?.text || "",
+    mediaUrls: dbMessage.mediaContent?.files.map((f) => f.url) || [],
+    status: "sent",
+    createdAt: dbMessage.createdAt,
+  };
 }

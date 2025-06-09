@@ -1,112 +1,70 @@
+// lib/actions/chat.ts
 "use server";
 
-import { uploadFileToCloudinary } from "../actions";
-import { prisma } from "../prisma";
-import { Chat, OrderDetails, UploadPreset } from "../types";
+import { prisma } from "@/lib/prisma";
+import { ChatData, Message } from "@/lib/types";
 import { me } from "./auth";
 
-export async function getOrderDetails(
+export async function getChatByOrderId(
   orderId: string
-): Promise<OrderDetails | null> {
-  try {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        deadline: true,
-        package: {
-          select: {
-            title: true,
-            price: true,
-          },
-        },
-      },
-    });
-
-    return order;
-  } catch (error) {
-    console.error("Error fetching order details:", error);
-    return null;
-  }
-}
-
-
-
-export const getChatByOrderId = async (
-  orderId: string
-): Promise<Chat | null> => {
+): Promise<ChatData | null> {
   const currentUser = await me();
-
   if (!currentUser) {
     throw new Error("User not authenticated");
   }
 
+  // Fetch chat with messages
   const chat = await prisma.chat.findUnique({
-    where: {
-      orderId,
-    },
+    where: { orderId },
     select: {
       id: true,
+      buyerId: true,
+      sellerId: true,
       buyer: {
         select: {
           id: true,
-          username: true,
-          avatar: true,
           firstName: true,
           lastName: true,
+          username: true,
+          avatar: true,
         },
       },
       seller: {
         select: {
           id: true,
-          username: true,
-          avatar: true,
           firstName: true,
           lastName: true,
+          username: true,
+          avatar: true,
         },
       },
       messages: {
         select: {
           id: true,
           type: true,
-          readBy: {
-            select: {
-              id: true,
-            },
-          },
-          systemContent: {
-            select: {
-              type: true,
-              content: true,
-            },
-          },
+          status: true,
+          createdAt: true,
           textContent: {
             select: {
               text: true,
               userMessage: {
-                select: {
-                  userId: true,
-                },
+                select: { userId: true },
               },
             },
           },
           mediaContent: {
             select: {
               files: {
-                select: {
-                  url: true,
-                },
+                select: { url: true },
               },
               userMessage: {
-                select: {
-                  userId: true,
-                },
+                select: { userId: true },
               },
             },
           },
-          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "asc",
         },
       },
     },
@@ -116,30 +74,50 @@ export const getChatByOrderId = async (
     return null;
   }
 
+  // Verify user has access to this chat
+  if (chat.buyerId !== currentUser.id && chat.sellerId !== currentUser.id) {
+    throw new Error("Access denied to this chat");
+  }
+
+  // Determine which user is the "other" user
+  const isBuyer = currentUser.id === chat.buyerId;
+  const otherUserData = isBuyer ? chat.seller : chat.buyer;
+
+  // Transform messages to our simplified format
+  const messages: Message[] = chat.messages.map((msg) => ({
+    id: msg.id,
+    chatId: chat.id,
+    senderId:
+      msg.textContent?.userMessage.userId ||
+      msg.mediaContent?.userMessage.userId ||
+      "",
+    content: msg.textContent?.text || "",
+    mediaUrls: msg.mediaContent?.files.map((f) => f.url) || [],
+    status: mapMessageStatus(msg.status),
+    createdAt: msg.createdAt,
+  }));
+
   return {
-    ...chat,
-    messages: chat.messages.map((ms) => ({
-      id: ms.id,
-      createdAt: ms.createdAt,
-      isRead: ms.readBy.some((user) => user.id === currentUser.id),
-      type: ms.type,
-      content:
-        ms.type === "TEXT"
-          ? {
-              text: ms.textContent?.text || "",
-            }
-          : ms.type === "MEDIA"
-            ? {
-                urls: ms.mediaContent?.files.map((url) => url.url) || [],
-              }
-            : {
-                type: ms.systemContent?.type,
-                content: ms.systemContent?.content || "",
-              },
-      senderId:
-        ms.textContent?.userMessage.userId ||
-        ms.mediaContent?.userMessage.userId ||
-        null,
-    })),
-  } as Chat;
-};
+    id: chat.id,
+    currentUserId: currentUser.id,
+    otherUser: {
+      id: otherUserData.id,
+      name: `${otherUserData.firstName} ${otherUserData.lastName}`,
+      avatar: otherUserData.avatar || undefined,
+    },
+    orderId,
+    messages,
+  };
+}
+
+// Helper function to map Prisma MessageStatus to our simplified status
+function mapMessageStatus(status: string): "sending" | "sent" | "failed" {
+  switch (status) {
+    case "SENDING":
+      return "sending";
+    case "FAILED":
+      return "failed";
+    default:
+      return "sent";
+  }
+}
