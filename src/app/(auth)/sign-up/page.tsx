@@ -49,7 +49,7 @@ import {
 import { calculatePasswordStrength, cn } from "@/lib/utils";
 import { SignUpFormSchema } from "@/lib/schemas";
 import { signUp } from "@/lib/actions/auth";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import PasswordInput from "@/components/password-input";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
 import { COUNTRIES } from "@/lib/data/countries";

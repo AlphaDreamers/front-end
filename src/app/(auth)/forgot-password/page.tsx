@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import { ForgotPasswordFormSchema } from "@/lib/schemas";
 import { forgotPassword } from "@/lib/actions/auth";
 

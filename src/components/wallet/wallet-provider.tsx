@@ -13,7 +13,6 @@ import { setMainWallet, deleteWallet } from "@/lib/actions/wallet";
 
 // Types
 export interface Wallet {
-  id: string;
   name: string;
   publicKey: string;
   isMain: boolean;
@@ -39,13 +38,13 @@ type WalletAction =
   | { type: "SET_WALLETS"; wallets: Wallet[] }
   | {
       type: "UPDATE_WALLET_STATUS";
-      id: string;
+      publicKey: string;
       status: WalletWithBalance["status"];
       error?: string;
     }
-  | { type: "UPDATE_WALLET_BALANCE"; id: string; balance: number }
-  | { type: "SET_MAIN_WALLET"; id: string }
-  | { type: "DELETE_WALLET"; id: string }
+  | { type: "UPDATE_WALLET_BALANCE"; publicKey: string; balance: number }
+  | { type: "SET_MAIN_WALLET"; publicKey: string }
+  | { type: "DELETE_WALLET"; publicKey: string }
   | { type: "SET_REFRESHING"; isRefreshing: boolean }
   | { type: "ADD_WALLET"; wallet: Wallet };
 
@@ -66,7 +65,7 @@ function walletReducer(state: WalletState, action: WalletAction): WalletState {
       return {
         ...state,
         wallets: state.wallets.map((wallet) =>
-          wallet.id === action.id
+          wallet.publicKey === action.publicKey
             ? { ...wallet, status: action.status, error: action.error }
             : wallet
         ),
@@ -76,7 +75,7 @@ function walletReducer(state: WalletState, action: WalletAction): WalletState {
       return {
         ...state,
         wallets: state.wallets.map((wallet) =>
-          wallet.id === action.id
+          wallet.publicKey === action.publicKey
             ? {
                 ...wallet,
                 balance: action.balance,
@@ -93,14 +92,16 @@ function walletReducer(state: WalletState, action: WalletAction): WalletState {
         ...state,
         wallets: state.wallets.map((wallet) => ({
           ...wallet,
-          isMain: wallet.id === action.id,
+          isMain: wallet.publicKey === action.publicKey,
         })),
       };
 
     case "DELETE_WALLET":
       return {
         ...state,
-        wallets: state.wallets.filter((wallet) => wallet.id !== action.id),
+        wallets: state.wallets.filter(
+          (wallet) => wallet.publicKey !== action.publicKey
+        ),
       };
 
     case "SET_REFRESHING":
@@ -166,13 +167,13 @@ export function WalletProvider({
 
   // Fetch balance for a single wallet
   const fetchWalletBalance = useCallback(
-    async (walletId: string) => {
-      const wallet = state.wallets.find((w) => w.id === walletId);
+    async (walletPublicKey: string) => {
+      const wallet = state.wallets.find((w) => w.publicKey === walletPublicKey);
       if (!wallet) return;
 
       dispatch({
         type: "UPDATE_WALLET_STATUS",
-        id: walletId,
+        publicKey: walletPublicKey,
         status: "loading",
       });
 
@@ -183,14 +184,17 @@ export function WalletProvider({
 
         dispatch({
           type: "UPDATE_WALLET_BALANCE",
-          id: walletId,
+          publicKey: walletPublicKey,
           balance: balanceInSOL,
         });
       } catch (error) {
-        console.error(`Failed to fetch balance for wallet ${walletId}:`, error);
+        console.error(
+          `Failed to fetch balance for wallet ${walletPublicKey}:`,
+          error
+        );
         dispatch({
           type: "UPDATE_WALLET_STATUS",
-          id: walletId,
+          publicKey: walletPublicKey,
           status: "error",
           error:
             error instanceof Error ? error.message : "Failed to fetch balance",
@@ -210,7 +214,9 @@ export function WalletProvider({
     }
 
     for (const batch of walletBatches) {
-      await Promise.all(batch.map((wallet) => fetchWalletBalance(wallet.id)));
+      await Promise.all(
+        batch.map((wallet) => fetchWalletBalance(wallet.publicKey))
+      );
     }
   }, [state.wallets, fetchWalletBalance]);
 
@@ -233,7 +239,7 @@ export function WalletProvider({
     async (walletId: string) => {
       try {
         // Optimistically update UI
-        dispatch({ type: "SET_MAIN_WALLET", id: walletId });
+        dispatch({ type: "SET_MAIN_WALLET", publicKey: walletId });
 
         // Call server action
         await setMainWallet(walletId);
@@ -243,7 +249,10 @@ export function WalletProvider({
         // Revert on error
         const previousMain = state.wallets.find((w) => w.isMain);
         if (previousMain) {
-          dispatch({ type: "SET_MAIN_WALLET", id: previousMain.id });
+          dispatch({
+            type: "SET_MAIN_WALLET",
+            publicKey: previousMain.publicKey,
+          });
         }
 
         toast.error("Failed to update main wallet");
@@ -255,7 +264,7 @@ export function WalletProvider({
   // Delete wallet
   const handleDeleteWallet = useCallback(
     async (walletId: string) => {
-      const wallet = state.wallets.find((w) => w.id === walletId);
+      const wallet = state.wallets.find((w) => w.publicKey === walletId);
       if (!wallet) return;
 
       if (wallet.isMain) {
@@ -267,7 +276,7 @@ export function WalletProvider({
 
       try {
         // Optimistically remove from UI
-        dispatch({ type: "DELETE_WALLET", id: walletId });
+        dispatch({ type: "DELETE_WALLET", publicKey: walletId });
 
         // Call server action
         await deleteWallet(walletId);

@@ -14,26 +14,20 @@ interface BuyButtonProps
 const BuyButton = ({ packageId, ...props }: BuyButtonProps) => {
   const { push } = useRouter();
 
-  return (
-    <Button
-      onClick={() =>
-        toast.promise(async () => orderPackage(packageId), {
-          loading: "Processing your order...",
-          success: () => {
-            push("/dashboard/orders");
+  const handleClick = async () =>
+    toast.promise(async () => orderPackage(packageId), {
+      loading: "Processing your order...",
+      success: () => {
+        push("/dashboard/orders");
+        return "Order placed successfully!";
+      },
+      error: (err) => {
+        const ms = err instanceof Error ? err.message : "An error occurred";
+        return ms;
+      },
+    });
 
-            return "Order placed successfully!";
-          },
-          error: (err) => {
-            const ms = err instanceof Error ? err.message : "An error occurred";
-
-            return ms;
-          },
-        })
-      }
-      {...props}
-    />
-  );
+  return <Button onClick={handleClick} {...props} />;
 };
 
 export default BuyButton;

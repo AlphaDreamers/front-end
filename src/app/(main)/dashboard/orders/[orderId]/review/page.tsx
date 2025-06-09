@@ -20,7 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Rating from "@/components/rating";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 
 const schema = z.object({
   rating: z.number().min(1, "Please select a rating"),

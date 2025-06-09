@@ -314,7 +314,7 @@ export default function OrdersServices() {
                 <h4 className="font-semibold mb-2">Order Management Dashboard</h4>
                 <p className="text-sm text-muted-foreground">
                   Access your personalized dashboard to view all active orders, track progress, manage communications,
-                  and handle payments. You'll receive real-time notifications for all order updates.
+                  and handle payments. You&apos;ll receive real-time notifications for all order updates.
                 </p>
               </div>
             </CardContent>

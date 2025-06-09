@@ -12,7 +12,7 @@ import ProfileReviews from "@/components/profile/profile-reviews";
 import { GigsGallery } from "@/components/gigs-gallery";
 
 import { me } from "@/lib/actions/auth";
-import { getProfileData, getProfileReviews } from "@/lib/actions/profile";
+import { getDetailedUser, getProfileReviews } from "@/lib/actions/profile";
 
 export default async function ProfilePage({
   params,
@@ -22,7 +22,7 @@ export default async function ProfilePage({
   const { username } = await params;
 
   const [profileData, currentUser] = await Promise.all([
-    getProfileData(username),
+    getDetailedUser(username),
     me(),
   ]);
 

@@ -1,277 +1,17 @@
-// src/lib/actions/profile.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import {
-  ProfileUser,
-  ProfilePortfolioItem,
-  ProfileReview,
-  Gig,
-} from "@/lib/types";
+import { ProfileReview, DetailedUser } from "@/lib/types";
+import { UpdateProfileFormSchema } from "../schemas";
+import { z } from "zod";
+import { me } from "./auth";
+import { MediaType } from "@prisma/client";
 
-export async function getProfileData(username: string) {
-  const user = await prisma.user.findFirst({
-    where: { username },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      avatar: true,
-      banner: true,
-      headline: true,
-      bio: true,
-      isKycVerified: true,
-      createdAt: true,
-      badgeProgress: {
-        where: { isFeatured: true },
-        select: {
-          badge: {
-            select: {
-              title: true,
-            },
-          },
-          highestTier: true,
-        },
-        take: 1,
-      },
-      skills: {
-        select: {
-          id: true,
-          level: true,
-          skill: {
-            select: {
-              title: true,
-            },
-          },
-        },
-        orderBy: {
-          level: "desc",
-        },
-      },
-      socialLinks: {
-        select: {
-          id: true,
-          type: true,
-          url: true,
-        },
-      },
-      portfolioItems: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          url: true,
-          images: {
-            select: {
-              id: true,
-              file: {
-                select: {
-                  url: true,
-                },
-              },
-              isPrimary: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      },
-      gigs: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          images: {
-            select: {
-              file: {
-                select: {
-                  url: true,
-                },
-              },
-              isPrimary: true,
-            },
-          },
-          packages: {
-            select: {
-              price: true,
-            },
-          },
-          reviews: {
-            select: {
-              rating: true,
-            },
-          },
-          tags: {
-            select: {
-              id: true,
-              title: true,
-            },
-          },
-          category: {
-            select: {
-              id: true,
-              title: true,
-              icon: true,
-              color: true,
-            },
-          },
-          seller: {
-            select: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-              publicKey: true,
-              badgeProgress: {
-                where: { isFeatured: true },
-                select: {
-                  badge: {
-                    select: {
-                      title: true,
-                    },
-                  },
-                },
-                take: 1,
-              },
-            },
-          },
-        },
-      },
-      _count: {
-        select: {
-          ordersAsSeller: {
-            where: {
-              status: "COMPLETED",
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!user) return null;
-
-  // Get review statistics
-  const reviews = await prisma.review.findMany({
-    where: {
-      gig: {
-        sellerId: user.id,
-      },
-    },
-    select: {
-      rating: true,
-    },
-  });
-
-  const reviewStats = {
-    total: reviews.length,
-    average:
-      reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) /
-          reviews.length
-        : 0,
-    distribution: reviews.reduce(
-      (acc, review) => {
-        acc[review.rating] = (acc[review.rating] || 0) + 1;
-        return acc;
-      },
-      { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Record<number, number>
-    ),
-  };
-
-  // Convert to UI types
-  const profileUser: ProfileUser = {
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    avatar: user.avatar,
-    banner: user.banner,
-    headline: user.headline,
-    bio: user.bio,
-    isKycVerified: user.isKycVerified,
-    joinedAt: user.createdAt,
-    featuredBadge:
-      user.badgeProgress.length > 0
-        ? {
-            title: user.badgeProgress[0].badge.title,
-            tier: user.badgeProgress[0].highestTier,
-          }
-        : null,
-    skills: user.skills.map((skill) => ({
-      id: skill.id,
-      title: skill.skill.title,
-      level: skill.level,
-    })),
-    socialLinks: user.socialLinks.map((link) => ({
-      id: link.id,
-      type: link.type,
-      url: link.url,
-    })),
-    stats: {
-      totalGigs: user.gigs.length,
-      averageRating: reviewStats.average,
-      totalReviews: reviewStats.total,
-      completedOrders: user._count.ordersAsSeller,
-    },
-  };
-
-  const portfolioItems: ProfilePortfolioItem[] = user.portfolioItems.map(
-    (item) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      url: item.url,
-      images: item.images.map((img) => ({
-        id: img.id,
-        url: img.file.url,
-        isPrimary: img.isPrimary,
-      })),
-    })
-  );
-
-  const gigs: Gig[] = user.gigs.map((gig) => ({
-    id: gig.id,
-    title: gig.title,
-    description: gig.description,
-    image:
-      gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
-    startsAtPrice: Math.min(...gig.packages.map((pkg) => pkg.price)),
-    averageRating:
-      gig.reviews.length > 0
-        ? gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
-          gig.reviews.length
-        : 0,
-    ratingCount: gig.reviews.length,
-    tags: gig.tags.map((tag) => ({
-      id: tag.id,
-      label: tag.title,
-    })),
-    seller: {
-      id: gig.seller.id,
-      username: gig.seller.username,
-      firstName: gig.seller.firstName,
-      lastName: gig.seller.lastName,
-      avatar: gig.seller.avatar,
-      publicKey: gig.seller.publicKey,
-      badge:
-        gig.seller.badgeProgress.length > 0
-          ? { title: gig.seller.badgeProgress[0].badge.title }
-          : null,
-    },
-  }));
-
-  return {
-    user: profileUser,
-    portfolioItems,
-    gigs,
-    reviewStats,
-  };
+export async function getDetailedUser(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  username: string
+): Promise<DetailedUser | null> {
+  return null;
 }
 
 export async function getProfileReviews(
@@ -322,3 +62,234 @@ export async function getProfileReviews(
     sellerRespondedAt: review.sellerRespondedAt,
   }));
 }
+
+export const updateProfile = async (
+  values: z.infer<typeof UpdateProfileFormSchema>
+) => {
+  const {
+    username,
+    avatar,
+    banner,
+    headline,
+    bio,
+    firstName,
+    lastName,
+    skills,
+    socialLinks,
+    portfolioItems,
+    featuredBadge,
+  } = values;
+  const user = await me();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const prev = await prisma.user.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
+      skills: {
+        select: {
+          id: true,
+        },
+      },
+      socialLinks: {
+        select: {
+          id: true,
+        },
+      },
+      portfolioItems: {
+        select: {
+          id: true,
+          images: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      },
+      badgeProgress: {
+        select: {
+          id: true,
+          isFeatured: true,
+        },
+      },
+    },
+  });
+
+  if (!prev) {
+    throw new Error("User not found");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      username,
+      avatar,
+      banner,
+      headline,
+      bio,
+      firstName,
+      lastName,
+    },
+  });
+
+  if (skills) {
+    for (const skill of skills) {
+      if (skill.id) {
+        await prisma.userSkill.update({
+          where: { id: skill.id },
+          data: {
+            level: skill.level,
+          },
+        });
+      } else {
+        await prisma.userSkill.create({
+          data: {
+            level: skill.level,
+            userId: user.id,
+            skillId: skill.skillId,
+          },
+        });
+      }
+    }
+  }
+
+  for (const skill of prev.skills.filter(
+    (s) => !skills.some((newSkill) => newSkill.id === s.id)
+  )) {
+    await prisma.userSkill.delete({
+      where: { id: skill.id },
+    });
+  }
+
+  for (const socialLink of socialLinks) {
+    if (socialLink.id) {
+      await prisma.socialLink.update({
+        where: { id: socialLink.id },
+        data: {
+          url: socialLink.url,
+        },
+      });
+    } else {
+      await prisma.socialLink.create({
+        data: {
+          type: socialLink.type,
+          url: socialLink.url,
+          userId: user.id,
+        },
+      });
+    }
+  }
+
+  for (const socialLink of prev.socialLinks.filter(
+    (link) => !socialLinks.some((newLink) => newLink.id === link.id)
+  )) {
+    await prisma.socialLink.delete({
+      where: { id: socialLink.id },
+    });
+  }
+
+  for (const portfolioItem of portfolioItems) {
+    if (portfolioItem.id) {
+      await prisma.portfolioItem.update({
+        where: { id: portfolioItem.id },
+        data: {
+          title: portfolioItem.title,
+          description: portfolioItem.description,
+          url: portfolioItem.url,
+        },
+      });
+
+      for (const image of portfolioItem.images) {
+        if (image.id) {
+          await prisma.image.update({
+            where: { id: image.id },
+            data: {
+              file: {
+                create: {
+                  url: image.url,
+                  type: "IMAGE",
+                },
+              },
+              isPrimary: image.isPrimary,
+            },
+          });
+        } else {
+          await prisma.image.create({
+            data: {
+              file: {
+                create: {
+                  url: image.url,
+                  type: "IMAGE" as MediaType,
+                },
+              },
+              isPrimary: image.isPrimary,
+              portfolioItemId: portfolioItem.id,
+            },
+          });
+        }
+      }
+      for (const image of prev.portfolioItems
+        .find((item) => item.id === portfolioItem.id)
+        ?.images.filter(
+          (img) => !portfolioItem.images.some((newImg) => newImg.id === img.id)
+        ) || []) {
+        await prisma.image.delete({
+          where: { id: image.id },
+        });
+      }
+    } else {
+      const newPortfolioItem = await prisma.portfolioItem.create({
+        data: {
+          title: portfolioItem.title,
+          description: portfolioItem.description,
+          url: portfolioItem.url,
+          userId: user.id,
+        },
+      });
+
+      for (const image of portfolioItem.images) {
+        await prisma.image.create({
+          data: {
+            file: {
+              create: {
+                url: image.url,
+                type: "IMAGE" as MediaType,
+              },
+            },
+            isPrimary: image.isPrimary,
+            portfolioItemId: newPortfolioItem.id,
+          },
+        });
+      }
+    }
+  }
+
+  for (const portfolioItem of prev.portfolioItems.filter(
+    (item) => !portfolioItems.some((newItem) => newItem.id === item.id)
+  )) {
+    await prisma.portfolioItem.delete({
+      where: { id: portfolioItem.id },
+    });
+  }
+
+  for (const progress of prev.badgeProgress) {
+    if (progress.id === featuredBadge) {
+      await prisma.userBadgeProgress.update({
+        where: { id: progress.id },
+        data: {
+          isFeatured: true,
+        },
+      });
+    } else {
+      await prisma.userBadgeProgress.update({
+        where: { id: progress.id },
+        data: {
+          isFeatured: false,
+        },
+      });
+    }
+  }
+};

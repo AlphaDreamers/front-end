@@ -10,9 +10,8 @@ import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-
-import { useAuthForm } from "@/hooks/use-auth-state";
-import { MneumonicsVerificationSchema } from "@/lib/schemas";
+import { MneumonicsVerificationFormSchema } from "@/lib/schemas";
+import { toast } from "sonner";
 
 interface VerifyMnemonicFormProps {
   onSubmit: (values: { mnemonic: string[] }) => Promise<void>;
@@ -23,16 +22,46 @@ export default function VerifyMnemonicForm({
   onSubmit,
   mnemonic,
 }: VerifyMnemonicFormProps) {
-  const { isLoading, handleSubmit } =
-    useAuthForm<z.infer<typeof MneumonicsVerificationSchema>>();
   const [shuffledWords, setShuffledWords] = useState<string[]>([]);
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
   const [verificationIndices, setVerificationIndices] = useState<number[]>([]);
 
   const form = useForm({
-    resolver: zodResolver(MneumonicsVerificationSchema),
+    resolver: zodResolver(MneumonicsVerificationFormSchema),
     defaultValues: { mnemonic: [] },
   });
+  const onFormSubmit = async (
+    values: z.infer<typeof MneumonicsVerificationFormSchema>
+  ) =>
+    toast.promise(
+      async () => {
+        const isValid = verificationIndices.every(
+          (index, i) => selectedWords[i] === mnemonic[index]
+        );
+
+        if (!isValid) {
+          form.setError("mnemonic", {
+            message:
+              "The words don't match the correct positions. Please try again.",
+          });
+          return;
+        }
+        onSubmit(values);
+      },
+      {
+        loading: "Verifying mnemonic...",
+        success: () => "Mnemonic verified successfully!",
+        error: (error) => {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred";
+          form.setError("root", { message });
+          return message;
+        },
+      }
+    );
+  const isLoading = form.formState.isSubmitting;
 
   // Initialize with random subset verification (more user-friendly)
   useEffect(() => {
@@ -63,42 +92,9 @@ export default function VerifyMnemonicForm({
     setSelectedWords([]);
   };
 
-  const handleFormSubmit = () => {
-    // Check if selected words match the required positions
-    const isValid = verificationIndices.every(
-      (index, i) => selectedWords[i] === mnemonic[index]
-    );
-
-    if (!isValid) {
-      form.setError("mnemonic", {
-        message:
-          "The words don't match the correct positions. Please try again.",
-      });
-      return;
-    }
-
-    // Submit the full mnemonic for final verification
-    handleSubmit(
-      onSubmit,
-      { mnemonic },
-      {
-        successMessage: "Wallet created successfully!",
-        onError: (error) => {
-          form.setError("mnemonic", { message: error.message });
-        },
-      }
-    );
-  };
-
   return (
     <Form {...form}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleFormSubmit();
-        }}
-        className="space-y-6"
-      >
+      <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
         <Alert>
           <ShieldCheck className="h-4 w-4" />
           <AlertDescription>

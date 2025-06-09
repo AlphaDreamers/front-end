@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "../ui/form";
 
-import { verifyKyc } from "@/lib/actions";
+import { verifyKyc } from "@/lib/actions/auth";
 import { KycFormSchema } from "@/lib/schemas";
 
 export function DocumentUpload() {

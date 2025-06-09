@@ -5,7 +5,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Key, Lock, Wallet, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  Key,
+  Lock,
+  Wallet,
+  ArrowRight,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 
 import {
   Form,
@@ -19,19 +26,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import FormInput from "@/components/auth/form-fields";
-import { useAuthForm } from "@/hooks/use-auth-state";
 import { ImportWalletFormSchema } from "@/lib/schemas";
 import { calculatePasswordStrength } from "@/lib/utils";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
+import { Input } from "@/components/ui/input";
+import PasswordInput from "@/components/password-input";
+import { toast } from "sonner";
 
 interface ImportWalletFormProps {
   onSubmit: (values: z.infer<typeof ImportWalletFormSchema>) => Promise<void>;
 }
 
 export default function ImportWalletForm({ onSubmit }: ImportWalletFormProps) {
-  const { isLoading, handleSubmit } =
-    useAuthForm<z.infer<typeof ImportWalletFormSchema>>();
   const [showMnemonic, setShowMnemonic] = useState(false);
 
   const form = useForm({
@@ -43,18 +49,22 @@ export default function ImportWalletForm({ onSubmit }: ImportWalletFormProps) {
       confirmPassword: "",
     },
   });
-
-  const password = form.watch("password");
-  const passwordStrength = calculatePasswordStrength(password);
-
-  const handleFormSubmit = (values: z.infer<typeof ImportWalletFormSchema>) => {
-    handleSubmit(onSubmit, values, {
-      successMessage: "Wallet validated successfully!",
-      onError: (error) => {
-        form.setError("root", { message: error.message });
+  const onFormSubmit = async (values: z.infer<typeof ImportWalletFormSchema>) =>
+    toast.promise(async () => onSubmit(values), {
+      loading: "Validating wallet...",
+      success: "Wallet validated successfully!",
+      error: (error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred";
+        form.setError("root", { message });
+        return message;
       },
     });
-  };
+  const isLoading = form.formState.isSubmitting;
+  const password = form.watch("password");
+  const passwordStrength = calculatePasswordStrength(password);
 
   // Helper function to format mnemonic input
   const handleMnemonicChange = (value: string) => {
@@ -66,10 +76,7 @@ export default function ImportWalletForm({ onSubmit }: ImportWalletFormProps) {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleFormSubmit)}
-        className="space-y-4"
-      >
+      <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
         {form.formState.errors.root && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -129,75 +136,89 @@ export default function ImportWalletForm({ onSubmit }: ImportWalletFormProps) {
             </FormItem>
           )}
         />
-
-        <FormInput
+        <FormField
           control={form.control}
           name="name"
-          label="Wallet Name"
-          placeholder="Imported Wallet"
-          icon={Wallet}
-          description="Choose a name to identify this wallet"
-          required
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Wallet Name
+                <span className="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Imported Wallet" />
+              </FormControl>
+              <FormDescription>
+                Choose a name to identify this wallet
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
-        <div className="space-y-2">
-          <FormInput
-            control={form.control}
-            name="password"
-            label="New Password"
-            type="password"
-            placeholder="Create a password for this device"
-            icon={Lock}
-            description="This password will encrypt your wallet locally"
-            required
-          />
-
-          {password && (
-            <PasswordStrengthIndicator
-              strength={passwordStrength}
-              color={
-                passwordStrength < 50
-                  ? "text-red-500"
-                  : passwordStrength < 75
-                    ? "text-amber-500"
-                    : "text-green-500"
-              }
-              label={
-                passwordStrength < 50
-                  ? "Weak"
-                  : passwordStrength < 75
-                    ? "Good"
-                    : "Strong"
-              }
-            />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                New Password
+                <span className="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <div className="flex flex-col gap-1">
+                  <PasswordInput
+                    {...field}
+                    placeholder="Create a password for this device"
+                  />
+                  <PasswordStrengthIndicator strength={passwordStrength} />
+                </div>
+              </FormControl>
+              <FormDescription>
+                This password will encrypt your wallet locally
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
+        />
 
-        <FormInput
+        <FormField
           control={form.control}
           name="confirmPassword"
-          label="Confirm Password"
-          type="password"
-          placeholder="Re-enter your password"
-          icon={Lock}
-          required
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Confirm Password
+                <span className="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="password"
+                  placeholder="Re-enter your password"
+                />
+              </FormControl>
+              <FormDescription>
+                Please re-enter your password to confirm
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          disabled={isLoading || passwordStrength < 50}
-        >
+        <Button type="submit" className="w-full mt-4" disabled={isLoading}>
           {isLoading ? (
             <>
-              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+              <Loader2 className="animate-spin" />
               Validating wallet...
             </>
           ) : (
             <>
               Import Wallet
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight />
             </>
           )}
         </Button>

@@ -44,9 +44,9 @@ export default function GettingStarted() {
             <p className="text-muted-foreground leading-relaxed">
               Welcome to the future of freelancing! Our Solana-powered platform
               connects talented freelancers with clients worldwide, offering
-              secure, fast, and transparent transactions. Whether you're here to
-              offer your services or find the perfect freelancer for your
-              project, we've got you covered.
+              secure, fast, and transparent transactions. Whether you&apos;re
+              here to offer your services or find the perfect freelancer for
+              your project, we&apos;ve got you covered.
             </p>
           </CardContent>
         </Card>
@@ -70,7 +70,7 @@ export default function GettingStarted() {
                 <div>
                   <h4 className="font-semibold">Visit the Registration Page</h4>
                   <p className="text-sm text-muted-foreground">
-                    Click "Sign Up" in the top navigation bar
+                    Click &quot;Sign Up&quot; in the top navigation bar
                   </p>
                 </div>
               </div>
@@ -81,7 +81,8 @@ export default function GettingStarted() {
                 <div>
                   <h4 className="font-semibold">Choose Your Account Type</h4>
                   <p className="text-sm text-muted-foreground">
-                    Select either "Freelancer" or "Client" based on your needs
+                    Select either &quot;Freelancer&quot; or &quot;Client&quot;
+                    based on your needs
                   </p>
                 </div>
               </div>
@@ -166,7 +167,7 @@ export default function GettingStarted() {
                 </Badge>
                 <div>
                   <h4 className="font-semibold">
-                    Click "Connect Wallet" in Your Profile
+                    Click &quot;Connect Wallet&quot; in Your Profile
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     Navigate to your account settings
@@ -191,7 +192,8 @@ export default function GettingStarted() {
                 <div>
                   <h4 className="font-semibold">Verify the Connection</h4>
                   <p className="text-sm text-muted-foreground">
-                    You'll see a green checkmark when successfully connected
+                    You&apos;ll see a green checkmark when successfully
+                    connected
                   </p>
                 </div>
               </div>

@@ -14,7 +14,6 @@ import {
 import DashboardReviewsList from "@/components/reviews/dashboard-reviews-list";
 import Pagination from "@/components/pagination";
 import { getDashboardReviewsFilters } from "@/lib/utils";
-import { DashboardReviewsSearchParams } from "@/lib/types";
 import { me } from "@/lib/actions/auth";
 import Async from "@/components/async";
 import { Prisma } from "@prisma/client";
@@ -22,7 +21,7 @@ import { Prisma } from "@prisma/client";
 export default async function DashboardReviewsPage({
   searchParams,
 }: {
-  searchParams: Promise<DashboardReviewsSearchParams>;
+  searchParams: Promise<>;
 }) {
   const params = await searchParams;
 
@@ -90,7 +89,7 @@ export default async function DashboardReviewsPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Stats Card */}
-        <Async fetch={getReviewsStats}>
+        <Async fetch={() => getReviewsStats(prismaArgs)}>
           {(stats) => <ReviewStatsCard statistics={stats} />}
         </Async>
 

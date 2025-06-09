@@ -11,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 
 import { cn, encryptPrivateKey } from "@/lib/utils";
 import { createWallet } from "@/lib/actions/wallet";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import StepIndicator from "@/components/forms/step-indicator";
 import WalletDetailsForm from "@/components/wallet/create/wallet-details-form";
 import RecoveryPhraseDisplay from "@/components/wallet/create/recovery-phrase-display";

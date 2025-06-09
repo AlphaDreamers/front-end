@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getChatByOrderId, getOrderDetails } from "@/lib/actions/chat";
 import { me } from "@/lib/actions/auth";
 import { ChatContainer } from "@/components/chat/chat-container";
-import { ChatProvider } from "@/hooks/use-chat";
+import { ChatProvider } from "@/components/chat/chat-provider";
 
 export default async function ChatPage({
   params,
@@ -23,12 +23,6 @@ export default async function ChatPage({
   ]);
 
   if (!chat || !order) {
-    return notFound();
-  }
-
-  // Check if user has access to this chat
-  const hasAccess = chat.buyer.id === user.id || chat.seller.id === user.id;
-  if (!hasAccess) {
     return notFound();
   }
 

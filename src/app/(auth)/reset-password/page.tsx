@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 
 import { ResetPasswordFormSchema } from "@/lib/schemas";
 import { resetPassword } from "@/lib/actions/auth";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import PasswordStrengthIndicator from "@/components/password-strength-indicator";
 import PasswordInput from "@/components/password-input";
 

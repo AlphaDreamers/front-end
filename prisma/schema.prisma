@@ -225,7 +225,6 @@ model User {
   firstName     String
   lastName      String
   isKycVerified Boolean @default(false)
-  publicKey     String?
 
   verificationToken VerificationToken?
   gigs              Gig[]               @relation("Seller")
@@ -589,7 +588,7 @@ model GigFaq {
 }
 
 model Wallet {
-  id String @id @default(uuid())
+  publicKey String @id
 
   user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId               String
@@ -598,8 +597,6 @@ model Wallet {
   transactionsReceiver Transaction[] @relation("Receiver")
 
   name String
-
-  publicKey String @unique
 
   createdAt DateTime @default(now())
 }
@@ -639,15 +636,15 @@ model UserPreferences {
 }
 
 model Transaction {
-  txId       String   @id
-  amount     Float // Amount in SOL 
-  sender     Wallet   @relation("Sender", fields: [senderId], references: [id])
-  receiver   Wallet   @relation("Receiver", fields: [receiverId], references: [id])
-  order      Order?   @relation(fields: [orderId], references: [id])
-  createdAt  DateTime @default(now())
-  senderId   String
-  receiverId String
-  orderId    String?  @unique
+  txId              String   @id
+  amount            Float // Amount in SOL 
+  sender            Wallet   @relation("Sender", fields: [senderPublicKey], references: [publicKey])
+  receiver          Wallet   @relation("Receiver", fields: [receiverPublicKey], references: [publicKey])
+  order             Order?   @relation(fields: [orderId], references: [id])
+  createdAt         DateTime @default(now())
+  senderPublicKey   String
+  receiverPublicKey String
+  orderId           String?  @unique
 
   @@index([txId])
   @@index([orderId])

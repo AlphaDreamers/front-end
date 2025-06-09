@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "../ui/button";
 import { cn } from "@/lib/utils";
 
-import AuthCard from "../auth/auth-card";
+import AuthCard from "../templates/auth-card";
 
 interface ContactPageTemplateProps {
   title: string;

@@ -353,7 +353,7 @@ export default function ReviewsRatings() {
                         •
                       </Badge>
                       <div>
-                        <p className="text-sm font-medium">Consider the Freelancer's Effort</p>
+                        <p className="text-sm font-medium">Consider the Freelancer&apos;s Effort</p>
                         <p className="text-xs text-muted-foreground">
                           Acknowledge good communication and professionalism
                         </p>
@@ -388,7 +388,7 @@ export default function ReviewsRatings() {
                     </ul>
                   </div>
                   <div>
-                    <p className="font-medium text-red-600 mb-1">✗ Don't:</p>
+                    <p className="font-medium text-red-600 mb-1">✗ Don&apos;t:</p>
                     <ul className="space-y-1 text-muted-foreground">
                       <li>• Argue or become defensive</li>
                       <li>• Share private information</li>

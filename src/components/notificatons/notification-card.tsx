@@ -1,5 +1,3 @@
-// src/components/notifications/notification-card.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -32,13 +30,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Notification } from "@/lib/types/notifications";
+import { Notification } from "@/lib/types";
 import {
   getNotificationIcon,
   getNotificationColor,
   getNotificationBgColor,
   getNotificationBorderColor,
-} from "@/lib/utils/notifications";
+} from "@/lib/utils";
 
 interface NotificationCardProps {
   notification: Notification;

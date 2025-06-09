@@ -5,12 +5,8 @@ import FilterCard, { FilterType } from "@/components/filter-card";
 import Async from "@/components/async";
 
 import { me } from "@/lib/actions/auth";
-import {
-  getGigs,
-  getBookmarkedGigsCount,
-  getGigCount,
-} from "@/lib/actions/gig";
-import { buildGigFilters } from "@/lib/utils/gig";
+import { getGigs, getGigCount } from "@/lib/actions/gig";
+import { buildGigFilters } from "@/lib/utils";
 import { GigSearchParams } from "@/lib/types";
 
 const ITEMS_PER_PAGE = 10;
@@ -57,10 +53,7 @@ export default async function BookmarksPage({
         <div className="flex-1">
           <Async
             fetch={async () => {
-              return await Promise.all([
-                getGigs(args),
-                getGigCount(args.where),
-              ]);
+              return await Promise.all([getGigs(args), getGigCount(args)]);
             }}
             fallback={<GigsSkeleton />}
           >

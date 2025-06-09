@@ -5,37 +5,75 @@ import {
   type SocialLinkType,
   type MediaType,
   type NotificationType,
+  type ContactMessageType,
+  type OrderStatus,
+  type MessageStatus,
+  type ComplaintStatus,
+  type SupportPriority,
+  type SupportStatus,
+  type FeedbackCategory,
+  type MediaFile,
 } from "@prisma/client";
 import { faker } from "@faker-js/faker";
 import argon2 from "argon2";
 
 const prisma = new PrismaClient();
+
+// Helper data
 const imageUrls = Array.from(
-  { length: 10 },
-  (_, i) => `https://picsum.photos/200/300?random=${i}`
+  { length: 20 },
+  (_, i) => `https://picsum.photos/400/600?random=${i}`
 );
 const videoUrls = [
   "https://www.w3schools.com/html/mov_bbb.mp4",
   "https://www.w3schools.com/html/movie.mp4",
+  "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
 ];
 const audioUrls = [
   "https://www.w3schools.com/html/horse.mp3",
   "https://www.w3schools.com/html/horse.ogg",
+  "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
 ];
 const documentUrls = [
   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-  "https://example.com/sample.pdf",
+  "https://www.adobe.com/support/products/enterprise/knowledgecenter/media/c4611_sample_explain.pdf",
 ];
 
-function getRandomMediaType() {
+const countries = [
+  "United States",
+  "United Kingdom",
+  "Canada",
+  "Australia",
+  "Germany",
+  "France",
+  "Spain",
+  "Italy",
+  "Poland",
+  "Netherlands",
+];
+const languages = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Portuguese",
+  "Polish",
+  "Dutch",
+  "Russian",
+  "Chinese",
+];
+
+function getRandomMediaType(): MediaType {
   const rand = Math.random();
   if (rand < 0.7) return "IMAGE";
-  if (rand < 0.8) return "VIDEO";
-  if (rand < 0.9) return "AUDIO";
-  return "DOCUMENT";
+  if (rand < 0.85) return "VIDEO";
+  if (rand < 0.92) return "AUDIO";
+  if (rand < 0.98) return "DOCUMENT";
+  return "OTHER";
 }
 
-function getRandomUrl(type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT") {
+function getRandomUrl(type: MediaType): string {
   switch (type) {
     case "IMAGE":
       return faker.helpers.arrayElement(imageUrls);
@@ -46,144 +84,448 @@ function getRandomUrl(type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT") {
     case "DOCUMENT":
       return faker.helpers.arrayElement(documentUrls);
     default:
-      return "https://example.com/default";
+      return faker.internet.url();
   }
 }
-type CategoryWithChildren = Category & {
-  children: CategoryWithChildren[];
+
+type CategoryWithChildren = {
+  title: string;
+  icon: string;
+  color: string;
+  children?: CategoryWithChildren[];
 };
+
+async function clearDatabase() {
+  console.log("Clearing existing data...");
+
+  // Clear in correct order to respect foreign key constraints
+  await prisma.transaction.deleteMany({});
+  await prisma.userPreferences.deleteMany({});
+  await prisma.fAQ.deleteMany({});
+  await prisma.wallet.deleteMany({});
+  await prisma.generalContent.deleteMany({});
+  await prisma.feedbackContent.deleteMany({});
+  await prisma.supportContent.deleteMany({});
+  await prisma.complaintContent.deleteMany({});
+  await prisma.testimonialContent.deleteMany({});
+  await prisma.contactMessage.deleteMany({});
+  await prisma.systemContent.deleteMany({});
+  await prisma.mediaContent.deleteMany({});
+  await prisma.textContent.deleteMany({});
+  await prisma.message.deleteMany({});
+  await prisma.chat.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.review.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.packageFeature.deleteMany({});
+  await prisma.package.deleteMany({});
+  await prisma.gigFeature.deleteMany({});
+  await prisma.gigFaq.deleteMany({});
+  await prisma.gig.deleteMany({});
+  await prisma.image.deleteMany({});
+  await prisma.mediaFile.deleteMany({});
+  await prisma.userMessage.deleteMany({});
+  await prisma.portfolioItem.deleteMany({});
+  await prisma.socialLink.deleteMany({});
+  await prisma.userBadgeProgress.deleteMany({});
+  await prisma.badgeMilestone.deleteMany({});
+  await prisma.badge.deleteMany({});
+  await prisma.userSkill.deleteMany({});
+  await prisma.skill.deleteMany({});
+  await prisma.tag.deleteMany({});
+  await prisma.category.deleteMany({});
+  await prisma.verificationToken.deleteMany({});
+  await prisma.user.deleteMany({});
+
+  console.log("Database cleared successfully.");
+}
+
+async function createCategory(
+  category: CategoryWithChildren,
+  parentId: string | null = null,
+  depth = 0
+): Promise<Category> {
+  const created = await prisma.category.create({
+    data: {
+      title: category.title,
+      depth,
+      parentId,
+      color: category.color,
+      icon: category.icon,
+    },
+  });
+
+  if (category.children) {
+    for (const child of category.children) {
+      await createCategory(child, created.id, depth + 1);
+    }
+  }
+
+  return created;
+}
 
 async function seed() {
   try {
-    console.log("Starting database seeding...");
+    console.log("🚀 Starting database seeding...");
 
-    // Clear existing data in proper order to respect foreign key constraints
-    console.log("Clearing existing data...");
-    await prisma.contactMessage.deleteMany({});
-    await prisma.testimonialContent.deleteMany({});
-    await prisma.portfolioItem.deleteMany({});
-    await prisma.socialLink.deleteMany({});
-    await prisma.userMessage.deleteMany({});
-    await prisma.mediaFile.deleteMany({});
-    await prisma.order.deleteMany({});
-    await prisma.notification.deleteMany({});
-    await prisma.image.deleteMany({});
-    await prisma.packageFeature.deleteMany({});
-    await prisma.gigFeature.deleteMany({});
-    await prisma.package.deleteMany({});
-    await prisma.gigFaq.deleteMany({});
-    await prisma.gig.deleteMany({});
-    await prisma.tag.deleteMany({});
-    await prisma.review.deleteMany({});
-    await prisma.userSkill.deleteMany({});
-    await prisma.skill.deleteMany({});
-    await prisma.userBadgeProgress.deleteMany({});
-    await prisma.badgeMilestone.deleteMany({});
-    await prisma.badge.deleteMany({});
-    await prisma.chat.deleteMany({});
-    await prisma.message.deleteMany({});
-    await prisma.textContent.deleteMany({});
-    await prisma.mediaContent.deleteMany({});
-    await prisma.systemContent.deleteMany({});
-    await prisma.category.deleteMany({});
-    await prisma.user.deleteMany({});
-    console.log("Existing data cleared successfully.");
+    await clearDatabase();
 
-    // 1. Seed Badges and Badge Milestones
-    console.log("Seeding badges and milestones...");
-    const badges = [
+    // 1. Seed FAQs (platform-wide FAQs)
+    console.log("📋 Seeding FAQs...");
+    const faqs = [
       {
-        title: "Top Seller",
-        description: "Awarded to sellers with high sales volume.",
-        condition: "Number of completed orders",
-        milestones: [
-          { threshold: 10, tier: "BRONZE" },
-          { threshold: 50, tier: "SILVER" },
-          { threshold: 100, tier: "GOLD" },
-          { threshold: 500, tier: "PLATINUM" },
-          { threshold: 1000, tier: "DIAMOND" },
+        question: "How do I connect my Solana wallet?",
+        answer:
+          "Go to your dashboard, click 'Connect Wallet', and follow the Phantom wallet prompts.",
+      },
+      {
+        question: "What payment methods are accepted?",
+        answer:
+          "We accept SOL (Solana) cryptocurrency payments through connected wallets.",
+      },
+      {
+        question: "How does the escrow system work?",
+        answer:
+          "Payments are held in escrow until the order is completed and approved by the buyer.",
+      },
+      {
+        question: "Can I cancel an order?",
+        answer:
+          "Orders can be cancelled within 24 hours if work hasn't started. Contact support for assistance.",
+      },
+      {
+        question: "How do I become a verified seller?",
+        answer:
+          "Complete the KYC process in your account settings by providing required documentation.",
+      },
+    ];
+
+    for (const faq of faqs) {
+      await prisma.fAQ.create({ data: faq });
+    }
+    console.log(`✅ Seeded ${faqs.length} FAQs.`);
+
+    // 2. Seed Categories
+    console.log("📁 Seeding categories...");
+    const categoryStructure: CategoryWithChildren[] = [
+      {
+        title: "Programming & Tech",
+        icon: "Code",
+        color: "purple",
+        children: [
+          {
+            title: "Web Development",
+            icon: "Globe",
+            color: "blue",
+            children: [
+              { title: "Frontend Development", icon: "Layout", color: "cyan" },
+              { title: "Backend Development", icon: "Server", color: "green" },
+              {
+                title: "Full Stack Development",
+                icon: "Layers",
+                color: "indigo",
+              },
+            ],
+          },
+          {
+            title: "Mobile Development",
+            icon: "Smartphone",
+            color: "pink",
+            children: [
+              { title: "iOS Development", icon: "Apple", color: "gray" },
+              { title: "Android Development", icon: "Bot", color: "green" },
+              { title: "Cross-Platform", icon: "Shuffle", color: "purple" },
+            ],
+          },
+          { title: "Blockchain & Crypto", icon: "Blocks", color: "orange" },
+          { title: "AI & Machine Learning", icon: "Brain", color: "red" },
         ],
       },
       {
-        title: "Highly Rated",
-        description: "For sellers with many 5-star reviews.",
-        condition: "Number of 5-star reviews",
+        title: "Design & Creative",
+        icon: "Palette",
+        color: "pink",
+        children: [
+          {
+            title: "Graphic Design",
+            icon: "PenTool",
+            color: "yellow",
+            children: [
+              { title: "Logo Design", icon: "Hexagon", color: "blue" },
+              { title: "Brand Identity", icon: "Tag", color: "purple" },
+              { title: "Illustration", icon: "Brush", color: "orange" },
+            ],
+          },
+          { title: "UI/UX Design", icon: "Layout", color: "green" },
+          { title: "3D Design", icon: "Box", color: "red" },
+        ],
+      },
+      {
+        title: "Writing & Translation",
+        icon: "FileText",
+        color: "blue",
+        children: [
+          { title: "Content Writing", icon: "FileText", color: "gray" },
+          { title: "Copywriting", icon: "Edit", color: "purple" },
+          { title: "Technical Writing", icon: "FileCode", color: "green" },
+          { title: "Translation", icon: "Languages", color: "orange" },
+        ],
+      },
+      {
+        title: "Video & Animation",
+        icon: "Video",
+        color: "red",
+        children: [
+          { title: "Video Editing", icon: "Film", color: "purple" },
+          { title: "Animation", icon: "Play", color: "blue" },
+          { title: "Motion Graphics", icon: "Zap", color: "yellow" },
+        ],
+      },
+      {
+        title: "Music & Audio",
+        icon: "Music",
+        color: "green",
+        children: [
+          { title: "Music Production", icon: "Headphones", color: "purple" },
+          { title: "Voice Over", icon: "Mic", color: "blue" },
+          { title: "Sound Design", icon: "Volume2", color: "orange" },
+        ],
+      },
+      {
+        title: "Business",
+        icon: "Briefcase",
+        color: "gray",
+        children: [
+          { title: "Business Consulting", icon: "TrendingUp", color: "blue" },
+          { title: "Marketing Strategy", icon: "Target", color: "red" },
+          { title: "Financial Services", icon: "DollarSign", color: "green" },
+        ],
+      },
+    ];
+
+    let categoryCount = 0;
+    for (const category of categoryStructure) {
+      await createCategory(category);
+      categoryCount++;
+    }
+    console.log(
+      `✅ Seeded ${categoryCount} top-level categories with subcategories.`
+    );
+
+    // 3. Seed Tags
+    console.log("🏷️ Seeding tags...");
+    const tags = [
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Vue",
+      "Angular",
+      "Node.js",
+      "Python",
+      "Django",
+      "Flask",
+      "Java",
+      "Spring",
+      "PHP",
+      "Laravel",
+      "WordPress",
+      "Solana",
+      "Web3",
+      "Smart Contracts",
+      "NFT",
+      "DeFi",
+      "Rust",
+      "Golang",
+      "Swift",
+      "Kotlin",
+      "Flutter",
+      "React Native",
+      "UI Design",
+      "UX Design",
+      "Figma",
+      "Adobe XD",
+      "Photoshop",
+      "Illustrator",
+      "After Effects",
+      "Premiere Pro",
+      "Blender",
+      "3D Modeling",
+      "Logo Design",
+      "Brand Identity",
+      "SEO",
+      "Content Writing",
+      "Copywriting",
+      "Technical Writing",
+      "Video Editing",
+      "Animation",
+      "Motion Graphics",
+      "Music Production",
+      "Voice Over",
+      "Podcast Editing",
+      "Mixing",
+      "Mastering",
+      "Business Strategy",
+      "Marketing",
+      "Social Media",
+      "Email Marketing",
+    ];
+
+    await prisma.tag.createMany({
+      data: tags.map((title) => ({ title })),
+      skipDuplicates: true,
+    });
+    console.log(`✅ Seeded ${tags.length} tags.`);
+
+    // 4. Seed Skills
+    console.log("💡 Seeding skills...");
+    const skillsList = [
+      ...tags, // Include all tags as skills
+      "HTML",
+      "CSS",
+      "SASS",
+      "Tailwind CSS",
+      "Bootstrap",
+      "Material UI",
+      "REST API",
+      "GraphQL",
+      "PostgreSQL",
+      "MySQL",
+      "MongoDB",
+      "Redis",
+      "Docker",
+      "Kubernetes",
+      "AWS",
+      "Azure",
+      "Google Cloud",
+      "CI/CD",
+      "Git",
+      "GitHub",
+      "GitLab",
+      "Agile",
+      "Scrum",
+      "Project Management",
+      "Communication",
+      "Problem Solving",
+      "Critical Thinking",
+      "Creativity",
+    ];
+
+    const createdSkills = [];
+    for (const skillTitle of [...new Set(skillsList)]) {
+      const skill = await prisma.skill.create({
+        data: { title: skillTitle },
+      });
+      createdSkills.push(skill);
+    }
+    console.log(`✅ Seeded ${createdSkills.length} skills.`);
+
+    // 5. Seed Badges and Milestones
+    console.log("🏆 Seeding badges and milestones...");
+    const badges = [
+      {
+        title: "Top Seller",
+        description: "Awarded to sellers with high sales volume",
+        condition: "Number of completed orders",
+        icon: "Trophy",
+        color: "yellow",
         milestones: [
-          { threshold: 5, tier: "BRONZE" },
-          { threshold: 25, tier: "SILVER" },
-          { threshold: 50, tier: "GOLD" },
-          { threshold: 100, tier: "PLATINUM" },
-          { threshold: 200, tier: "DIAMOND" },
+          { threshold: 10, tier: "BRONZE" as Tier },
+          { threshold: 50, tier: "SILVER" as Tier },
+          { threshold: 100, tier: "GOLD" as Tier },
+          { threshold: 500, tier: "PLATINUM" as Tier },
+          { threshold: 1000, tier: "DIAMOND" as Tier },
+        ],
+      },
+      {
+        title: "5-Star Seller",
+        description: "Consistently high-rated seller",
+        condition: "Number of 5-star reviews",
+        icon: "Star",
+        color: "gold",
+        milestones: [
+          { threshold: 5, tier: "BRONZE" as Tier },
+          { threshold: 25, tier: "SILVER" as Tier },
+          { threshold: 50, tier: "GOLD" as Tier },
+          { threshold: 100, tier: "PLATINUM" as Tier },
+          { threshold: 250, tier: "DIAMOND" as Tier },
         ],
       },
       {
         title: "Quick Responder",
-        description: "For sellers with fast response times.",
+        description: "Lightning fast response times",
         condition: "Messages replied within 1 hour",
+        icon: "Zap",
+        color: "blue",
         milestones: [
-          { threshold: 10, tier: "BRONZE" },
-          { threshold: 30, tier: "SILVER" },
-          { threshold: 60, tier: "GOLD" },
-          { threshold: 120, tier: "PLATINUM" },
-          { threshold: 250, tier: "DIAMOND" },
+          { threshold: 20, tier: "BRONZE" as Tier },
+          { threshold: 50, tier: "SILVER" as Tier },
+          { threshold: 100, tier: "GOLD" as Tier },
+          { threshold: 250, tier: "PLATINUM" as Tier },
+          { threshold: 500, tier: "DIAMOND" as Tier },
         ],
       },
       {
-        title: "Long-time Member",
-        description: "For veteran platform users.",
+        title: "Veteran Member",
+        description: "Long-standing platform member",
         condition: "Months since joining",
+        icon: "Award",
+        color: "purple",
         milestones: [
-          { threshold: 6, tier: "BRONZE" },
-          { threshold: 12, tier: "SILVER" },
-          { threshold: 24, tier: "GOLD" },
-          { threshold: 36, tier: "PLATINUM" },
-          { threshold: 60, tier: "DIAMOND" },
+          { threshold: 3, tier: "BRONZE" as Tier },
+          { threshold: 6, tier: "SILVER" as Tier },
+          { threshold: 12, tier: "GOLD" as Tier },
+          { threshold: 24, tier: "PLATINUM" as Tier },
+          { threshold: 48, tier: "DIAMOND" as Tier },
         ],
       },
       {
-        title: "Verified Seller",
-        description: "For sellers who completed KYC.",
-        condition: "Verification steps completed",
-        milestones: [
-          { threshold: 1, tier: "BRONZE" },
-          { threshold: 2, tier: "SILVER" },
-          { threshold: 3, tier: "GOLD" },
-        ],
+        title: "Verified Expert",
+        description: "Completed identity verification",
+        condition: "KYC verification completed",
+        icon: "CheckCircle",
+        color: "green",
+        milestones: [{ threshold: 1, tier: "GOLD" as Tier }],
       },
       {
-        title: "Portfolio Master",
-        description: "For sellers with rich portfolios.",
+        title: "Portfolio Pro",
+        description: "Showcase master with rich portfolio",
         condition: "Number of portfolio items",
+        icon: "Image",
+        color: "pink",
         milestones: [
-          { threshold: 5, tier: "BRONZE" },
-          { threshold: 15, tier: "SILVER" },
-          { threshold: 30, tier: "GOLD" },
-          { threshold: 50, tier: "PLATINUM" },
-          { threshold: 100, tier: "DIAMOND" },
+          { threshold: 5, tier: "BRONZE" as Tier },
+          { threshold: 15, tier: "SILVER" as Tier },
+          { threshold: 30, tier: "GOLD" as Tier },
+          { threshold: 50, tier: "PLATINUM" as Tier },
+          { threshold: 100, tier: "DIAMOND" as Tier },
         ],
       },
       {
-        title: "Skill Master",
-        description: "For sellers with many skills.",
-        condition: "Number of skills",
+        title: "Multi-Talented",
+        description: "Master of many skills",
+        condition: "Number of verified skills",
+        icon: "Layers",
+        color: "orange",
         milestones: [
-          { threshold: 5, tier: "BRONZE" },
-          { threshold: 10, tier: "SILVER" },
-          { threshold: 20, tier: "GOLD" },
-          { threshold: 40, tier: "PLATINUM" },
-          { threshold: 80, tier: "DIAMOND" },
+          { threshold: 5, tier: "BRONZE" as Tier },
+          { threshold: 10, tier: "SILVER" as Tier },
+          { threshold: 20, tier: "GOLD" as Tier },
+          { threshold: 35, tier: "PLATINUM" as Tier },
+          { threshold: 50, tier: "DIAMOND" as Tier },
         ],
       },
       {
-        title: "Customer Favorite",
-        description: "For sellers with repeat customers.",
-        condition: "Number of repeat orders",
+        title: "Repeat Business",
+        description: "Trusted by returning customers",
+        condition: "Number of repeat buyers",
+        icon: "Users",
+        color: "indigo",
         milestones: [
-          { threshold: 5, tier: "BRONZE" },
-          { threshold: 20, tier: "SILVER" },
-          { threshold: 50, tier: "GOLD" },
-          { threshold: 100, tier: "PLATINUM" },
-          { threshold: 200, tier: "DIAMOND" },
+          { threshold: 5, tier: "BRONZE" as Tier },
+          { threshold: 15, tier: "SILVER" as Tier },
+          { threshold: 30, tier: "GOLD" as Tier },
+          { threshold: 60, tier: "PLATINUM" as Tier },
+          { threshold: 100, tier: "DIAMOND" as Tier },
         ],
       },
     ];
@@ -195,373 +537,184 @@ async function seed() {
           title: badge.title,
           description: badge.description,
           condition: badge.condition,
+          icon: badge.icon,
+          color: badge.color,
           milestones: {
-            create: badge.milestones as Array<{
-              threshold: number;
-              tier: Tier;
-            }>,
+            create: badge.milestones,
           },
         },
       });
       createdBadges.push(createdBadge);
     }
-    console.log(`Seeded ${createdBadges.length} badges with milestones.`);
+    console.log(`✅ Seeded ${createdBadges.length} badges with milestones.`);
 
-    // 2. Seed Categories
-    console.log("Seeding categories...");
-    const categoryStructure = [
-      {
-        title: "Programming & Tech",
-        children: [
-          {
-            title: "Web Development",
-            children: [
-              {
-                title: "Frontend Development",
-                children: [
-                  { title: "React Development" },
-                  { title: "Vue.js Development" },
-                ],
-              },
-              {
-                title: "Backend Development",
-                children: [
-                  { title: "Node.js Development" },
-                  { title: "Django Development" },
-                ],
-              },
-              { title: "Full Stack Development" },
-            ],
-          },
-          {
-            title: "Mobile Development",
-            children: [
-              { title: "iOS Development" },
-              { title: "Android Development" },
-            ],
-          },
-          { title: "Data Science" },
-          {
-            title: "AI & Machine Learning",
-            children: [
-              { title: "Natural Language Processing" },
-              { title: "Computer Vision" },
-            ],
-          },
-        ],
-      },
-      {
-        title: "Design & Creative",
-        children: [
-          {
-            title: "Graphic Design",
-            children: [
-              { title: "Logo Design" },
-              { title: "Branding" },
-              {
-                title: "Illustration",
-                children: [
-                  { title: "Digital Illustration" },
-                  { title: "Traditional Illustration" },
-                ],
-              },
-            ],
-          },
-          { title: "UI/UX Design" },
-          { title: "Animation" },
-        ],
-      },
-      {
-        title: "Writing & Translation",
-        children: [
-          { title: "Content Writing" },
-          {
-            title: "Copywriting",
-            children: [
-              { title: "Ad Copywriting" },
-              { title: "SEO Copywriting" },
-            ],
-          },
-          { title: "Translation" },
-        ],
-      },
-      {
-        title: "Business",
-        children: [
-          { title: "Business Consulting" },
-          {
-            title: "Financial Consulting",
-            children: [
-              { title: "Tax Consulting" },
-              { title: "Investment Advice" },
-            ],
-          },
-          { title: "Legal Consulting" },
-        ],
-      },
-      {
-        title: "Marketing",
-        children: [
-          {
-            title: "Digital Marketing",
-            children: [
-              {
-                title: "SEO",
-                children: [{ title: "On-Page SEO" }, { title: "Off-Page SEO" }],
-              },
-              {
-                title: "Social Media Marketing",
-                children: [
-                  { title: "Instagram Marketing" },
-                  { title: "Facebook Marketing" },
-                  { title: "TikTok Marketing" },
-                ],
-              },
-            ],
-          },
-          { title: "Email Marketing" },
-        ],
-      },
-      {
-        title: "Video & Animation",
-        children: [{ title: "Video Editing" }, { title: "Motion Graphics" }],
-      },
-      {
-        title: "Music & Audio",
-        children: [{ title: "Music Production" }, { title: "Voice Over" }],
-      },
-      { title: "Consulting" },
-    ];
+    // 6. Seed Users
+    console.log("👤 Seeding users...");
+    const users = [];
 
-    async function createCategory(
-      category: CategoryWithChildren,
-      parentId: string | null = null,
-      depth = 0
-    ) {
-      const created = await prisma.category.create({
-        data: {
-          title: category.title,
-          depth,
-          parentId,
-          color: faker.helpers.arrayElement([
-            "purple",
-            "green",
-            "gray",
-            "blue",
-            "green",
-            "yellow",
-          ]),
-          icon: faker.helpers.arrayElement([
-            "Code",
-            "MonitorSmartphone",
-            "Smartphone",
-            "PenTool",
-            "Palette",
-            "FileText",
-            "FileCode",
-            "FileImage",
-            "FileVideo",
-          ]),
-        },
-      });
-      if (category.children) {
-        for (const child of category.children) {
-          await createCategory(child, created.id, depth + 1);
-        }
-      }
-      return created;
-    }
-
-    let categoryCount = 0;
-    for (const category of categoryStructure) {
-      await createCategory(category as CategoryWithChildren);
-      categoryCount++;
-    }
-    console.log(
-      `Seeded ${categoryCount} top-level categories with subcategories.`
-    );
-
-    // 3. Seed Tags
-    console.log("Seeding tags...");
-    const tags = [
-      "JavaScript",
-      "React",
-      "Node.js",
-      "Python",
-      "Django",
-      "Flask",
-      "Java",
-      "Spring",
-      "PHP",
-      "Laravel",
-      "WordPress",
-      "HTML",
-      "CSS",
-      "Bootstrap",
-      "Tailwind",
-      "UI/UX",
-      "Graphic Design",
-      "Logo Design",
-      "Illustration",
-      "Animation",
-      "Video Editing",
-      "Content Writing",
-      "Copywriting",
-      "SEO",
-      "Social Media",
-      "Email Marketing",
-      "Business Consulting",
-      "Music Production",
-      "Voice Over",
-      "Data Analysis",
-    ];
-
-    await prisma.tag.createMany({
-      data: tags.map((title) => ({ title })),
-      skipDuplicates: true,
+    // Create test users first
+    const test1 = await prisma.user.create({
+      data: {
+        username: "test1user",
+        email: "test1@gmail.com",
+        password: await argon2.hash("test"),
+        firstName: "Test",
+        lastName: "One",
+        isVerified: true,
+        avatar: faker.image.avatar(),
+        banner: faker.image.url({ width: 1200, height: 300 }),
+        headline: "Professional Developer & Designer",
+        bio: "Experienced full-stack developer with expertise in modern web technologies.",
+        isKycVerified: true,
+        country: "United States",
+        languages: ["English", "Spanish"],
+      },
     });
-    console.log(`Seeded ${tags.length} tags.`);
+    users.push(test1);
 
-    // 4. Seed Skills
-    console.log("Seeding skills...");
-    const skillsList = [
-      "JavaScript",
-      "Python",
-      "Java",
-      "React",
-      "Node.js",
-      "HTML",
-      "CSS",
-      "TypeScript",
-      "Angular",
-      "Vue.js",
-      "Express.js",
-      "Django",
-      "Flask",
-      "Spring Boot",
-      "PHP",
-      "Laravel",
-      "WordPress",
-      "MySQL",
-      "PostgreSQL",
-      "MongoDB",
-      "Redis",
-      "Docker",
-      "Kubernetes",
-      "AWS",
-      "Azure",
-      "GCP",
-      "Git",
-      "GraphQL",
-      "REST APIs",
-      "Microservices",
-      "Adobe Photoshop",
-      "Adobe Illustrator",
-      "Figma",
-      "Sketch",
-      "UI/UX Design",
-      "Graphic Design",
-      "Logo Design",
-      "Branding",
-      "Video Editing",
-      "Motion Graphics",
-      "Content Writing",
-      "Copywriting",
-      "SEO",
-      "Social Media Marketing",
-      "Email Marketing",
-      "Google Ads",
-      "Facebook Ads",
-      "Analytics",
-      "Project Management",
-      "Business Analysis",
-    ];
+    const test2 = await prisma.user.create({
+      data: {
+        username: "test2user",
+        email: "test2@gmail.com",
+        password: await argon2.hash("test"),
+        firstName: "Test",
+        lastName: "Two",
+        isVerified: true,
+        avatar: faker.image.avatar(),
+        banner: faker.image.url({ width: 1200, height: 300 }),
+        headline: "Creative Designer & Content Creator",
+        bio: "Passionate about creating stunning visual designs and engaging content.",
+        isKycVerified: true,
+        country: "United Kingdom",
+        languages: ["English", "French"],
+      },
+    });
+    users.push(test2);
 
-    const createdSkills = [];
-    for (const skillTitle of skillsList) {
-      const skill = await prisma.skill.create({
-        data: { title: skillTitle },
-      });
-      createdSkills.push(skill);
-    }
-    console.log(`Seeded ${createdSkills.length} skills.`);
-
-    // 5. Seed Users
-    console.log("Seeding users...");
-    const users = [
-      await prisma.user.create({
-        data: {
-          username: faker.internet.username(),
-          email: "test1@gmail.com",
-          password: await argon2.hash("test"),
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
-          isVerified: true,
-          avatar: faker.image.avatar(),
-          headline: faker.lorem.sentence(),
-          bio: faker.lorem.paragraph(),
-          isKycVerified: false,
-        },
-      }),
-      await prisma.user.create({
-        data: {
-          username: faker.internet.username(),
-          email: "test2@gmail.com",
-          password: await argon2.hash("test"),
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
-          isVerified: true,
-          avatar: faker.image.avatar(),
-          headline: faker.lorem.sentence(),
-          bio: faker.lorem.paragraph(),
-          isKycVerified: false,
-        },
-      }),
-    ];
-
-    for (let i = 0; i < 100; i++) {
+    // Create additional users
+    for (let i = 0; i < 150; i++) {
+      const firstName = faker.person.firstName();
+      const lastName = faker.person.lastName();
       const user = await prisma.user.create({
         data: {
-          username: faker.internet.username(),
-          email: faker.internet.email(),
-          password: await argon2.hash(faker.internet.password()),
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
-          isVerified: faker.datatype.boolean({
-            probability: 90,
-          }),
-          avatar: faker.datatype.boolean({
-            probability: 75,
-          })
-            ? faker.image.avatarGitHub()
+          username: faker.internet.username({ firstName, lastName }),
+          email: faker.internet.email({ firstName, lastName }),
+          password: await argon2.hash(faker.internet.password({ length: 12 })),
+          firstName,
+          lastName,
+          isVerified: faker.datatype.boolean({ probability: 0.9 }),
+          avatar: faker.datatype.boolean({ probability: 0.8 })
+            ? faker.image.avatar()
             : null,
-          headline: faker.datatype.boolean({
-            probability: 75,
-          })
-            ? faker.lorem.sentence()
+          banner: faker.datatype.boolean({ probability: 0.6 })
+            ? faker.image.url({ width: 1200, height: 300 })
             : null,
-          bio: faker.datatype.boolean({
-            probability: 50,
-          })
+          headline: faker.datatype.boolean({ probability: 0.7 })
+            ? faker.person.jobTitle()
+            : null,
+          bio: faker.datatype.boolean({ probability: 0.6 })
             ? faker.lorem.paragraph()
             : null,
-          isKycVerified: faker.datatype.boolean({
-            probability: 50,
-          }),
+          isKycVerified: faker.datatype.boolean({ probability: 0.4 }),
+          country: faker.helpers.arrayElement(countries),
+          languages: faker.helpers.arrayElements(languages, { min: 1, max: 3 }),
         },
       });
       users.push(user);
     }
-    console.log(`Seeded ${users.length} users.`);
+    console.log(`✅ Seeded ${users.length} users.`);
 
-    // 6. Seed User Skills
-    console.log("Seeding user skills...");
-    let userSkillCountTotal = 0;
+    // 7. Seed UserPreferences
+    console.log("⚙️ Seeding user preferences...");
     for (const user of users) {
-      const userSkillCount = faker.number.int({ min: 3, max: 8 });
-      const selectedSkills = faker.helpers
-        .shuffle(createdSkills)
-        .slice(0, userSkillCount);
+      await prisma.userPreferences.create({
+        data: {
+          userId: user.id,
+          timezone: faker.helpers.arrayElement([
+            "UTC",
+            "America/New_York",
+            "America/Los_Angeles",
+            "Europe/London",
+            "Europe/Paris",
+            "Asia/Tokyo",
+            "Australia/Sydney",
+            "America/Toronto",
+          ]),
+          language: faker.helpers.arrayElement([
+            "en_US",
+            "es_ES",
+            "fr_FR",
+            "de_DE",
+            "it_IT",
+            "pt_BR",
+            "ja_JP",
+            "zh_CN",
+          ]),
+          ordersEnabled: faker.datatype.boolean({ probability: 0.9 }),
+          ordersEmail: faker.datatype.boolean({ probability: 0.7 }),
+          ordersInApp: faker.datatype.boolean({ probability: 0.95 }),
+          messagesEnabled: faker.datatype.boolean({ probability: 0.95 }),
+          messagesEmail: faker.datatype.boolean({ probability: 0.6 }),
+          messagesInApp: faker.datatype.boolean({ probability: 0.9 }),
+          reviewsEnabled: faker.datatype.boolean({ probability: 0.85 }),
+          reviewsEmail: faker.datatype.boolean({ probability: 0.4 }),
+          reviewsInApp: faker.datatype.boolean({ probability: 0.8 }),
+          quietHoursEnabled: faker.datatype.boolean({ probability: 0.3 }),
+          quietHoursStartTime: faker.datatype.boolean({ probability: 0.3 })
+            ? "22:00"
+            : null,
+          quietHoursEndTime: faker.datatype.boolean({ probability: 0.3 })
+            ? "08:00"
+            : null,
+        },
+      });
+    }
+    console.log(`✅ Seeded user preferences for all users.`);
+
+    // 8. Seed Verification Tokens (for some unverified users)
+    console.log("🔐 Seeding verification tokens...");
+    const unverifiedUsers = users.filter((u) => !u.isVerified);
+    let tokenCount = 0;
+    for (const user of unverifiedUsers.slice(0, 20)) {
+      await prisma.verificationToken.create({
+        data: {
+          userId: user.id,
+          code: faker.string.alphanumeric(32),
+          expiresAt: faker.date.future(),
+        },
+      });
+      tokenCount++;
+    }
+    console.log(`✅ Seeded ${tokenCount} verification tokens.`);
+
+    // 9. Seed Wallets
+    console.log("💰 Seeding wallets...");
+    const wallets = [];
+    for (const user of users) {
+      const walletCount = faker.number.int({ min: 1, max: 3 });
+      for (let i = 0; i < walletCount; i++) {
+        const wallet = await prisma.wallet.create({
+          data: {
+            publicKey: faker.string.alphanumeric(44), // Solana public key length
+            userId: user.id,
+            isMain: i === 0,
+            name: i === 0 ? "Main Wallet" : `Wallet ${i + 1}`,
+          },
+        });
+        wallets.push(wallet);
+      }
+    }
+    console.log(`✅ Seeded ${wallets.length} wallets.`);
+
+    // 10. Seed User Skills
+    console.log("🎯 Seeding user skills...");
+    let userSkillCount = 0;
+    for (const user of users) {
+      const skillCount = faker.number.int({ min: 3, max: 12 });
+      const selectedSkills = faker.helpers.arrayElements(
+        createdSkills,
+        skillCount
+      );
 
       for (const skill of selectedSkills) {
         await prisma.userSkill.create({
@@ -571,13 +724,13 @@ async function seed() {
             level: faker.number.int({ min: 1, max: 10 }),
           },
         });
-        userSkillCountTotal++;
+        userSkillCount++;
       }
     }
-    console.log(`Seeded ${userSkillCountTotal} user skills.`);
+    console.log(`✅ Seeded ${userSkillCount} user skills.`);
 
-    // 7. Seed Social Links
-    console.log("Seeding social links...");
+    // 11. Seed Social Links
+    console.log("🔗 Seeding social links...");
     const socialLinkTypes: SocialLinkType[] = [
       "X",
       "GITHUB",
@@ -593,30 +746,48 @@ async function seed() {
       "EMAIL",
     ];
 
-    let socialLinkCountTotal = 0;
+    let socialLinkCount = 0;
     for (const user of users) {
-      const linkCount = faker.number.int({ min: 1, max: 4 });
-      const selectedTypes = faker.helpers
-        .shuffle(socialLinkTypes)
-        .slice(0, linkCount);
+      const linkCount = faker.number.int({ min: 1, max: 5 });
+      const selectedTypes = faker.helpers.arrayElements(
+        socialLinkTypes,
+        linkCount
+      );
 
       for (const type of selectedTypes) {
         let url: string;
+        const username = faker.internet.username();
+
         switch (type) {
           case "X":
-            url = `https://x.com/${faker.internet.username()}`;
+            url = `https://x.com/${username}`;
             break;
           case "GITHUB":
-            url = `https://github.com/${faker.internet.username()}`;
+            url = `https://github.com/${username}`;
             break;
           case "LINKEDIN":
-            url = `https://linkedin.com/in/${faker.internet.username()}`;
+            url = `https://linkedin.com/in/${username}`;
             break;
           case "INSTAGRAM":
-            url = `https://instagram.com/${faker.internet.username()}`;
+            url = `https://instagram.com/${username}`;
             break;
           case "FACEBOOK":
-            url = `https://facebook.com/${faker.internet.username()}`;
+            url = `https://facebook.com/${username}`;
+            break;
+          case "TIKTOK":
+            url = `https://tiktok.com/@${username}`;
+            break;
+          case "YOUTUBE":
+            url = `https://youtube.com/@${username}`;
+            break;
+          case "DISCORD":
+            url = `${username}#${faker.number.int({ min: 1000, max: 9999 })}`;
+            break;
+          case "TELEGRAM":
+            url = `https://t.me/${username}`;
+            break;
+          case "WHATSAPP":
+            url = `https://wa.me/${faker.phone.number().replace(/\D/g, "")}`;
             break;
           case "WEBSITE":
             url = faker.internet.url();
@@ -624,8 +795,6 @@ async function seed() {
           case "EMAIL":
             url = `mailto:${faker.internet.email()}`;
             break;
-          default:
-            url = faker.internet.url();
         }
 
         await prisma.socialLink.create({
@@ -635,43 +804,72 @@ async function seed() {
             userId: user.id,
           },
         });
-        socialLinkCountTotal++;
+        socialLinkCount++;
       }
     }
-    console.log(`Seeded ${socialLinkCountTotal} social links.`);
+    console.log(`✅ Seeded ${socialLinkCount} social links.`);
 
-    // 8. Seed Portfolio Items
-    console.log("Seeding portfolio items...");
-    let portfolioItemCountTotal = 0;
-    for (const user of users.slice(0, 80)) {
-      const portfolioItemCount = faker.number.int({ min: 2, max: 8 });
+    // 12. Seed Media Files
+    console.log("📸 Seeding media files...");
+    const mediaFiles: MediaFile[] = [];
+    for (let i = 0; i < 300; i++) {
+      const mediaType = getRandomMediaType();
+      const url = getRandomUrl(mediaType);
 
-      for (let i = 0; i < portfolioItemCount; i++) {
-        await prisma.portfolioItem.create({
+      const mediaFile = await prisma.mediaFile.create({
+        data: {
+          url,
+          type: mediaType,
+        },
+      });
+      mediaFiles.push(mediaFile);
+    }
+    console.log(`✅ Seeded ${mediaFiles.length} media files.`);
+
+    // 13. Seed Portfolio Items
+    console.log("📂 Seeding portfolio items...");
+    let portfolioCount = 0;
+    for (const user of users.slice(0, 100)) {
+      const itemCount = faker.number.int({ min: 2, max: 10 });
+
+      for (let i = 0; i < itemCount; i++) {
+        const portfolio = await prisma.portfolioItem.create({
           data: {
-            title: faker.lorem.words(faker.number.int({ min: 2, max: 5 })),
-            description: faker.datatype.boolean({ probability: 80 })
-              ? faker.lorem.paragraph()
+            title: faker.commerce.productName(),
+            description: faker.datatype.boolean({ probability: 0.8 })
+              ? faker.commerce.productDescription()
               : null,
-            url: faker.datatype.boolean({ probability: 60 })
+            url: faker.datatype.boolean({ probability: 0.6 })
               ? faker.internet.url()
               : null,
             userId: user.id,
+            images: {
+              create: Array.from(
+                { length: faker.number.int({ min: 1, max: 4 }) },
+                (_, idx) => ({
+                  fileId: faker.helpers.arrayElement(
+                    mediaFiles.filter((mf) => mf.type === "IMAGE")
+                  ).id,
+                  isPrimary: idx === 0,
+                })
+              ),
+            },
           },
         });
-        portfolioItemCountTotal++;
+        portfolioCount++;
       }
     }
-    console.log(`Seeded ${portfolioItemCountTotal} portfolio items.`);
+    console.log(`✅ Seeded ${portfolioCount} portfolio items.`);
 
-    // 9. Seed User Badge Progress
-    console.log("Seeding user badge progress...");
-    let badgeProgressCountTotal = 0;
+    // 14. Seed User Badge Progress
+    console.log("🏅 Seeding user badge progress...");
+    let badgeProgressCount = 0;
     for (const user of users) {
-      const badgeCount = faker.number.int({ min: 3, max: 6 });
-      const selectedBadges = faker.helpers
-        .shuffle(createdBadges)
-        .slice(0, badgeCount);
+      const userBadgeCount = faker.number.int({ min: 2, max: 6 });
+      const selectedBadges = faker.helpers.arrayElements(
+        createdBadges,
+        userBadgeCount
+      );
 
       for (const badge of selectedBadges) {
         const milestones = await prisma.badgeMilestone.findMany({
@@ -699,173 +897,97 @@ async function seed() {
             badgeId: badge.id,
             currentProgress,
             highestTier,
-            isFeatured: faker.datatype.boolean({ probability: 20 }),
+            isFeatured: faker.datatype.boolean({ probability: 0.2 }),
           },
         });
-        badgeProgressCountTotal++;
+        badgeProgressCount++;
       }
     }
-    console.log(
-      `Seeded ${badgeProgressCountTotal} user badge progress records.`
-    );
+    console.log(`✅ Seeded ${badgeProgressCount} user badge progress records.`);
 
-    // 10. Seed Media Files
-    console.log("Seeding media files...");
-    const mediaFiles = [];
-    for (let i = 0; i < 200; i++) {
-      const mediaType = getRandomMediaType() as MediaType;
-      const url = getRandomUrl(
-        mediaType as "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"
-      );
-
-      const mediaFile = await prisma.mediaFile.create({
-        data: {
-          url,
-          type: mediaType,
-        },
-      });
-      mediaFiles.push(mediaFile);
-    }
-    console.log(`Seeded ${mediaFiles.length} media files.`);
-
-    // 11. Seed Testimonials
-    console.log("Seeding testimonials...");
-    const testimonials = [
-      {
-        content:
-          "Great service, highly recommended! The seller was attentive to my needs and delivered exactly what I was looking for. Communication was smooth and the final product exceeded my expectations.",
-        rating: 5,
-      },
-      {
-        content:
-          "Fast delivery and excellent quality. The project was completed ahead of schedule and the attention to detail was impressive. I will definitely be coming back for more work in the future.",
-        rating: 5,
-      },
-      {
-        content:
-          "Very professional and helpful seller. They answered all my questions promptly and provided valuable suggestions to improve my project. The overall experience was seamless and enjoyable.",
-        rating: 4,
-      },
-      {
-        content:
-          "Exceeded my expectations! The work delivered was of outstanding quality and the seller went above and beyond to ensure my satisfaction. I am extremely pleased with the results.",
-        rating: 5,
-      },
-      {
-        content:
-          "Good communication throughout. The seller kept me updated at every stage and was always available to address my concerns. The final outcome was exactly as described and delivered on time.",
-        rating: 4,
-      },
-      {
-        content:
-          "Fantastic work, will hire again. The seller demonstrated great expertise and creativity, producing a result that perfectly matched my vision. Highly trustworthy and reliable service.",
-        rating: 5,
-      },
-      {
-        content:
-          "Reliable and skilled professional. The seller handled my project with care and precision, delivering high-quality work within the agreed timeframe. I appreciate the dedication and effort.",
-        rating: 4,
-      },
-      {
-        content:
-          "Amazing results in short time. The seller worked efficiently without compromising on quality and provided regular updates. I am very satisfied with the entire process and the final product.",
-        rating: 5,
-      },
-      {
-        content:
-          "Friendly and efficient service. The seller was approachable and easy to work with, making the whole experience stress-free. The work delivered was top-notch and met all my requirements.",
-        rating: 4,
-      },
-      {
-        content:
-          "Top-notch quality, very satisfied. The seller's expertise was evident in every aspect of the project, from planning to execution. I would highly recommend their services to anyone in need.",
-        rating: 5,
-      },
-    ];
-
-    let testimonialCount = 0;
-    for (let i = 0; i < 10; i++) {
-      const author = users[i % users.length];
-      await prisma.contactMessage.create({
-        data: {
-          type: "TESTIMONIAL",
-          authorId: author.id,
-          testimonialContent: {
-            create: {
-              content: testimonials[i].content,
-              rating: testimonials[i].rating,
-            },
-          },
-        },
-      });
-      testimonialCount++;
-    }
-    console.log(`Seeded ${testimonialCount} testimonials.`);
-
-    // 12. Seed Gigs
-    console.log("Seeding gigs...");
+    // 15. Seed Gigs
+    console.log("🛍️ Seeding gigs...");
     const categories = await prisma.category.findMany();
     const tagsList = await prisma.tag.findMany();
     const gigs = [];
-    let packageFeatureCountTotal = 0;
-    let imageCountTotal = 0;
 
-    for (let i = 0; i < 200; i++) {
-      const seller = users[Math.floor(Math.random() * users.length)];
-      const category =
-        categories[Math.floor(Math.random() * categories.length)];
-      const gigTags = faker.helpers
-        .shuffle(tagsList)
-        .slice(0, faker.number.int({ min: 1, max: 8 }));
+    for (let i = 0; i < 300; i++) {
+      const seller = faker.helpers.arrayElement(users);
+      const category = faker.helpers.arrayElement(categories);
+      const gigTags = faker.helpers.arrayElements(tagsList, { min: 3, max: 8 });
 
-      const featureCount = faker.number.int({ min: 3, max: 8 });
+      const featureCount = faker.number.int({ min: 4, max: 10 });
       const gigFeatures = Array.from({ length: featureCount }, () => ({
-        title: faker.lorem.words(faker.number.int({ min: 2, max: 4 })),
+        title:
+          faker.commerce.productAdjective() +
+          " " +
+          faker.commerce.productMaterial(),
       }));
 
       const faqCount = faker.number.int({ min: 2, max: 6 });
       const gigFaqs = Array.from({ length: faqCount }, () => ({
-        question: faker.lorem.sentence() + "?",
-        answer: faker.lorem.paragraph(),
+        question: faker.helpers.fake(
+          "How {{commerce.productAdjective}} is the {{commerce.product}}?"
+        ),
+        answer: faker.commerce.productDescription(),
       }));
 
       const packageCount = faker.helpers.weightedArrayElement([
-        { value: 1, weight: 1 },
-        { value: 2, weight: 2 },
-        { value: 3, weight: 5 },
-        { value: 4, weight: 2 },
-        { value: 5, weight: 1 },
+        { value: 1, weight: 10 },
+        { value: 2, weight: 20 },
+        { value: 3, weight: 60 },
+        { value: 4, weight: 8 },
+        { value: 5, weight: 2 },
       ]);
 
-      const packageTitles = Array.from({ length: packageCount }, () =>
-        faker.lorem.words(faker.number.int({ min: 1, max: 2 }))
-      );
-
-      const baseRevisions = faker.number.int({ min: 1, max: 2 });
-      const baseDelivery = faker.number.int({ min: 2, max: 4 });
-      const packages = packageTitles.map((title, idx) => {
-        const revisions =
-          baseRevisions + idx + faker.number.int({ min: 0, max: 1 });
-        const deliveryTime =
-          baseDelivery + idx * faker.number.int({ min: 1, max: 2 });
-        return {
+      const packageNames = [
+        "Basic",
+        "Standard",
+        "Premium",
+        "Pro",
+        "Enterprise",
+      ];
+      const packages = packageNames
+        .slice(0, packageCount)
+        .map((title, idx) => ({
           title,
-          price: faker.number.float({ min: 5, max: 500, fractionDigits: 2 }),
-          revisions,
-          deliveryTime,
-        };
-      });
+          price: faker.number.float({
+            min: 10 + idx * 50,
+            max: 50 + idx * 200,
+            fractionDigits: 2,
+          }),
+          revisions: idx + faker.number.int({ min: 1, max: 3 }),
+          deliveryTime: Math.max(
+            1,
+            7 - idx + faker.number.int({ min: -2, max: 5 })
+          ),
+        }));
 
       const gig = await prisma.gig.create({
         data: {
-          title: faker.lorem.words(3),
-          description: faker.lorem.paragraph(),
+          title: faker.helpers.fake(
+            "I will {{commerce.product}} {{commerce.productAdjective}} {{commerce.productMaterial}}"
+          ),
+          description: faker.lorem.paragraphs(3),
           sellerId: seller.id,
           categoryId: category.id,
           tags: { connect: gigTags.map((tag) => ({ id: tag.id })) },
           features: { create: gigFeatures },
           faqs: { create: gigFaqs },
           packages: { create: packages },
+          images: {
+            create: Array.from(
+              {
+                length: faker.number.int({ min: 1, max: 5 }),
+              },
+              (_, idx) => ({
+                fileId: faker.helpers.arrayElement(
+                  mediaFiles.filter((mf) => mf.type === "IMAGE")
+                ).id,
+                isPrimary: idx === 0,
+              })
+            ),
+          },
         },
         include: {
           features: true,
@@ -873,6 +995,7 @@ async function seed() {
         },
       });
 
+      // Create package features
       for (const pkg of gig.packages) {
         for (const feature of gig.features) {
           const packageIndex = gig.packages.findIndex((p) => p.id === pkg.id);
@@ -887,77 +1010,47 @@ async function seed() {
               }),
             },
           });
-          packageFeatureCountTotal++;
         }
-      }
-
-      const gigImageCount = faker.number.int({ min: 1, max: 4 });
-      const imageFiles = mediaFiles
-        .filter((mf) => mf.type === "IMAGE")
-        .slice(0, gigImageCount);
-
-      for (let j = 0; j < Math.min(gigImageCount, imageFiles.length); j++) {
-        await prisma.image.create({
-          data: {
-            fileId: imageFiles[j].id,
-            gigId: gig.id,
-            isPrimary: j === 0,
-          },
-        });
-        imageCountTotal++;
       }
 
       gigs.push(gig);
     }
-    console.log(
-      `Seeded ${gigs.length} gigs with ${packageFeatureCountTotal} package features and ${imageCountTotal} images.`
-    );
+    console.log(`✅ Seeded ${gigs.length} gigs.`);
 
-    // 13. Add images to portfolio items
-    console.log("Seeding portfolio item images...");
-    const portfolioItems = await prisma.portfolioItem.findMany();
-    let portfolioImageCountTotal = 0;
-    for (const item of portfolioItems.slice(0, 100)) {
-      const imageCount = faker.number.int({ min: 1, max: 3 });
-      const availableImages = mediaFiles.filter((mf) => mf.type === "IMAGE");
-
-      for (let i = 0; i < Math.min(imageCount, availableImages.length); i++) {
-        const randomImage = faker.helpers.arrayElement(availableImages);
-        await prisma.image.create({
-          data: {
-            fileId: randomImage.id,
-            portfolioItemId: item.id,
-            isPrimary: i === 0,
-          },
-        });
-        portfolioImageCountTotal++;
-      }
-    }
-    console.log(`Seeded ${portfolioImageCountTotal} portfolio item images.`);
-
-    // 14. Seed Orders
-    console.log("Seeding orders...");
+    // 16. Seed Orders
+    console.log("📦 Seeding orders...");
     const orders = [];
-    for (let i = 0; i < 500; i++) {
-      const buyer = users[Math.floor(Math.random() * users.length)];
-      const gig = gigs[Math.floor(Math.random() * gigs.length)];
+    for (let i = 0; i < 800; i++) {
+      const buyer = faker.helpers.arrayElement(users);
+      const gig = faker.helpers.arrayElement(gigs);
       const seller = users.find((u) => u.id === gig.sellerId)!;
+
+      if (buyer.id === seller.id) continue; // Skip if buyer is seller
+
       const packages = await prisma.package.findMany({
         where: { gigId: gig.id },
       });
-      const pkg = packages[Math.floor(Math.random() * packages.length)];
+      const pkg = faker.helpers.arrayElement(packages);
+
+      const status = faker.helpers.arrayElement<OrderStatus>([
+        "WAITING_FOR_PAYMENT",
+        "IN_PROGRESS",
+        "COMPLETED",
+      ]);
+
+      const createdAt = faker.date.past({ years: 1 });
+      const deadline = new Date(createdAt);
+      deadline.setDate(deadline.getDate() + pkg.deliveryTime);
+
       const order = await prisma.order.create({
         data: {
-          deadline: faker.date.future(),
-          status: faker.helpers.arrayElement([
-            "WAITING_FOR_PAYMENT",
-            "IN_PROGRESS",
-            "COMPLETED",
-          ]),
+          deadline,
+          status,
           packageId: pkg.id,
           buyerId: buyer.id,
           sellerId: seller.id,
           gigId: gig.id,
+          createdAt,
           chat: {
             create: {
               buyerId: buyer.id,
@@ -968,125 +1061,312 @@ async function seed() {
                   systemContent: {
                     create: {
                       type: "WELCOME",
-                      content: `Order created for gig "${gig.title}" with package "${pkg.title}".`,
+                      content: `Order created for "${gig.title}" - ${pkg.title} package.`,
                     },
                   },
+                  createdAt,
                 },
               },
             },
           },
-          createdAt: faker.date.past(),
         },
-        select: {
-          id: true,
-          buyerId: true,
-          sellerId: true,
-          gigId: true,
-          packageId: true,
-          chat: {
-            select: {
-              id: true,
-              messages: {
-                select: {
-                  id: true,
-                  type: true,
-                  textContent: {
-                    select: { text: true },
-                  },
-                  mediaContent: {
-                    select: { files: { select: { url: true, type: true } } },
-                  },
-                },
-              },
-            },
-          },
-          deadline: true,
-          status: true,
-          createdAt: true,
+        include: {
+          chat: true,
+          package: true,
         },
       });
-      orders.push(order);
-    }
-    console.log(`Seeded ${orders.length} orders.`);
 
-    // 15. Seed Reviews
-    console.log("Seeding reviews...");
-    let reviewCount = 0;
-    for (let i = 0; i < 400; i++) {
-      const order = orders[Math.floor(Math.random() * orders.length)];
-      const buyer = users.find((u) => u.id === order.buyerId)!;
-      const rating = faker.number.int({ min: 1, max: 5 });
-      try {
-        await prisma.review.create({
+      // Add transaction for completed orders
+      if (
+        status === "COMPLETED" &&
+        faker.datatype.boolean({ probability: 0.9 })
+      ) {
+        const buyerWallet = wallets.find(
+          (w) => w.userId === buyer.id && w.isMain
+        )!;
+        const sellerWallet = wallets.find(
+          (w) => w.userId === seller.id && w.isMain
+        )!;
+
+        await prisma.transaction.create({
           data: {
-            title: faker.lorem.sentence(),
-            description: faker.lorem.paragraph(),
-            rating,
+            txId: faker.string.alphanumeric(88), // Solana transaction ID length
+            amount: pkg.price,
+            senderPublicKey: buyerWallet.publicKey,
+            receiverPublicKey: sellerWallet.publicKey,
             orderId: order.id,
-            authorId: buyer.id,
-            createdAt: faker.date.past(),
+            createdAt: faker.date.between({ from: createdAt, to: deadline }),
           },
         });
-        reviewCount++;
-      } catch {}
-    }
-    console.log(`Seeded ${reviewCount} reviews.`);
+      }
 
-    // 16. Seed Contact Messages
-    console.log("Seeding contact messages...");
-    let messageCountTotal = 0;
-    for (let i = 0; i < orders.length; i++) {
-      const messageCount = faker.number.int({ min: 1, max: 5 });
-      const startDate = faker.date.past();
-      let currentTime = startDate;
-      for (let j = 0; j < messageCount; j++) {
-        const isMedia = Math.random() < 0.2;
-        if (isMedia) {
-          const mediaType = getRandomMediaType();
-          const url = getRandomUrl(mediaType);
-          await prisma.message.create({
-            data: {
-              type: "MEDIA",
-              chatId: orders[i].chat!.id,
-              mediaContent: {
+      orders.push(order);
+    }
+    console.log(`✅ Seeded ${orders.length} orders.`);
+
+    // 17. Seed Chat Messages
+    console.log("💬 Seeding chat messages...");
+    let messageCount = 0;
+    for (const order of orders) {
+      const msgCount = faker.number.int({ min: 2, max: 20 });
+      let currentTime = order.createdAt;
+
+      for (let i = 0; i < msgCount; i++) {
+        const isFromBuyer = faker.datatype.boolean();
+        const senderId = isFromBuyer ? order.buyerId : order.sellerId;
+        const messageType = faker.helpers.weightedArrayElement([
+          { value: "TEXT", weight: 80 },
+          { value: "MEDIA", weight: 15 },
+          { value: "SYSTEM", weight: 5 },
+        ]);
+
+        currentTime = faker.date.between({
+          from: currentTime,
+          to: new Date(currentTime.getTime() + 3600000),
+        });
+
+        let messageData: any = {
+          type: messageType,
+          chatId: order.chat!.id,
+          status: faker.helpers.arrayElement<MessageStatus>([
+            "SENT",
+            "DELIVERED",
+            "READ",
+          ]),
+          createdAt: currentTime,
+        };
+
+        if (messageType === "TEXT") {
+          messageData.textContent = {
+            create: {
+              text: faker.lorem.sentence(),
+              userMessage: {
                 create: {
-                  userMessage: {
-                    create: {
-                      userId: orders[i].buyerId,
-                    },
-                  },
-                  files: {
-                    create: [{ url, type: mediaType }],
-                  },
+                  userId: senderId,
                 },
               },
-              createdAt: currentTime,
             },
-          });
-        } else {
-          await prisma.message.create({
-            data: {
-              type: "TEXT",
-              chatId: orders[i].chat!.id,
-              textContent: {
+          };
+        } else if (messageType === "MEDIA") {
+          const mediaType = getRandomMediaType();
+          const mediaFile = faker.helpers.arrayElement(
+            mediaFiles.filter((mf) => mf.type === mediaType)
+          );
+
+          messageData.mediaContent = {
+            create: {
+              files: {
+                connect: [{ id: mediaFile.id }],
+              },
+              userMessage: {
                 create: {
-                  userMessage: { create: { userId: orders[i].buyerId } },
-                  text: faker.lorem.sentence(),
+                  userId: senderId,
                 },
               },
-              createdAt: currentTime,
+            },
+          };
+        } else if (messageType === "SYSTEM") {
+          messageData.systemContent = {
+            create: {
+              type: "WELCOME",
+              content: faker.helpers.arrayElement([
+                "Order status updated to IN_PROGRESS",
+                "Delivery time extended by 1 day",
+                "Buyer requested revision",
+                "Order marked as complete",
+              ]),
+            },
+          };
+        }
+
+        await prisma.message.create({ data: messageData });
+        messageCount++;
+      }
+    }
+    console.log(`✅ Seeded ${messageCount} chat messages.`);
+
+    // 18. Seed Reviews
+    console.log("⭐ Seeding reviews...");
+    let reviewCount = 0;
+    const completedOrders = orders.filter(
+      (o) => o.status === "COMPLETED" && o.deadline < new Date()
+    );
+
+    for (const order of completedOrders) {
+      if (faker.datatype.boolean({ probability: 0.85 })) {
+        const rating = faker.helpers.weightedArrayElement([
+          { value: 5, weight: 50 },
+          { value: 4, weight: 30 },
+          { value: 3, weight: 10 },
+          { value: 2, weight: 5 },
+          { value: 1, weight: 5 },
+        ]);
+
+        const review = await prisma.review.create({
+          data: {
+            rating,
+            title: faker.lorem.sentence(),
+            description: faker.lorem.paragraph(),
+            orderId: order.id,
+            authorId: order.buyerId,
+            gigId: order.gigId,
+            createdAt: faker.date.between({
+              from: order.deadline,
+              to: new Date(),
+            }),
+          },
+        });
+
+        // Add seller response for some reviews
+        if (faker.datatype.boolean({ probability: 0.4 })) {
+          await prisma.review.update({
+            where: { id: review.id },
+            data: {
+              sellerResponse: faker.lorem.sentence(),
+              sellerRespondedAt: faker.date.between({
+                from: review.createdAt,
+                to: new Date(),
+              }),
             },
           });
         }
-        const interval = faker.number.int({ min: 1, max: 30 }) * 60 * 1000;
-        currentTime = new Date(currentTime.getTime() + interval);
-        messageCountTotal++;
+
+        reviewCount++;
       }
     }
-    console.log(`Seeded ${messageCountTotal} contact messages across chats.`);
+    console.log(`✅ Seeded ${reviewCount} reviews.`);
 
-    //seed notifications
-    console.log("Seeding notifications...");
+    // 19. Seed Contact Messages
+    console.log("📧 Seeding contact messages...");
+    const contactMessageTypes: ContactMessageType[] = [
+      "TESTIMONIAL",
+      "COMPLAINT",
+      "SUPPORT",
+      "FEEDBACK",
+      "GENERAL_INQUIRY",
+    ];
+
+    let contactMessageCount = 0;
+
+    // Testimonials
+    for (let i = 0; i < 30; i++) {
+      const author = faker.helpers.arrayElement(users);
+      await prisma.contactMessage.create({
+        data: {
+          type: "TESTIMONIAL",
+          authorId: author.id,
+          testimonialContent: {
+            create: {
+              content: faker.lorem.paragraphs(2),
+              rating: faker.number.int({ min: 4, max: 5 }),
+            },
+          },
+        },
+      });
+      contactMessageCount++;
+    }
+
+    // Complaints
+    for (let i = 0; i < 20; i++) {
+      const author = faker.helpers.arrayElement(users);
+      const order = faker.helpers.arrayElement(orders);
+      await prisma.contactMessage.create({
+        data: {
+          type: "COMPLAINT",
+          authorId: author.id,
+          complaintContent: {
+            create: {
+              orderId: order.id,
+              description: faker.lorem.paragraph(),
+              status: faker.helpers.arrayElement<ComplaintStatus>([
+                "PENDING",
+                "IN_REVIEW",
+                "RESOLVED",
+                "CLOSED",
+              ]),
+            },
+          },
+        },
+      });
+      contactMessageCount++;
+    }
+
+    // Support requests
+    for (let i = 0; i < 40; i++) {
+      const author = faker.helpers.arrayElement(users);
+      await prisma.contactMessage.create({
+        data: {
+          type: "SUPPORT",
+          authorId: author.id,
+          supportContent: {
+            create: {
+              subject: faker.lorem.sentence(),
+              description: faker.lorem.paragraphs(2),
+              priority: faker.helpers.arrayElement<SupportPriority>([
+                "LOW",
+                "NORMAL",
+                "HIGH",
+                "URGENT",
+              ]),
+              status: faker.helpers.arrayElement<SupportStatus>([
+                "OPEN",
+                "IN_PROGRESS",
+                "RESOLVED",
+                "CLOSED",
+              ]),
+            },
+          },
+        },
+      });
+      contactMessageCount++;
+    }
+
+    // Feedback
+    for (let i = 0; i < 25; i++) {
+      const author = faker.helpers.arrayElement(users);
+      await prisma.contactMessage.create({
+        data: {
+          type: "FEEDBACK",
+          authorId: author.id,
+          feedbackContent: {
+            create: {
+              message: faker.lorem.paragraph(),
+              category: faker.helpers.arrayElement<FeedbackCategory>([
+                "GENERAL",
+                "FEATURE_REQUEST",
+                "BUG_REPORT",
+                "UI_UX",
+              ]),
+            },
+          },
+        },
+      });
+      contactMessageCount++;
+    }
+
+    // General inquiries (some from guests)
+    for (let i = 0; i < 30; i++) {
+      const isGuest = faker.datatype.boolean({ probability: 0.3 });
+      await prisma.contactMessage.create({
+        data: {
+          type: "GENERAL_INQUIRY",
+          authorId: isGuest ? null : faker.helpers.arrayElement(users).id,
+          guestEmail: isGuest ? faker.internet.email() : null,
+          generalContent: {
+            create: {
+              subject: faker.lorem.sentence(),
+              message: faker.lorem.paragraphs(2),
+            },
+          },
+        },
+      });
+      contactMessageCount++;
+    }
+
+    console.log(`✅ Seeded ${contactMessageCount} contact messages.`);
+
+    // 20. Seed Notifications
+    console.log("🔔 Seeding notifications...");
     const notificationTypes: NotificationType[] = [
       "ORDER_UPDATE",
       "MESSAGE",
@@ -1097,42 +1377,112 @@ async function seed() {
 
     let notificationCount = 0;
     for (const user of users) {
-      const notificationCountForUser = faker.number.int({ min: 5, max: 10 });
-      for (let i = 0; i < notificationCountForUser; i++) {
+      const notifCount = faker.number.int({ min: 5, max: 15 });
+
+      for (let i = 0; i < notifCount; i++) {
         const type = faker.helpers.arrayElement(notificationTypes);
-        const content =
-          type === "ORDER_UPDATE"
-            ? `Your order has been updated.`
-            : type === "MESSAGE"
-              ? `You have a new message.`
-              : type === "PAYMENT"
-                ? `Payment received.`
-                : type === "SYSTEM"
-                  ? `System notification.`
-                  : `New review received.`;
+        let title: string;
+        let description: string;
+
+        switch (type) {
+          case "ORDER_UPDATE":
+            title = "Order Status Updated";
+            description = faker.helpers.arrayElement([
+              "Your order is now in progress",
+              "Order completed successfully",
+              "Buyer requested a revision",
+            ]);
+            break;
+          case "MESSAGE":
+            title = "New Message";
+            description = `You have a new message from ${faker.person.firstName()}`;
+            break;
+          case "PAYMENT":
+            title = "Payment Received";
+            description = `Payment of ${faker.number.float({ min: 10, max: 500, fractionDigits: 2 })} SOL received`;
+            break;
+          case "REVIEW":
+            title = "New Review";
+            description = `You received a ${faker.number.int({ min: 1, max: 5 })}-star review`;
+            break;
+          case "SYSTEM":
+            title = faker.helpers.arrayElement([
+              "Account Update",
+              "New Feature Available",
+              "Security Alert",
+            ]);
+            description = faker.lorem.sentence();
+            break;
+        }
 
         await prisma.notification.create({
           data: {
             recipientId: user.id,
             type,
-            title: faker.lorem.sentence(),
-            description: content,
-            isRead: faker.datatype.boolean({ probability: 50 }),
+            title,
+            description,
+            isRead: faker.datatype.boolean({ probability: 0.6 }),
+            createdAt: faker.date.recent({ days: 30 }),
           },
         });
         notificationCount++;
       }
     }
-    console.log(`Seeded ${notificationCount} notifications.`);
+    console.log(`✅ Seeded ${notificationCount} notifications.`);
 
-    console.log("Seeding completed successfully!");
+    // 21. Update message read status
+    console.log("✅ Updating message read status...");
+    const messages = await prisma.message.findMany({
+      where: { status: "READ" },
+      take: 200,
+    });
+
+    for (const message of messages) {
+      const chat = await prisma.chat.findUnique({
+        where: { id: message.chatId },
+      });
+
+      if (chat) {
+        const readers = faker.helpers.arrayElements(
+          [chat.buyerId, chat.sellerId],
+          faker.number.int({ min: 1, max: 2 })
+        );
+
+        await prisma.message.update({
+          where: { id: message.id },
+          data: {
+            readBy: {
+              connect: readers.map((id) => ({ id })),
+            },
+          },
+        });
+      }
+    }
+    console.log(`✅ Updated message read status.`);
+
+    // Final summary
+    console.log("\n🎉 Database seeding completed successfully!");
+    console.log("📊 Summary:");
+    console.log(`   - Users: ${users.length}`);
+    console.log(`   - Gigs: ${gigs.length}`);
+    console.log(`   - Orders: ${orders.length}`);
+    console.log(`   - Reviews: ${reviewCount}`);
+    console.log(`   - Messages: ${messageCount}`);
+    console.log(`   - Categories: ${categories.length}`);
+    console.log(`   - Skills: ${createdSkills.length}`);
+    console.log(`   - Badges: ${createdBadges.length}`);
+    console.log(`   - Contact Messages: ${contactMessageCount}`);
+    console.log(`   - Notifications: ${notificationCount}`);
   } catch (error) {
-    console.error("Error seeding database:", error);
+    console.error("❌ Error seeding database:", error);
+    throw error;
   } finally {
-    console.log("Disconnecting Prisma client...");
     await prisma.$disconnect();
-    console.log("Prisma client disconnected.");
   }
 }
 
-seed();
+// Run the seed function
+seed().catch((error) => {
+  console.error("Fatal error:", error);
+  process.exit(1);
+});

@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 
 import { signIn } from "@/lib/actions/auth";
 import { SignInFormSchema } from "@/lib/schemas";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import PasswordInput from "@/components/password-input";
 
 export default function SignInPage() {

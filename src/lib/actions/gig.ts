@@ -5,9 +5,14 @@ import { CreateGigFormSchema } from "../schemas";
 import { me } from "./auth";
 import { prisma } from "../prisma";
 import { EditGigFormSchema } from "@/lib/schemas";
-import { Gig } from "../types";
 import { Prisma } from "@prisma/client";
-import { DetailedGig } from "../types/gig";
+import {
+  Color,
+  DashboardGig,
+  DetailedGig,
+  Gig,
+  LucideIconName,
+} from "../types";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
@@ -638,7 +643,6 @@ export const getGigs = async (
           username: true,
           firstName: true,
           lastName: true,
-          publicKey: true,
           avatar: true,
           badgeProgress: {
             where: {
@@ -660,12 +664,26 @@ export const getGigs = async (
           id: user?.id,
         },
       },
+      category: {
+        select: {
+          id: true,
+          title: true,
+          icon: true,
+          color: true,
+        },
+      },
     },
   });
 
   return gigs.map((gig) => ({
     isBookmarked: gig.bookmarks.length > 0,
     id: gig.id,
+    category: {
+      id: gig.category.id,
+      label: gig.category.title,
+      icon: gig.category.icon as LucideIconName,
+      color: gig.category.color as Color,
+    },
     image:
       gig.images.find((img) => img.isPrimary)?.file.url || "/gig-fallback.png",
     startsAtPrice: gig.packages.reduce(
@@ -687,7 +705,6 @@ export const getGigs = async (
       username: gig.seller.username,
       firstName: gig.seller.firstName,
       lastName: gig.seller.lastName,
-      publicKey: gig.seller.publicKey,
       badge:
         gig.seller.badgeProgress.length > 0
           ? {
@@ -703,9 +720,7 @@ export const getGigs = async (
 export const getGigCount = async (
   args?: Prisma.GigCountArgs
 ): Promise<number> => {
-  const count = await prisma.gig.count({
-    ...args,
-  });
+  const count = await prisma.gig.count(args);
   return count;
 };
 
@@ -795,6 +810,7 @@ export const getDetailedGig = async (
           orderId: true,
           author: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               username: true,
@@ -857,8 +873,8 @@ export const getDetailedGig = async (
           ? {
               tier: gig.seller.badgeProgress[0].highestTier,
               title: gig.seller.badgeProgress[0].badge.title,
-              icon: gig.seller.badgeProgress[0].badge.icon,
-              color: gig.seller.badgeProgress[0].badge.color,
+              icon: gig.seller.badgeProgress[0].badge.icon as LucideIconName,
+              color: gig.seller.badgeProgress[0].badge.color as Color,
             }
           : null,
     },
@@ -871,6 +887,7 @@ export const getDetailedGig = async (
       rating: review.rating,
       orderId: review.orderId,
       author: {
+        id: review.author!.id,
         firstName: review.author!.firstName,
         lastName: review.author!.lastName,
         username: review.author!.username,
@@ -899,4 +916,86 @@ export const getDetailedGig = async (
       answer: faq.answer,
     })),
   };
+};
+
+// Clean function to get filtered gigs based on your schema and requirements
+export const getDashboardGigs = async (
+  args: Omit<Prisma.GigFindManyArgs, "select" | "include">
+): Promise<DashboardGig[]> => {
+  const gigs = await prisma.gig.findMany({
+    ...args,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      createdAt: true,
+      images: {
+        where: { isPrimary: true },
+        select: {
+          file: {
+            select: { url: true },
+          },
+        },
+      },
+      _count: {
+        select: { orders: true },
+      },
+      packages: {
+        select: {
+          price: true,
+          title: true,
+          id: true,
+          _count: {
+            select: { orders: true },
+          },
+        },
+      },
+      reviews: {
+        select: { rating: true },
+      },
+      category: {
+        select: {
+          title: true,
+          id: true,
+          color: true,
+          icon: true,
+          _count: {
+            select: { gigs: true },
+          },
+        },
+      },
+    },
+  });
+
+  return gigs.map((gig) => {
+    const averageRating =
+      gig.reviews.length > 0
+        ? gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
+          gig.reviews.length
+        : 0;
+
+    return {
+      id: gig.id,
+      image: gig.images[0]?.file.url || "/gig-fallback.png",
+      startsAtPrice: Math.min(...gig.packages.map((pkg) => pkg.price)),
+      title: gig.title,
+      description: gig.description,
+      ratingCount: gig.reviews.length,
+      averageRating,
+      category: {
+        id: gig.category.id,
+        label: gig.category.title,
+        icon: gig.category.icon as LucideIconName,
+        color: gig.category.color as Color,
+        gigsCnt: gig.category._count.gigs,
+      },
+      packages: gig.packages.map((pkg) => ({
+        id: pkg.id,
+        title: pkg.title,
+        price: pkg.price,
+        orderCnt: pkg._count.orders,
+      })),
+      totalOrders: gig._count.orders,
+    };
+  });
 };

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { encryptPrivateKey } from "@/lib/utils";
 import { createWallet } from "@/lib/actions/wallet";
 import { ImportWalletFormSchema } from "@/lib/schemas";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import StepIndicator from "@/components/forms/step-indicator";
 import ImportWalletForm from "@/components/wallet/import/import-wallet-form";
 import WalletPreview from "@/components/wallet/import/wallet-preview";

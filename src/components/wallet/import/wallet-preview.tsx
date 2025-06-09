@@ -5,7 +5,7 @@ import { Copy, Check, Wallet, AlertTriangle, CheckCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuthForm } from "@/hooks/use-auth-state";
+import { toast } from "sonner";
 
 interface WalletPreviewProps {
   publicKey: string;
@@ -18,8 +18,8 @@ export default function WalletPreview({
   name,
   onConfirm,
 }: WalletPreviewProps) {
-  const { isLoading, handleSubmit } = useAuthForm();
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(publicKey);
@@ -27,14 +27,28 @@ export default function WalletPreview({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleConfirmImport = () => {
-    handleSubmit(onConfirm, undefined, {
-      successMessage: "Wallet imported successfully!",
-      onError: (error) => {
-        throw error; // Re-throw to be handled by the page
+  const onSubmit = async () =>
+    toast.promise(
+      async () => {
+        setIsLoading(true);
+        await onConfirm();
       },
-    });
-  };
+      {
+        loading: "Importing wallet...",
+        success: () => {
+          setIsLoading(false);
+          return "Wallet imported successfully!";
+        },
+        error: (error) => {
+          setIsLoading(false);
+          const message =
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred";
+          return message;
+        },
+      }
+    );
 
   return (
     <div className="space-y-6">
@@ -96,7 +110,7 @@ export default function WalletPreview({
       {/* Confirmation Buttons */}
       <div className="space-y-3">
         <Button
-          onClick={handleConfirmImport}
+          onClick={onSubmit}
           className="w-full"
           size="lg"
           disabled={isLoading}

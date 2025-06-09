@@ -133,7 +133,7 @@ export default function DisputeResolution() {
                   <div className="flex-1">
                     <h4 className="font-semibold mb-2">File the Dispute</h4>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Navigate to your order page and click "File Dispute" to begin the formal process.
+                      Navigate to your order page and click &quot;File Dispute&quot; to begin the formal process.
                     </p>
                     <div className="text-xs text-muted-foreground">
                       <p>• Select dispute category</p>
@@ -155,7 +155,7 @@ export default function DisputeResolution() {
                       <p>• Notification sent to other party</p>
                       <p>• 48-hour response window</p>
                       <p>• Automatic escalation if no response</p>
-                      <p>• You'll be notified of their response</p>
+                      <p>• You&apos;ll be notified of their response</p>
                     </div>
                   </div>
                 </div>

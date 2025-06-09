@@ -1,8 +1,5 @@
-// src/components/verification/verification-status-card.tsx
-
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -11,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,116 +24,86 @@ import {
   UserCog,
   Phone,
   FileCheck,
-  Info,
   AlertCircle,
+  CircleCheck,
+  LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VerificationStatus } from "@/lib/types/verification";
-import {
-  getVerificationLevelConfig,
-  getProgressColor,
-  formatRequirementText,
-} from "@/lib/utils/verification";
+import { Badge } from "../ui/badge";
 
 interface VerificationStatusCardProps {
-  status: VerificationStatus;
+  overallProgress: number;
+  profileCompletion: number;
+  isKycVerified: boolean;
+  orderCompletion: number;
 }
 
 export function VerificationStatusCard({
-  status,
+  overallProgress,
+  profileCompletion,
+  isKycVerified,
+  orderCompletion,
 }: VerificationStatusCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
-  const verificationConfig = getVerificationLevelConfig(
-    status.overallStatus.verificationLevel
-  );
-  const VerificationIcon = Shield;
-
-  // Calculate overall progress
-  const overallProgress = Math.round(
-    (status.profileCompletion.percentage +
-      (status.kycVerification.isVerified ? 100 : 0) +
-      status.orderRequirement.percentage) /
-      3
-  );
+  const isVerified = overallProgress >= 100;
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+      <CardHeader className="flex flex-col gap-4">
+        <CardTitle className="flex items-center justify-between w-full">
           <div className="flex items-center">
-            <VerificationIcon
-              className={cn("mr-3", verificationConfig.color)}
-            />
+            {isVerified ? (
+              <CheckCircle className="text-amber-500 mr-2" />
+            ) : (
+              <Shield className="text-primary mr-2" />
+            )}
             Verification Status
           </div>
-          <div
-            className={cn(
-              "text-sm font-normal px-3 py-1 rounded-full",
-              verificationConfig.bgColor,
-              verificationConfig.color
-            )}
-          >
-            {verificationConfig.label}
-          </div>
+          <Badge className={cn(isVerified && "bg-amber-500/25 text-amber-400")}>
+            {isVerified ? "Verified" : "Partially Verified"}
+          </Badge>
         </CardTitle>
-        <CardDescription>{verificationConfig.description}</CardDescription>
+        <CardDescription>
+          {isVerified
+            ? "Congratulations! Your account is fully verified and ready to use."
+            : "You're on your way! Complete all requirements for full verification"}
+        </CardDescription>
+
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Overall Progress</span>
+            <span className={cn("text-sm font-bold")}>
+              {overallProgress.toFixed(0)}%
+            </span>
+          </div>
+
+          <Progress value={overallProgress} className="h-3" />
+        </div>
       </CardHeader>
 
       <Separator />
 
-      <CardContent className="space-y-6 pt-6">
-        {/* Overall Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Overall Progress</span>
-            <span
-              className={cn(
-                "text-sm font-bold",
-                getProgressColor(overallProgress)
-              )}
-            >
-              {overallProgress}%
-            </span>
-          </div>
-          <Progress value={overallProgress} className="h-3" />
-        </div>
-
+      <CardContent className="space-y-6">
         {/* Profile Completion */}
         <VerificationRequirement
           icon={UserCog}
           title="Complete your profile"
-          description={formatRequirementText("profile", {
-            isComplete: status.profileCompletion.isComplete,
-          })}
-          progress={status.profileCompletion.percentage}
-          isComplete={status.profileCompletion.isComplete}
-          actionHref="/profile/edit"
-          actionLabel="Complete Profile"
-          tooltip={
-            status.profileCompletion.missingFields.length > 0 && (
-              <div>
-                <p className="font-medium mb-1">Missing fields:</p>
-                <ul className="text-xs space-y-0.5">
-                  {status.profileCompletion.missingFields.map((field) => (
-                    <li key={field}>• {field}</li>
-                  ))}
-                </ul>
-              </div>
-            )
-          }
+          description="Complete your profile information"
+          progress={profileCompletion}
+          isComplete={profileCompletion >= 100}
+          href="/profile/edit"
+          hrefLabel="Complete Profile"
+          tooltip={"Add a profile picture, bio, and contact information."}
         />
 
         {/* KYC Verification */}
         <VerificationRequirement
           icon={Phone}
           title="KYC Verification"
-          description={formatRequirementText("kyc", {
-            isComplete: status.kycVerification.isVerified,
-          })}
-          progress={status.kycVerification.isVerified ? 100 : 0}
-          isComplete={status.kycVerification.isVerified}
-          actionHref="/kyc"
-          actionLabel="Verify Identity"
+          description={"Complete KYC verification"}
+          progress={isKycVerified ? 100 : 0}
+          isComplete={isKycVerified}
+          href="/kyc"
+          hrefLabel="Verify Identity"
           tooltip="Complete identity verification to build trust with buyers"
         />
 
@@ -144,59 +111,29 @@ export function VerificationStatusCard({
         <VerificationRequirement
           icon={FileCheck}
           title="Complete orders with positive ratings"
-          description={formatRequirementText("orders", {
-            isComplete: status.orderRequirement.isComplete,
-            current: status.orderRequirement.completed,
-            required: status.orderRequirement.required,
-          })}
-          progress={status.orderRequirement.percentage}
-          isComplete={status.orderRequirement.isComplete}
-          actionHref="/dashboard/orders"
-          actionLabel="View Orders"
-          showActionWhenComplete
-          tooltip={`You need ${status.orderRequirement.required - status.orderRequirement.completed} more orders with ratings above 2.5 stars`}
+          description={"Complete 5 orders with positive ratings"}
+          progress={orderCompletion}
+          isComplete={orderCompletion >= 100}
+          href="/dashboard/orders"
+          hrefLabel="View Orders"
+          tooltip={`You need ${
+            5 - Math.ceil(orderCompletion / 20)
+          } more orders with ratings above 2.5 stars`}
         />
-
-        {/* Additional Information */}
-        {showDetails && (
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Info className="size-4" />
-              Why Verification Matters
-            </h4>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Increased visibility in search results</li>
-              <li>• Higher buyer trust and conversion rates</li>
-              <li>• Access to exclusive features and promotions</li>
-              <li>• Priority customer support</li>
-            </ul>
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowDetails(!showDetails)}
-          className="w-full"
-        >
-          {showDetails ? "Hide" : "Show"} Benefits
-        </Button>
       </CardContent>
     </Card>
   );
 }
 
-// Individual requirement component
 interface VerificationRequirementProps {
-  icon: React.ElementType;
+  icon: LucideIcon;
+  isComplete: boolean;
   title: string;
   description: string;
+  tooltip: string;
   progress: number;
-  isComplete: boolean;
-  actionHref: string;
-  actionLabel: string;
-  showActionWhenComplete?: boolean;
-  tooltip?: React.ReactNode;
+  href: string;
+  hrefLabel: string;
 }
 
 function VerificationRequirement({
@@ -205,76 +142,58 @@ function VerificationRequirement({
   description,
   progress,
   isComplete,
-  actionHref,
-  actionLabel,
-  showActionWhenComplete = false,
+  hrefLabel,
+  href,
   tooltip,
 }: VerificationRequirementProps) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              "rounded-full size-10 flex items-center justify-center border transition-colors",
-              isComplete
-                ? "bg-primary/10 border-primary"
-                : "bg-muted border-border"
-            )}
-          >
-            {isComplete ? (
-              <CheckCircle size={20} className="text-primary" />
-            ) : (
-              <Icon size={20} className="text-muted-foreground" />
-            )}
-          </div>
+    <div className="flex gap-3">
+      {isComplete ? (
+        <CircleCheck className="rounded-full border-[1px] border-amber-500/25 p-2 size-10 flex items-center justify-center bg-muted text-amber-500" />
+      ) : (
+        <Icon className="rounded-full border p-2 size-10 flex items-center justify-center bg-muted text-muted-foreground" />
+      )}
 
-          <div className="flex-1 space-y-0.5">
+      <div className="flex-1 flex flex-col gap-2">
+        <div className="flex justify-between">
+          <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{title}</span>
-              {tooltip && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertCircle className="size-3.5 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      {tooltip}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+              <span className="text-sm">{title}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertCircle className="size-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <p className="text-xs text-muted-foreground">{description}</p>
+            <span className="text-xs text-muted-foreground">{description}</span>
           </div>
+          {!isComplete && (
+            <Link
+              href={href}
+              className={cn(
+                buttonVariants({
+                  size: "sm",
+                  variant: "outline",
+                  className: "min-w-[150px]",
+                })
+              )}
+            >
+              {hrefLabel}
+            </Link>
+          )}
         </div>
 
-        {(!isComplete || showActionWhenComplete) && (
-          <Link
-            href={actionHref}
-            className={cn(
-              buttonVariants({
-                variant: "outline",
-                size: "sm",
-              }),
-              "whitespace-nowrap"
-            )}
-          >
-            {actionLabel}
-          </Link>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3 pl-[52px]">
-        <Progress value={progress} className="h-2 flex-1" />
-        <span
-          className={cn(
-            "text-xs font-medium w-10 text-right",
-            getProgressColor(progress)
-          )}
-        >
-          {progress}%
-        </span>
+        <div className="flex items-center justify-between gap-6">
+          <Progress value={progress} className="h-2 flex-1" />
+          <span className="text-xs text-muted-foreground">
+            {progress.toFixed(0)}%
+          </span>
+        </div>
       </div>
     </div>
   );

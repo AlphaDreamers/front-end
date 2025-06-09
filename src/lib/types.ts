@@ -1,4 +1,6 @@
+import { Tier } from "@prisma/client";
 import * as icons from "lucide-react";
+import { NotificationType as PrismaNotificationType } from "@prisma/client";
 
 export type LucideIconName = keyof typeof icons;
 
@@ -23,61 +25,6 @@ export const CLODUINARY_CONFIG = {
 };
 
 export type UploadPreset = keyof typeof CLODUINARY_CONFIG;
-
-export interface Category {
-  id: string;
-  label: string;
-  gigsCnt: number;
-  icon: LucideIconName;
-  color: Color;
-}
-
-export interface Gig {
-  id: string;
-  seller: {
-    id: string;
-    username: string;
-    avatar: string | null;
-    firstName: string;
-    lastName: string;
-    publicKey: string | null;
-    badge: {
-      title: string;
-      tier: string;
-    } | null;
-  };
-  image: string;
-  startsAtPrice: number;
-  tags: {
-    id: string;
-    label: string;
-  }[];
-  title: string;
-  description: string;
-  averageRating: number;
-  ratingCount: number;
-  isBookmarked: boolean;
-}
-
-interface GigPackage {
-  id: string;
-  title: string;
-  price: number;
-  orderCnt: number;
-}
-
-export interface DashboardGig {
-  id: string;
-  image: string;
-  startsAtPrice: number;
-  title: string;
-  description: string;
-  averageRating: number;
-  ratingCount: number;
-  category: Category;
-  packages: GigPackage[];
-  totalOrders: number;
-}
 
 export type MessageStatus = "sent" | "delivered" | "failed";
 
@@ -123,76 +70,10 @@ export interface OrderDetails {
 }
 
 export type KeyValuePair = {
-  key: string;
   value: string;
+  label: string;
 };
 
-export interface ProfileUser {
-  id: string;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  avatar: string | null;
-  banner: string | null;
-  headline: string | null;
-  bio: string | null;
-  isKycVerified: boolean;
-  joinedAt: Date;
-  featuredBadge: {
-    title: string;
-    tier: string;
-  } | null;
-  skills: {
-    id: string;
-    title: string;
-    level: number;
-  }[];
-  socialLinks: {
-    id: string;
-    type: string;
-    url: string;
-  }[];
-  stats: {
-    totalGigs: number;
-    averageRating: number;
-    totalReviews: number;
-    completedOrders: number;
-  };
-}
-
-export interface ProfilePortfolioItem {
-  id: string;
-  title: string;
-  description: string | null;
-  url: string | null;
-  images: {
-    id: string;
-    url: string;
-    isPrimary: boolean;
-  }[];
-}
-
-export interface ProfileReview {
-  id: string;
-  rating: number;
-  title: string;
-  description: string;
-  author: {
-    id: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    avatar: string | null;
-  } | null;
-  createdAt: Date;
-  sellerResponse: string | null;
-  sellerRespondedAt: Date | null;
-}
-
-// types/reviews.ts
-
-// Base Review type that represents the common structure
 export interface Review {
   id: string;
   rating: number;
@@ -208,7 +89,6 @@ export interface Review {
   } | null;
 }
 
-// Dashboard Review extends Review with seller response capabilities and order/gig info
 export interface DashboardReview extends Review {
   sellerResponse: string | null;
   sellerRespondedAt: Date | null;
@@ -221,7 +101,6 @@ export interface DashboardReview extends Review {
   };
 }
 
-// Testimonial type for homepage testimonials
 export interface Testimonial {
   id: string;
   rating: number;
@@ -263,3 +142,253 @@ export interface User {
   } | null;
   avatar: string | null;
 }
+
+export interface ReviewFilterParams {
+  rating?: string;
+  sort?: string;
+  skip?: number;
+  take?: number;
+}
+
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface FaqPageSearchParams {
+  q?: string;
+  page?: string;
+}
+
+export interface DetailedGigPackage {
+  id: string;
+  price: number;
+  title: string;
+  deliveryTime: number;
+  revisions: number;
+  features: PackageFeature[];
+}
+
+interface BaseGig {
+  id: string;
+  image: string;
+  startsAtPrice: number;
+  title: string;
+  description: string;
+  averageRating: number;
+  ratingCount: number;
+  category: {
+    id: string;
+    label: string;
+    icon: LucideIconName;
+    color: Color;
+  };
+}
+
+export interface Gig extends BaseGig {
+  seller: {
+    id: string;
+    username: string;
+    avatar: string | null;
+    firstName: string;
+    lastName: string;
+    badge: {
+      title: string;
+      tier: string;
+    } | null;
+  };
+  isBookmarked: boolean;
+  tags: {
+    id: string;
+    label: string;
+  }[];
+}
+
+interface PackageFeature {
+  id: string;
+  label: string;
+  isIncluded: boolean;
+}
+
+interface GigPackage {
+  id: string;
+  title: string;
+  price: number;
+  orderCnt: number;
+}
+
+export interface DashboardGig extends BaseGig {
+  packages: GigPackage[];
+  totalOrders: number;
+}
+
+export interface DetailedGig {
+  id: string;
+  title: string;
+  description: string;
+  images: string[];
+  packages: DetailedGigPackage[];
+  seller: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    avatar: string | null;
+    badge: {
+      tier: Tier;
+      title: string;
+      icon: LucideIconName;
+      color: string;
+    } | null;
+  };
+  avgRating: number;
+  reviewCount: number;
+  reviews: Review[];
+  faqs: {
+    id: string;
+    question: string;
+    answer: string;
+  }[];
+}
+
+export interface Category {
+  id: string;
+  label: string;
+  gigsCnt: number;
+  icon: LucideIconName;
+  color: Color;
+}
+
+export interface BaseNotification {
+  id: string;
+  type: PrismaNotificationType;
+  title: string;
+  description: string;
+  isRead: boolean;
+  recipientId: string;
+  createdAt: Date;
+}
+
+export interface NotificationMetadata {
+  reviewId?: string;
+  gigId?: string;
+  orderId?: string;
+  paymentId?: string;
+  transactionId?: string;
+  rating?: number;
+  amount?: number;
+  senderId?: string;
+  senderName?: string;
+  senderAvatar?: string;
+  articleId?: string;
+  message?: string;
+}
+
+export interface Notification extends BaseNotification {
+  metadata: NotificationMetadata;
+}
+
+export interface NotificationFilters {
+  type?: PrismaNotificationType[];
+  isRead?: boolean;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
+  search?: string;
+}
+
+export interface NotificationPaginationOptions {
+  page: number;
+  limit: number;
+  orderBy?: "createdAt" | "type";
+  orderDirection?: "asc" | "desc";
+}
+
+export interface UserSettings {
+  timezone: string;
+  language: string;
+  ordersEnabled: boolean;
+  ordersEmail: boolean;
+  ordersInApp: boolean;
+  messagesEnabled: boolean;
+  messagesEmail: boolean;
+  messagesInApp: boolean;
+  reviewsEnabled: boolean;
+  reviewsEmail: boolean;
+  reviewsInApp: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStartTime?: string; // hh:mm format
+  quietHoursEndTime?: string; // hh:mm format
+}
+
+export interface UserProfileFields {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  avatar: string | null;
+  banner: string | null;
+  headline: string | null;
+  bio: string | null;
+  isKycVerified: boolean;
+  skills?: { id: string }[];
+  socialLinks?: { id: string }[];
+  portfolioItems?: { id: string }[];
+}
+
+export interface BadgeWithProgress {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIconName;
+  color: Color;
+  progress: number;
+  progressCap: number;
+  tier: Tier;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIconName;
+  color: Color;
+  tier: Tier;
+  isFeatured: boolean;
+  earnedAt: Date;
+}
+
+export interface DashboardStats {
+  totalBadges: number;
+  earnedBadges: number;
+  totalAchievements: number;
+  featuredAchievements: number;
+  verificationProgress: number;
+}
+
+export interface Transaction {
+  txId: string;
+  amount: number;
+  date: Date;
+  senderPublicKey: string;
+  receiverPublicKey: string;
+}
+
+export interface DetailedWallet {
+  publicKey: string;
+  name: string;
+  isMain: boolean;
+  createdAt: Date;
+  transactions: Transaction[];
+}
+
+export interface DetailedUser {
+  id: string;
+}
+
+export type EncryptedWalletData = {
+  encryptedPrivateKey: string;
+  salt: string;
+  iv: string;
+};

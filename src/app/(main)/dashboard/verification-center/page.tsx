@@ -3,9 +3,8 @@ import Async from "@/components/async";
 import { me } from "@/lib/actions/auth";
 import {
   getVerificationStatus,
-  getBadgesWithProgress,
-  getUserAchievements,
-  getDashboardStats,
+  getBadgesProgress,
+  getAchievements,
 } from "@/lib/actions/verification";
 import {
   VerificationStatusCard,
@@ -17,167 +16,58 @@ import {
 } from "@/components/verification/badges-card";
 import {
   AchievementsCard,
-  AchievementsCardSkeleton,
+  AchievementsCardsSkeleton,
 } from "@/components/verification/achievements-card";
-import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Award, Trophy, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import PageTemplate from "@/components/templates/page-template";
 
-// Dashboard stats component
-function DashboardStatsCards({
-  stats,
-}: {
-  stats: Awaited<ReturnType<typeof getDashboardStats>>;
-}) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <StatsCard
-        title="Verification Progress"
-        value={`${stats.verificationProgress}%`}
-        icon={Shield}
-        color="text-blue-500"
-        bgColor="bg-blue-500/10"
-      />
-      <StatsCard
-        title="Badges Earned"
-        value={`${stats.earnedBadges}/${stats.totalBadges}`}
-        icon={Award}
-        color="text-purple-500"
-        bgColor="bg-purple-500/10"
-      />
-      <StatsCard
-        title="Achievements"
-        value={stats.totalAchievements}
-        icon={Trophy}
-        color="text-yellow-500"
-        bgColor="bg-yellow-500/10"
-      />
-      <StatsCard
-        title="Featured"
-        value={stats.featuredAchievements}
-        icon={Star}
-        color="text-green-500"
-        bgColor="bg-green-500/10"
-      />
-    </div>
-  );
-}
-
-// Individual stats card
-interface StatsCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-}
-
-function StatsCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  bgColor,
-}: StatsCardProps) {
-  return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
-          </div>
-          <div className={cn("p-3 rounded-full", bgColor)}>
-            <Icon className={cn("size-5", color)} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Stats cards skeleton
-function DashboardStatsCardsSkeleton() {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-                <div className="h-7 w-16 bg-muted animate-pulse rounded" />
-              </div>
-              <div className="size-11 bg-muted animate-pulse rounded-full" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-// Main page component
 export default async function VerificationCenterPage() {
   const user = await me();
 
+  // This is handled by the middleware, but we can also check here
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/dashboard/verification-center");
   }
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h2 className="text-3xl text-primary font-bold mb-2">
-          Verification Center
-        </h2>
-        <p className="text-muted-foreground">
-          Complete verification steps to increase visibility and trust with
-          buyers. Earn badges and showcase your achievements to stand out in the
-          marketplace.
-        </p>
-      </div>
-
-      {/* Dashboard Statistics */}
-      <Async
-        fetch={() => getDashboardStats()}
-        fallback={<DashboardStatsCardsSkeleton />}
-      >
-        {(stats) => <DashboardStatsCards stats={stats} />}
-      </Async>
-
-      {/* Main Content Grid */}
+    <PageTemplate
+      title="Verification Center"
+      description="Complete verification steps to increase visibility and trust with buyers. Earn badges and showcase your achievements to stand out in the marketplace."
+    >
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Left Column - Verification Status and Badges */}
         <div className="flex-1 space-y-6">
-          {/* Verification Status Card */}
           <Async
             fetch={() => getVerificationStatus(user.id)}
             fallback={<VerificationStatusCardSkeleton />}
           >
-            {(status) => <VerificationStatusCard status={status} />}
+            {({ orderCompletion, profileCompletion, isKycVerified }) => (
+              <VerificationStatusCard
+                overallProgress={
+                  (orderCompletion +
+                    profileCompletion +
+                    (isKycVerified ? 100 : 0)) /
+                  3
+                }
+                profileCompletion={profileCompletion}
+                isKycVerified={isKycVerified}
+                orderCompletion={orderCompletion}
+              />
+            )}
           </Async>
 
-          {/* Badges Card */}
-          <Async
-            fetch={getBadgesWithProgress}
-            fallback={<BadgesCardSkeleton />}
-          >
+          <Async fetch={getBadgesProgress} fallback={<BadgesCardSkeleton />}>
             {(badges) => <BadgesCard badges={badges} />}
           </Async>
         </div>
 
-        {/* Right Column - Achievements */}
         <div className="w-full md:max-w-md">
           <Async
-            fetch={getUserAchievements}
-            fallback={<AchievementsCardSkeleton />}
+            fetch={getAchievements}
+            fallback={<AchievementsCardsSkeleton />}
           >
             {(achievements) => <AchievementsCard achievements={achievements} />}
           </Async>
         </div>
       </div>
-    </div>
+    </PageTemplate>
   );
 }

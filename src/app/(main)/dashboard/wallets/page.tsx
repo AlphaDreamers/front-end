@@ -19,7 +19,6 @@ export default async function WalletsPage() {
       { createdAt: "desc" },
     ],
     select: {
-      id: true,
       name: true,
       publicKey: true,
       isMain: true,

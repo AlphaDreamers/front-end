@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 import Link from "next/link";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 
 const MESSAGE_TYPE_CONFIG = {
   TESTIMONIAL: {

@@ -304,7 +304,7 @@ export default function PaymentsTransactions() {
                       <li>• Check the original service agreement</li>
                       <li>• Review any approved scope changes</li>
                       <li>• Contact the freelancer to clarify pricing</li>
-                      <li>• File a dispute if there's a genuine error</li>
+                      <li>• File a dispute if there&apos;s a genuine error</li>
                     </ul>
                   </div>
                 </div>

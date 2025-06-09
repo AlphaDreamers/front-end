@@ -9,10 +9,8 @@ import {
   Check,
   CheckCheck,
   AlertCircle,
-  RefreshCw,
   Download,
   FileText,
-  Image as ImageIcon,
 } from "lucide-react";
 import { Message } from "@/lib/types";
 import { useChatContext } from "./chat-provider";

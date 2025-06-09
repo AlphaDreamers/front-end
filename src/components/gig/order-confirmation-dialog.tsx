@@ -10,7 +10,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import BuyButton from "@/components/buy-button";
-import { buttonVariants } from "@/components/ui/button";
 import { ComponentProps } from "react";
 
 interface OrderConfirmationButtonProps extends ComponentProps<typeof Button> {

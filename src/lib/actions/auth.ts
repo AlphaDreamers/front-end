@@ -7,6 +7,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import {
   ForgotPasswordFormSchema,
+  KycFormSchema,
   ResetPasswordFormSchema,
   SignInFormSchema,
   SignUpFormSchema,
@@ -40,7 +41,6 @@ export async function me() {
       select: {
         id: true,
         isVerified: true,
-        publicKey: true,
         avatar: true,
         email: true,
         username: true,
@@ -64,7 +64,7 @@ export async function me() {
 }
 
 export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
-  const { username, email, password, firstName, lastName } = values;
+  const { username, country, email, password, firstName, lastName } = values;
 
   const existingUser = await prisma.user.findFirst({
     where: {
@@ -95,7 +95,6 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
   ).toString();
   const hashedPassword = await argon2.hash(password);
 
-  // Transaction ensures atomicity - if email fails, user isn't created
   await prisma.$transaction(async (tx) => {
     await tx.user.create({
       data: {
@@ -110,6 +109,7 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
             expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
           },
         },
+        country,
       },
     });
 
@@ -124,7 +124,6 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
     });
 
     if (error) {
-      // Transaction will rollback, user won't be created
       throw new Error("Failed to send verification email. Please try again.");
     }
   });
@@ -151,17 +150,14 @@ export async function signIn(values: z.infer<typeof SignInFormSchema>) {
     throw new Error("Please verify your email before signing in");
   }
 
-  // Create JWT token
-  const token = jwt.sign(
-    { id: user.id } as JWTToken,
-    process.env.JWT_SECRET!,
-    { expiresIn: "7d" } // Extended from 1d for better UX
-  );
+  const token = jwt.sign({ id: user.id } as JWTToken, process.env.JWT_SECRET!, {
+    expiresIn: "7d",
+  });
 
   const cookieStore = await cookies();
   cookieStore.set("token", token, {
     httpOnly: true,
-    sameSite: "lax", // Simplified - let production config handle this elsewhere
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60, // 7 days
     path: "/",
@@ -194,7 +190,6 @@ export async function verifyEmail(
     throw new Error("Invalid or expired verification code");
   }
 
-  // Clean transaction - update user and delete token
   await prisma.$transaction([
     prisma.user.update({
       where: { id: token.user.id },
@@ -205,7 +200,6 @@ export async function verifyEmail(
     }),
   ]);
 
-  // Send welcome email - don't fail the verification if this fails
   resend.emails
     .send({
       from: DEFAULT_FROM_EMAIL,
@@ -216,7 +210,7 @@ export async function verifyEmail(
         firstName: token.user.firstName,
       }),
     })
-    .catch(console.error); // Log but don't throw
+    .catch(console.error);
 }
 
 export async function forgotPassword(
@@ -257,7 +251,6 @@ export async function forgotPassword(
     },
   });
 
-  // Send email asynchronously - don't block the response
   resend.emails
     .send({
       from: DEFAULT_FROM_EMAIL,
@@ -323,7 +316,6 @@ export async function resetPassword(
     throw new Error("Invalid or expired reset code");
   }
 
-  // Update password and clean up token atomically
   await prisma.$transaction([
     prisma.user.update({
       where: { id: token.user.id },
@@ -335,8 +327,6 @@ export async function resetPassword(
   ]);
 }
 
-// src/lib/actions.ts - Resend actions
-
 export async function resendVerificationEmail(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
@@ -347,7 +337,6 @@ export async function resendVerificationEmail(email: string) {
     },
   });
 
-  // Let the natural "not found" error bubble if user doesn't exist
   if (!user) {
     throw new Error("No account found with this email address");
   }
@@ -356,7 +345,6 @@ export async function resendVerificationEmail(email: string) {
     throw new Error("This email is already verified");
   }
 
-  // Check for existing token to prevent spam
   const existingToken = await prisma.verificationToken.findUnique({
     where: { userId: user.id },
     select: {
@@ -384,7 +372,6 @@ export async function resendVerificationEmail(email: string) {
     100000 + Math.random() * 900000
   ).toString();
 
-  // Upsert to handle both create and update cases
   await prisma.verificationToken.upsert({
     where: { userId: user.id },
     update: {
@@ -398,7 +385,6 @@ export async function resendVerificationEmail(email: string) {
     },
   });
 
-  // Send email
   const { error } = await resend.emails.send({
     from: DEFAULT_FROM_EMAIL,
     to: [email],
@@ -470,7 +456,6 @@ export async function resendPasswordResetCode(email: string) {
     },
   });
 
-  // Fire and forget email - don't block the response
   resend.emails
     .send({
       from: DEFAULT_FROM_EMAIL,
@@ -483,7 +468,6 @@ export async function resendPasswordResetCode(email: string) {
       }),
     })
     .catch((error) => {
-      // Log but don't throw - user experience shouldn't break if email fails
       console.error("Failed to send password reset email:", error);
     });
 }
@@ -493,3 +477,20 @@ export async function signOut() {
 
   cookieStore.delete("token");
 }
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
+  const user = await me();
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 15000));
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      isKycVerified: true,
+    },
+  });
+};

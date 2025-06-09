@@ -145,8 +145,8 @@ export default function WalletIntegration() {
                     Navigate to Account Settings
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    Go to your profile page and click on "Account Settings" →
-                    "Wallet Integration"
+                    Go to your profile page and click on &quot;Account Settings&quot; →
+                    &quot;Wallet Integration&quot;
                   </p>
                 </div>
               </div>
@@ -154,10 +154,10 @@ export default function WalletIntegration() {
               <div className="flex items-start gap-4 p-4 border rounded-lg">
                 <Badge className="mt-1">3</Badge>
                 <div className="flex-1">
-                  <h4 className="font-semibold mb-2">Click "Connect Wallet"</h4>
+                  <h4 className="font-semibold mb-2">Click &quot;Connect Wallet&quot;</h4>
                   <p className="text-sm text-muted-foreground">
                     Select your preferred wallet from the list and click
-                    "Connect"
+                    &quot;Connect&quot;
                   </p>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function WalletIntegration() {
                   <h4 className="font-semibold mb-2">Authorize Connection</h4>
                   <p className="text-sm text-muted-foreground">
                     Your wallet will open a popup asking for permission. Click
-                    "Connect" or "Approve"
+                    &quot;Connect&quot; or &quot;Approve&quot;
                   </p>
                 </div>
               </div>
@@ -178,7 +178,7 @@ export default function WalletIntegration() {
                 <div className="flex-1">
                   <h4 className="font-semibold mb-2">Verify Connection</h4>
                   <p className="text-sm text-muted-foreground">
-                    You'll see a green checkmark and your wallet address
+                    You&apos;ll see a green checkmark and your wallet address
                     displayed in your account settings
                   </p>
                 </div>
@@ -304,12 +304,12 @@ export default function WalletIntegration() {
             <div className="space-y-4">
               <div className="border-l-4 border-l-red-500 pl-4">
                 <h4 className="font-semibold text-red-600 mb-2">
-                  Wallet Won't Connect
+                  Wallet Won&apos;t Connect
                 </h4>
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <p>• Refresh the page and try again</p>
                   <p>• Make sure your wallet extension is unlocked</p>
-                  <p>• Check if you're on the correct network (Mainnet)</p>
+                  <p>• Check if you&apos;re on the correct network (Mainnet)</p>
                   <p>• Disable other wallet extensions temporarily</p>
                 </div>
               </div>

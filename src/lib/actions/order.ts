@@ -1,3 +1,5 @@
+"use server";
+
 import { Prisma } from "@prisma/client";
 import { KeyValuePair } from "../types";
 import { prisma } from "../prisma";
@@ -25,8 +27,8 @@ export const getKeyValueOrders = async (
   });
 
   return orders.map((order) => ({
-    id: order.id,
-    title: `${order.gig?.title} - ${order.package.title} (${order.createdAt.toLocaleDateString()})`,
+    value: order.id,
+    label: `${order.gig?.title} - ${order.package.title} (${order.createdAt.toLocaleDateString()})`,
   }));
 };
 
@@ -67,4 +69,26 @@ export const orderPackage = async (packageId: string) => {
       },
     },
   });
+};
+
+export const confirmPayment = async (orderId: string) => {
+  const user = await me();
+  if (!user?.isVerified) throw new Error("User not authenticated");
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+  });
+
+  if (!order) throw new Error("Order not found");
+  if (order.buyerId !== user.id)
+    throw new Error("You are not the buyer of this order");
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "IN_PROGRESS",
+    },
+  });
+
+  return order;
 };

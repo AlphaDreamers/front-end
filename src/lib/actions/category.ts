@@ -12,7 +12,7 @@ export const getKeyValueCategories = async (): Promise<KeyValuePair[]> => {
   });
 
   return categories.map((category) => ({
-    key: category.id,
-    value: category.title,
+    value: category.id,
+    label: category.title,
   }));
 };

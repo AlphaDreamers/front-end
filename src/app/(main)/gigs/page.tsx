@@ -6,7 +6,7 @@ import FilterCard, {
   FilterType,
 } from "@/components/filter-card";
 import { getGigCount, getGigs } from "@/lib/actions/gig";
-import { buildGigFilters } from "@/lib/utils/gig";
+import { buildGigFilters } from "@/lib/utils";
 import Async from "@/components/async";
 import { GigSearchParams } from "@/lib/types";
 import { getKeyValueCategories } from "@/lib/actions/category";
@@ -32,8 +32,8 @@ export default async function BrowseGigsPage({
         label: "Category",
         type: "multi",
         options: categories.map((cat) => ({
-          label: cat.value,
-          value: cat.key,
+          label: cat.label,
+          value: cat.value,
         })),
       },
       {

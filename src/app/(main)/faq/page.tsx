@@ -1,6 +1,6 @@
 import { getFaqCount, getFaqs } from "@/lib/actions/faq";
-import { FaqPageSearchParams } from "@/lib/types/faq";
-import { buildFaqFilter } from "@/lib/utils/faq";
+import { FaqPageSearchParams } from "@/lib/types";
+import { buildFaqFilter } from "@/lib/utils";
 import PageTemplate from "@/components/templates/page-template";
 import SearchBar from "@/components/search-bar";
 import Async from "@/components/async";

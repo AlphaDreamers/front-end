@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { toast } from "sonner";
-import { deleteGig } from "@/lib/actions";
+import { deleteGig } from "@/lib/actions/gig";
 import { useState } from "react";
 
 interface GigDeleteButtonProps {

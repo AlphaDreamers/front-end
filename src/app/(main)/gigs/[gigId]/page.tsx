@@ -1,23 +1,13 @@
 import { notFound } from "next/navigation";
 
-import PackageComparison from "./package-comparison";
-import GigDescription from "./gig-description";
-import GigHeader from "./gig-header";
+import PackageComparison from "../../../../components/gig/package-comparison";
+import GigDescription from "../../../../components/gig/gig-description";
+import GigHeader from "../../../../components/gig/gig-header";
 import ImageCarousel from "@/components/image-carousel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Check, Clock, DollarSign, Repeat, X } from "lucide-react";
-import GigFaqList from "./gig-faq-list";
+import GigFaqList from "../../../../components/gig/gig-faq-list";
 import { getDetailedGig } from "@/lib/actions/gig";
-import { GigPackage } from "@/lib/types/gig";
-import OrderConfirmationButton from "./order-confirmation-dialog";
-import { ReviewsSection } from "@/components/profile/reviews-section";
+import ReviewsSection from "@/components/reviews/reviews-list";
+import OrderDetailsCard from "@/components/gig/order-details-card";
 
 export default async function GigDetailsPage({
   params,
@@ -48,6 +38,28 @@ export default async function GigDetailsPage({
 
         <PackageComparison packages={gig.packages} />
 
+        <ReviewsSection
+          initialReviews={gig.reviews}
+          reviewStats={{
+            average: gig.avgRating,
+            total: gig.reviewCount,
+            distribution: gig.reviews.reduce(
+              (acc, review) => {
+                acc[review.rating] = (acc[review.rating] || 0) + 1;
+                return acc;
+              },
+              {
+                1: 0,
+                2: 0,
+                3: 0,
+                4: 0,
+                5: 0,
+              } as Record<number, number>
+            ),
+          }}
+          totalReviews={gig.reviewCount}
+        />
+
         {gig.faqs.length > 0 ? (
           <GigFaqList faqs={gig.faqs} />
         ) : (
@@ -70,90 +82,3 @@ export default async function GigDetailsPage({
     </div>
   );
 }
-
-interface OrderDetailsCardProps {
-  packages: GigPackage[];
-}
-
-const OrderDetailsCard = ({ packages }: OrderDetailsCardProps) => {
-  if (packages.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card>
-      <Tabs defaultValue={packages[0].id}>
-        <CardHeader>
-          <CardTitle>Order Details</CardTitle>
-          <TabsList
-            className="w-full"
-            style={{
-              gridTemplateColumns: `repeat(${packages.length}, minmax(0, 1fr))`,
-            }}
-          >
-            {packages.map((pkg) => (
-              <TabsTrigger key={pkg.id} value={pkg.id}>
-                {pkg.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </CardHeader>
-        {packages.map((pkg) => (
-          <>
-            <TabsContent key={pkg.id} value={pkg.id}>
-              <CardContent key={pkg.id} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{pkg.price} SOL</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {pkg.deliveryTime} days delivery
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Repeat className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{pkg.revisions} revisions</span>
-                </div>
-
-                {pkg.features.map((feature) => (
-                  <div
-                    key={feature.id}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    {feature.isIncluded ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-red-500" />
-                    )}
-                    {feature.label}
-                  </div>
-                ))}
-              </CardContent>
-
-              <CardFooter className="flex-col">
-                <OrderConfirmationButton
-                  title={pkg.title}
-                  revisions={pkg.revisions}
-                  deliveryTime={pkg.deliveryTime}
-                  price={pkg.price}
-                  packageId={pkg.id}
-                  variant="outline"
-                  size="sm"
-                  className="w-full my-2"
-                />
-
-                <div className="text-xs text-center text-muted-foreground">
-                  You won&apos;t be charged yet
-                </div>
-              </CardFooter>
-            </TabsContent>
-          </>
-        ))}
-      </Tabs>
-    </Card>
-  );
-};

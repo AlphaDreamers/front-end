@@ -6,7 +6,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { me } from "./auth";
-import { Review, DashboardReview, Testimonial, ReviewStats } from "@/lib/types";
+import {
+  Review,
+  DashboardReview,
+  Testimonial,
+  ReviewStats,
+  ReviewFilterParams,
+} from "@/lib/types";
 import { SellerResponseSchema } from "../schemas/review";
 
 export async function getReviews(
@@ -286,3 +292,75 @@ export const getReviewsStats = async (
     distribution,
   };
 };
+
+export async function getFilteredReviews(params: ReviewFilterParams): Promise<{
+  reviews: Review[];
+  hasMore: boolean;
+}> {
+  const { rating, sort = "recent", skip = 0, take = 6 } = params;
+
+  const where: Prisma.ReviewWhereInput = {};
+
+  if (rating) {
+    where.rating = parseInt(rating, 10);
+  }
+
+  let orderBy: Prisma.ReviewOrderByWithRelationInput = {};
+  switch (sort) {
+    case "recent":
+      orderBy = { createdAt: "desc" };
+      break;
+    case "oldest":
+      orderBy = { createdAt: "asc" };
+      break;
+    case "highest":
+      orderBy = { rating: "desc" };
+      break;
+    case "lowest":
+      orderBy = { rating: "asc" };
+      break;
+    default:
+      orderBy = { createdAt: "desc" };
+  }
+
+  const [reviews, totalCount] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+      select: {
+        id: true,
+        rating: true,
+        title: true,
+        description: true,
+        createdAt: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+      },
+    }),
+    prisma.review.count({ where }),
+  ]);
+
+  // Transform to Review type
+  const transformedReviews: Review[] = reviews.map((review) => ({
+    id: review.id,
+    rating: review.rating,
+    title: review.title,
+    description: review.description,
+    createdAt: review.createdAt,
+    author: review.author,
+  }));
+
+  return {
+    reviews: transformedReviews,
+    hasMore: skip + take < totalCount,
+  };
+}

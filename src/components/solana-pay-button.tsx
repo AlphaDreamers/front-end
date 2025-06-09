@@ -14,7 +14,7 @@ import { decode } from "bs58"; // Import bs58 for decoding the secret key
 import { AlertCircle } from "lucide-react";
 
 import { Button } from "./ui/button";
-import { confirmPayment } from "@/lib/actions";
+import { confirmPayment } from "@/lib/actions/order";
 
 interface SolanaBuyButtonProps {
   recipient: string;

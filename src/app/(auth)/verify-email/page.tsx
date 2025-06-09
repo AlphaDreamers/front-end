@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { useCountdown } from "@/hooks/use-countdown";
 import { verifyEmail, resendVerificationEmail } from "@/lib/actions/auth";
 import { VerifyEmailFormSchema } from "@/lib/schemas";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 
 export default function VerifyEmailPage() {
   const { push } = useRouter();

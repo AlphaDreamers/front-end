@@ -21,14 +21,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Notification } from "@/lib/types/notifications";
+import { Notification } from "@/lib/types";
 import { NotificationCard } from "./notification-card";
 import {
   deleteNotifications,
   markNotificationsAsRead,
   markAllNotificationsAsRead,
 } from "@/lib/actions/notifications";
-import { groupNotificationsByDate } from "@/lib/utils/notifications";
+import { groupNotificationsByDate } from "@/lib/utils";
 
 interface NotificationListProps {
   notifications: Notification[];

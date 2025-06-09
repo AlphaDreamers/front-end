@@ -23,7 +23,7 @@ import {
 
 import { VerifyResetPasswordCodeFormSchema } from "@/lib/schemas";
 import { useCountdown } from "@/hooks/use-countdown";
-import AuthCard from "@/components/auth/auth-card";
+import AuthCard from "@/components/templates/auth-card";
 import {
   resendPasswordResetCode,
   verifyPasswordResetCode,

@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 
 import GigDeleteButton from "./gig-delete-button";
 import Rating from "../rating";
-import { DashboardGig } from "@/lib/types";
+import { DashboardGig } from "@/lib/types/gig";
 
 interface DashboardGigCardProps {
   gig: DashboardGig;
@@ -177,3 +177,25 @@ const DashboardGigCard = ({ gig }: DashboardGigCardProps) => {
 };
 
 export default DashboardGigCard;
+
+export const DashboardGigCardSkeleton = () => {
+  return (
+    <Card className="animate-pulse">
+      <CardHeader>
+        <div className="relative aspect-video -mx-6 -mt-6 mb-6 min-w-[calc(100%+48px)] bg-gray-200" />
+        <div className="space-y-2">
+          <div className="h-4 w-3/4 bg-gray-200 rounded" />
+          <div className="h-3 w-1/2 bg-gray-200 rounded" />
+          <div className="h-3 w-1/3 bg-gray-200 rounded" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="bg-gray-200 h-12 rounded" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

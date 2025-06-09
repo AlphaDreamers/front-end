@@ -1,10 +1,10 @@
 import EditProfileForm from "@/components/profile/edit-profile-form";
-import { getCurrentUser } from "@/lib/actions";
+import { me } from "@/lib/actions/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 export default async function Page() {
-  const user = await getCurrentUser();
+  const user = await me();
 
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/profile/edit");
