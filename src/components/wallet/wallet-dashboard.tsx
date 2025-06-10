@@ -17,12 +17,10 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 export default function WalletDashboard() {
-  const { wallets, isRefreshing, refreshBalances, getTotalBalance } =
-    useWallets();
+  const { wallets, isLoading, refetchBalances, getTotalBalance } = useWallets();
 
   const totalBalance = getTotalBalance();
   const mainWallet = wallets.find((w) => w.isMain);
-  const isLoading = wallets.some((w) => w.status === "loading");
 
   return (
     <div className="space-y-6">
@@ -38,11 +36,11 @@ export default function WalletDashboard() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={refreshBalances}
-            disabled={isRefreshing}
+            onClick={refetchBalances}
+            disabled={isLoading}
           >
             <RefreshCw
-              className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")}
+              className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")}
             />
             Refresh
           </Button>
@@ -131,7 +129,7 @@ export default function WalletDashboard() {
         ) : (
           <>
             {wallets.map((wallet) => (
-              <WalletCard key={wallet.id} wallet={wallet} />
+              <WalletCard key={wallet.publicKey} wallet={wallet} />
             ))}
           </>
         )}

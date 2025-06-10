@@ -10,11 +10,19 @@ interface EditGigPageProps {
 }
 
 export default async function EditGigPage({ params }: EditGigPageProps) {
-  const user = await me();
   const { gigId } = await params;
+  const { user, error } = await me();
 
   if (!user?.isVerified) {
-    redirect(`/sign-in?callbackUrl=/dashboard/gigs/${gigId}/edit`);
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/gigs/${gigId}/edit`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   const gig = await getUpdateGigFormGig(gigId);

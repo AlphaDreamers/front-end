@@ -13,6 +13,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 
 import { createGig } from "@/lib/actions/gig";
@@ -26,7 +28,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -37,6 +47,16 @@ import FormSelect from "@/components/forms/form-select";
 import FormMultiSelect from "@/components/forms/form-multi-select";
 import FormImageUpload from "@/components/forms/form-image-upload";
 import FormPackages from "@/components/forms/form-packages";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./ui/command";
 
 interface CreateGigFormProps {
   categories: Array<{ id: string; title: string; icon: string; color: string }>;
@@ -114,7 +134,7 @@ export default function CreateGigForm({
       await createGig(values);
 
       toast.success("Gig created successfully!", {
-        description: "Your gig is now live and ready for orders.",
+        description: "Your listing has been published successfully",
       });
 
       router.push("/dashboard/gigs");
@@ -196,17 +216,74 @@ export default function CreateGigForm({
             />
 
             <div className="grid gap-6 md:grid-cols-2">
-              <FormSelect
+              <FormField
                 control={form.control}
                 name="categoryId"
-                label="Category"
-                placeholder="Select a category"
-                options={categories.map((cat) => ({
-                  label: cat.title,
-                  value: cat.id,
-                }))}
-                description="Choose the most relevant category"
-                required
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Category
+                      <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-[200px] justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value
+                              ? categories.find((cat) => cat.id === field.value)
+                                  ?.title
+                              : "Select category"}
+                            <ChevronsUpDown className="opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search categories..."
+                            className="h-9"
+                          />
+                          <CommandList>
+                            <CommandEmpty>No framework found.</CommandEmpty>
+                            <CommandGroup>
+                              {categories.map((cat) => (
+                                <CommandItem
+                                  value={cat.id}
+                                  key={cat.id}
+                                  onSelect={() => {
+                                    form.setValue("categoryId", cat.id);
+                                  }}
+                                >
+                                  {cat.title}
+                                  <Check
+                                    className={cn(
+                                      "ml-auto",
+                                      cat.id === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription>
+                      Choose the most relevant category for your gig
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
 
               <FormMultiSelect

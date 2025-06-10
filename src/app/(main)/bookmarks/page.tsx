@@ -8,6 +8,7 @@ import { me } from "@/lib/actions/auth";
 import { getGigs, getGigCount } from "@/lib/actions/gig";
 import { buildGigFilters } from "@/lib/utils";
 import { GigSearchParams } from "@/lib/types";
+import { redirect } from "next/navigation";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -16,10 +17,18 @@ export default async function BookmarksPage({
 }: {
   searchParams: Promise<GigSearchParams>;
 }) {
-  const user = await me();
+  const { user, error } = await me();
 
   if (!user?.isVerified) {
-    throw new Error("User is not verified");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent("/bookmarks")}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   const params = await searchParams;
@@ -53,7 +62,10 @@ export default async function BookmarksPage({
         <div className="flex-1">
           <Async
             fetch={async () => {
-              return await Promise.all([getGigs(args), getGigCount(args)]);
+              return await Promise.all([
+                getGigs(args),
+                getGigCount(args.where),
+              ]);
             }}
             fallback={<GigsSkeleton />}
           >

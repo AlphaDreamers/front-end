@@ -21,7 +21,7 @@ import {
 } from "./types";
 import * as LucideIcons from "lucide-react";
 import { format } from "date-fns";
-import { encode } from "bs58";
+import { encode, decode } from "bs58";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -123,10 +123,14 @@ export const decryptPrivateKey = async (
   encryptedData: EncryptedWalletData,
   password: string
 ): Promise<Uint8Array> => {
-  const encrypted = Buffer.from(encryptedData.encryptedPrivateKey, "base64");
-  const salt = Buffer.from(encryptedData.salt, "base64");
-  const iv = Buffer.from(encryptedData.iv, "base64");
+  console.log("FLAG1");
 
+  // Use bs58 decode instead of base64
+  const encrypted = decode(encryptedData.encryptedPrivateKey);
+  const salt = decode(encryptedData.salt);
+  const iv = decode(encryptedData.iv);
+
+  console.log("FLAG2");
   const passwordKey = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -134,6 +138,7 @@ export const decryptPrivateKey = async (
     false,
     ["deriveKey"]
   );
+  console.log("FLAG3");
 
   const derivedKey = await crypto.subtle.deriveKey(
     {
@@ -147,15 +152,21 @@ export const decryptPrivateKey = async (
     false,
     ["decrypt"]
   );
+  console.log("FLAG4");
 
-  // Decrypt the private key
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    derivedKey,
-    encrypted
-  );
-
-  return new Uint8Array(decrypted);
+  // This should now work and reach FLAG5
+  try {
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      derivedKey,
+      encrypted
+    );
+    console.log("FLAG5 - Decryption successful");
+    return new Uint8Array(decrypted);
+  } catch (error) {
+    console.error("Decryption failed:", error);
+    throw error;
+  }
 };
 
 export const groupMessagesByDate = (

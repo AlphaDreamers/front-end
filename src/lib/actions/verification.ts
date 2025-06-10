@@ -67,7 +67,7 @@ export async function getCompletedOrdersWithPositiveRating(
 
 // Get comprehensive verification status
 export async function getVerificationStatus(userId: string) {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -138,7 +138,7 @@ export async function getVerificationStatus(userId: string) {
 
 // Get all badges with user progress
 export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -185,7 +185,7 @@ export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
 }
 
 export async function getAchievements(): Promise<Achievement[]> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -224,7 +224,7 @@ export async function getAchievements(): Promise<Achievement[]> {
 }
 
 export async function setFeaturedBadge(badgeId: string): Promise<void> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }

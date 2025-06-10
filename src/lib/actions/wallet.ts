@@ -1,37 +1,27 @@
 "use server";
 
-import { PublicKey } from "@solana/web3.js";
-
 import { me } from "./auth";
 import { prisma } from "../prisma";
 import { revalidatePath } from "next/cache";
-import { DetailedWallet, Transaction } from "../types/wallet";
+import { WalletWithBalance } from "@/components/wallet/wallet-provider";
+import { Transaction } from "../types";
 
-export const createWallet = async (values: {
-  publicKey: string;
-  name: string;
-}) => {
-  const user = await me();
+export const createWallet = async (publicKey: string, name: string) => {
+  const { user } = await me();
 
   if (!user?.isVerified) {
     throw new Error("Please verify your email before creating a wallet");
   }
 
-  const { publicKey, name } = values;
-
-  // Validate the public key format
-  try {
-    new PublicKey(publicKey); // This will throw if invalid
-  } catch {
-    throw new Error("Invalid wallet address format");
-  }
-
-  // Check if wallet already exists
-  const existingWallet = await prisma.wallet.findFirst({
+  const existingWallets = await prisma.wallet.findMany({
     where: {
-      OR: [{ publicKey }, { userId: user.id, name }],
+      userId: user.id,
     },
   });
+
+  const existingWallet = existingWallets.find(
+    (wallet) => wallet.publicKey === publicKey || wallet.name === name
+  );
 
   if (existingWallet) {
     if (existingWallet.publicKey === publicKey) {
@@ -42,27 +32,26 @@ export const createWallet = async (values: {
     }
   }
 
-  // Create the wallet
   await prisma.wallet.create({
     data: {
       publicKey,
       name,
       userId: user.id,
+      isMain: existingWallets.length === 0,
     },
   });
 };
 
 export async function setMainWallet(walletId: string) {
-  const user = await me();
+  const { user } = await me();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
   }
 
-  // Verify the wallet belongs to the user
   const wallet = await prisma.wallet.findFirst({
     where: {
-      id: walletId,
+      publicKey: walletId,
       userId: user.id,
     },
   });
@@ -71,7 +60,6 @@ export async function setMainWallet(walletId: string) {
     throw new Error("Wallet not found");
   }
 
-  // Update all wallets: set the selected one as main, others as not main
   await prisma.$transaction([
     // First, set all user's wallets to not main
     prisma.wallet.updateMany({
@@ -80,7 +68,7 @@ export async function setMainWallet(walletId: string) {
     }),
     // Then set the selected wallet as main
     prisma.wallet.update({
-      where: { id: walletId },
+      where: { publicKey: walletId },
       data: { isMain: true },
     }),
   ]);
@@ -89,7 +77,7 @@ export async function setMainWallet(walletId: string) {
 }
 
 export async function deleteWallet(walletId: string) {
-  const user = await me();
+  const { user } = await me();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -98,7 +86,7 @@ export async function deleteWallet(walletId: string) {
   // Verify the wallet belongs to the user and is not main
   const wallet = await prisma.wallet.findFirst({
     where: {
-      id: walletId,
+      publicKey: walletId,
       userId: user.id,
     },
   });
@@ -112,7 +100,7 @@ export async function deleteWallet(walletId: string) {
   }
 
   await prisma.wallet.delete({
-    where: { id: walletId },
+    where: { publicKey: walletId },
   });
 
   revalidatePath("/dashboard/wallets");
@@ -121,107 +109,157 @@ export async function deleteWallet(walletId: string) {
 export const getWalletTransactions = async (
   publicKey: string
 ): Promise<Transaction[]> => {
-  /*
   const wallet = await prisma.wallet.findUnique({
     where: { publicKey: publicKey },
-    select:{
- publicKey: true,
-  name: true,
-  isMain: true,
-  createdAt:true,
-  transactions: {
-      select: {
-        txId: true,
-        amount: true,
-        createdAt: true,
-        senderPublicKey: true,
-        receiverPublicKey: true,
+    select: {
+      publicKey: true,
+      name: true,
+      isMain: true,
+      createdAt: true,
+      transactionsReceiver: {
+        select: {
+          txId: true,
+          amount: true,
+          createdAt: true,
+          senderPublicKey: true,
+          receiverPublicKey: true,
+        },
       },
-  }
-    }
-    )
+      transactionsSender: {
+        select: {
+          txId: true,
+          amount: true,
+          createdAt: true,
+          senderPublicKey: true,
+          receiverPublicKey: true,
+        },
+      },
+    },
   });
 
-  return {
-    publicKey: wallet.publicKey,
-    name: wallet.name,
-    isMain: wallet.isMain,
-    createdAt: wallet.createdAt,
-  transactions:transactions.map((tx) => ({
-    txId: tx.txId,
-    amount: tx.amount,
-    date: tx.createdAt,
-    senderPublicKey: tx.senderId,
-    receiverPublicKey: tx.receiverId,
-  }));
+  if (!wallet) {
+    throw new Error("Wallet not found");
   }
-  */
-  // Placeholder for actual transaction fetching logic
-  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   return [
-    {
-      txId: "tx123",
-      amount: 100,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey123",
-      receiverPublicKey: "receiverPublicKey123",
-    },
-    {
-      txId: "tx456",
-      amount: 200,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey456",
-      receiverPublicKey: "receiverPublicKey456",
-    },
-    {
-      txId: "tx789",
-      amount: 300,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey789",
-      receiverPublicKey: "receiverPublicKey789",
-    },
-    {
-      txId: "tx101112",
-      amount: 400,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey101112",
-      receiverPublicKey: "receiverPublicKey101112",
-    },
-    {
-      txId: "tx131415",
-      amount: 500,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey131415",
-      receiverPublicKey: "receiverPublicKey131415",
-    },
-    {
-      txId: "tx161718",
-      amount: 600,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey161718",
-      receiverPublicKey: "receiverPublicKey161718",
-    },
-    {
-      txId: "tx192021",
-      amount: 700,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey192021",
-      receiverPublicKey: "receiverPublicKey192021",
-    },
-    {
-      txId: "tx222324",
-      amount: 800,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey222324",
-      receiverPublicKey: "receiverPublicKey222324",
-    },
-    {
-      txId: "tx252627",
-      amount: 900,
-      date: new Date(),
-      senderPublicKey: "senderPublicKey252627",
-      receiverPublicKey: "receiverPublicKey252627",
-    },
+    ...wallet.transactionsReceiver.map((tx) => ({
+      txId: tx.txId,
+      amount: tx.amount,
+      date: tx.createdAt,
+      senderPublicKey: tx.senderPublicKey,
+      receiverPublicKey: tx.receiverPublicKey,
+    })),
+    ...wallet.transactionsSender.map((tx) => ({
+      txId: tx.txId,
+      amount: tx.amount,
+      date: tx.createdAt,
+      senderPublicKey: tx.senderPublicKey,
+      receiverPublicKey: tx.receiverPublicKey,
+    })),
   ];
+};
+
+export const getWallets = async (): Promise<WalletWithBalance[]> => {
+  const { user } = await me();
+  if (!user?.isVerified) {
+    return [];
+  }
+
+  const wallets = await prisma.wallet.findMany({
+    where: { userId: user.id },
+    orderBy: [{ isMain: "desc" }, { createdAt: "desc" }],
+    select: {
+      name: true,
+      publicKey: true,
+      isMain: true,
+      createdAt: true,
+    },
+  });
+
+  return wallets.map((wallet) => ({
+    ...wallet,
+    balance: 0,
+    status: "idle",
+  }));
+};
+
+export const getOrderForTransaction = async (orderId: string) => {
+  const { user } = await me();
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId, buyerId: user.id },
+    select: {
+      sellerId: true,
+      buyer: { select: { id: true } },
+      seller: {
+        select: {
+          wallets: {
+            where: {
+              isMain: true,
+            },
+            select: {
+              publicKey: true,
+            },
+          },
+        },
+      },
+      package: { select: { price: true } },
+    },
+  });
+
+  if (!order || order.seller.wallets.length === 0) {
+    return null;
+  }
+  console.log(order.seller.wallets[0].publicKey);
+  return {
+    recipientPublickey: order.seller.wallets[0].publicKey,
+    price: order.package.price,
+    sellerId: order.sellerId,
+    buyerId: order.buyer.id,
+  };
+};
+
+export const confirmTransaction = async (
+  orderId: string,
+  signature: string,
+  amount: number,
+  recipientPublicKey: string,
+  senderPublicKey: string,
+  sellerId: string,
+  buyerId: string
+) => {
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "IN_PROGRESS",
+      transaction: {
+        create: {
+          txId: signature,
+          amount,
+          senderPublicKey: senderPublicKey,
+          receiverPublicKey: recipientPublicKey,
+        },
+      },
+    },
+  });
+
+  await prisma.notification.createMany({
+    data: [
+      {
+        recipientId: sellerId,
+        type: "PAYMENT",
+        title: "Payment Received",
+        description: `You have received a payment of ${amount} SOL for order #${orderId}.`,
+      },
+      {
+        recipientId: buyerId,
+        type: "PAYMENT",
+        title: "Payment Sent",
+        description: `You have sent a payment of ${amount} SOL for order #${orderId}.`,
+      },
+    ],
+  });
 };

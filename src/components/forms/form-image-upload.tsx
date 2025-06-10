@@ -78,13 +78,13 @@ export default function FormImageUpload<T extends FieldValues = FieldValues>({
           Array.from(files).forEach((file) => {
             // Validate file type
             if (!acceptedTypes.includes(file.type)) {
-              errors.push(`${file.name} is not a supported image type`);
+              errors.push(`Images must be JPG, or PNG format`);
               return;
             }
 
             // Validate file size
             if (file.size > maxSizeMB * 1024 * 1024) {
-              errors.push(`${file.name} exceeds ${maxSizeMB}MB limit`);
+              errors.push(`Images must be less than 5MB in size`);
               return;
             }
 

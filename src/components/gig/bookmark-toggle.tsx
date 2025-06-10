@@ -30,7 +30,11 @@ const BookmarkToggle = ({
     });
 
   return (
-    <Button onClick={onToggle} variant={isBookmarked ? "secondary" : "outline"}>
+    <Button
+      onClick={onToggle}
+      variant={isBookmarked ? "default" : "outline"}
+      size="sm"
+    >
       {isBookmarked ? <BookmarkPlus /> : <BookmarkMinus />}
     </Button>
   );

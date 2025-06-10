@@ -5,10 +5,18 @@ import { me } from "@/lib/actions/auth";
 import CreateGigForm from "@/components/create-gig-form";
 
 export default async function GigCreatePage() {
-  const user = await me();
+  const { user, error } = await me();
 
   if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/dashboard/gigs/create");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/gigs/create`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   // Fetch all needed data in parallel for better performance

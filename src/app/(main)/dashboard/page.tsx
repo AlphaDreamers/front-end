@@ -8,10 +8,18 @@ import { EarningsSummary } from "@/components/dashboard/earnings-summary";
 import { PerformanceStats } from "@/components/dashboard/performance-stats";
 
 export default async function DashboardPage() {
-  const user = await me();
+  const { user, error } = await me();
 
   if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/dashboard");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   return (

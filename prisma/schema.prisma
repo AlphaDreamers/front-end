@@ -214,17 +214,18 @@ model SocialLink {
 model User {
   id String @id @default(uuid())
 
-  username      String  @unique
-  email         String  @unique
-  password      String
-  isVerified    Boolean @default(false)
-  avatar        String?
-  banner        String?
-  headline      String?
-  bio           String?
-  firstName     String
-  lastName      String
-  isKycVerified Boolean @default(false)
+  username          String  @unique
+  email             String  @unique
+  password          String
+  isVerified        Boolean @default(false)
+  avatar            String?
+  banner            String?
+  headline          String?
+  bio               String?
+  firstName         String
+  lastName          String
+  isKycVerified     Boolean @default(false)
+  isProfileVerified Boolean @default(false)
 
   verificationToken VerificationToken?
   gigs              Gig[]               @relation("Seller")

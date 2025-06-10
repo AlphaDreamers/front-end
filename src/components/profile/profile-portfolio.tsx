@@ -1,107 +1,148 @@
-// src/components/profile/profile-about.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { getIconBySocialType } from "@/lib/utils";
-import { ProfileUser } from "@/lib/types";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { Eye, ExternalLink } from "lucide-react";
+import { PortfolioItem } from "@/lib/types";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
-interface ProfileAboutProps {
-  user: ProfileUser;
-  socialLinks: ProfileUser["socialLinks"];
-  skills: ProfileUser["skills"];
+interface ProfilePortfolioProps {
+  items: PortfolioItem[];
 }
 
-export default function ProfileAbout({
-  user,
-  socialLinks,
-  skills,
-}: ProfileAboutProps) {
+export default function ProfilePortfolio({ items }: ProfilePortfolioProps) {
+  if (items.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <p className="text-muted-foreground">No portfolio items yet.</p>
+      </Card>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        {/* Bio Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>About Me</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              {user.bio || "No bio provided yet."}
-            </p>
-          </CardContent>
-        </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {items.map((item) => (
+        <Dialog key={item.id}>
+          <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300">
+            {/* Thumbnail */}
+            <div className="aspect-video relative overflow-hidden bg-muted">
+              <Image
+                src={item.primaryImage || "/placeholder.svg"}
+                alt={item.title}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+            </div>
 
-        {/* Skills Card */}
-        {skills.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Skills & Expertise</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {skills.map((skill) => (
-                <div key={skill.id} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{skill.title}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Level {skill.level}/5
-                    </span>
+            {/* Content */}
+            <div className="p-4 space-y-3">
+              <h3 className="font-semibold line-clamp-1">{item.title}</h3>
+              {item.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {item.description}
+                </p>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <DialogTrigger asChild>
+                  <Button size="sm" className="flex-1">
+                    <Eye className="size-4 mr-2" />
+                    View
+                  </Button>
+                </DialogTrigger>
+                {item.url && (
+                  <Button asChild size="sm" variant="outline">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="size-4" />
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Dialog Content */}
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="text-xl">{item.title}</DialogTitle>
+            </DialogHeader>
+
+            {/* Images */}
+            {item.images.length > 0 && (
+              <div className="mt-4">
+                {item.images.length === 1 ? (
+                  <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
+                    <Image
+                      src={item.images[0]}
+                      alt={item.title}
+                      fill
+                      className="object-contain"
+                    />
                   </div>
-                  <Progress value={skill.level * 20} className="h-2" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                ) : (
+                  <Carousel className="w-full">
+                    <CarouselContent>
+                      {item.images.map((image, index) => (
+                        <CarouselItem key={index}>
+                          <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
+                            <Image
+                              src={image}
+                              alt={`${item.title} - ${index + 1}`}
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="-left-16" />
+                    <CarouselNext className="-right-16" />
+                  </Carousel>
+                )}
+              </div>
+            )}
 
-      {/* Right Sidebar */}
-      <div className="space-y-6">
-        {/* Verification Card */}
-        {user.isKycVerified && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Verification</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge className="w-full justify-center py-2 bg-green-600">
-                Identity Verified
-              </Badge>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                This seller has completed KYC verification
-              </p>
-            </CardContent>
-          </Card>
-        )}
+            {/* Description */}
+            {item.description && (
+              <div className="mt-6">
+                <p className="text-muted-foreground whitespace-pre-wrap">
+                  {item.description}
+                </p>
+              </div>
+            )}
 
-        {/* Social Links Card */}
-        {socialLinks.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Connect</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {socialLinks.map((link) => (
-                <Link
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "w-full justify-start"
-                  )}
-                >
-                  {getIconBySocialType(link.type as any, { size: 16 })}
-                  <span className="ml-2">{link.type}</span>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            {/* External Link */}
+            {item.url && (
+              <div className="mt-6 flex justify-end">
+                <Button asChild>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="size-4 mr-2" />
+                    Visit Project
+                  </a>
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      ))}
     </div>
   );
 }

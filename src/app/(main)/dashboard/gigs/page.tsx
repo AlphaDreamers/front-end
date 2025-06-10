@@ -27,7 +27,7 @@ export default async function DashboardGigsPage({
 }: {
   searchParams: Promise<GigSearchParams>;
 }) {
-  const user = await me();
+  const { user } = await me();
 
   // This is handled by the middleware, but we check here to avoid unnecessary DB calls
   if (!user) {
@@ -112,7 +112,7 @@ export default async function DashboardGigsPage({
               fetch={async () => {
                 return await Promise.all([
                   getDashboardGigs(filtersArgs),
-                  getGigCount(filtersArgs),
+                  getGigCount(filtersArgs.where),
                 ]);
               }}
               fallback={<GigsSkeleton />}

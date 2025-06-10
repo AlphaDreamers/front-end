@@ -25,7 +25,6 @@ export default async function BrowseGigsPage({
 
   const getFilters = async (): Promise<FilterType[]> => {
     const categories = await getKeyValueCategories();
-
     return [
       {
         id: "category",
@@ -86,7 +85,7 @@ export default async function BrowseGigsPage({
               fetch={async () => {
                 return await Promise.all([
                   getGigs(filtersArgs),
-                  getGigCount(filtersArgs),
+                  getGigCount(filtersArgs.where),
                 ]);
               }}
               fallback={<GigsSkeleton />}

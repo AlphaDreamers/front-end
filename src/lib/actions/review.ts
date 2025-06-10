@@ -173,7 +173,7 @@ export async function updateReviewResponse({
   reviewId,
   response,
 }: z.infer<typeof SellerResponseSchema>) {
-  const user = await me();
+  const {user,} = await me();
 
   if (!user?.isVerified) {
     throw new Error("You must be logged in to respond to reviews");
@@ -225,7 +225,7 @@ export async function updateReviewResponse({
 }
 
 export async function deleteReviewResponse(reviewId: string) {
-  const user = await me();
+  const {user,} = await me();
 
   if (!user?.isVerified) {
     throw new Error("You must be logged in to delete review responses");

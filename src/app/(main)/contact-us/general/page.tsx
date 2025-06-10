@@ -3,7 +3,7 @@ import ContactPageTemplate from "@/components/contact/contact-page-template";
 import GeneralForm from "@/components/contact/general-form";
 
 export default async function ContactPage() {
-  const user = await me();
+  const {user,} = await me();
 
   const isAuth = !!user?.isVerified;
   return (

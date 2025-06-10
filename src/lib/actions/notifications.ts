@@ -10,7 +10,7 @@ import {
   NotificationMetadata, 
   NotificationFilters,
   NotificationPaginationOptions 
-} from "@/lib/types/notifications";
+} from "@/lib/types";
 
 // Helper function to parse metadata from description field
 function parseNotificationMetadata(description: string): NotificationMetadata {
@@ -31,7 +31,7 @@ export async function getNotifications(
   filters: NotificationFilters = {},
   pagination: NotificationPaginationOptions = { page: 1, limit: 10 }
 ): Promise<{ notifications: Notification[]; total: number }> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -99,7 +99,7 @@ export async function getNotifications(
 
 // Get unread notification count
 export async function getUnreadNotificationCount(): Promise<number> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -114,7 +114,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 
 // Mark notifications as read
 export async function markNotificationsAsRead(notificationIds: string[]): Promise<void> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -132,7 +132,7 @@ export async function markNotificationsAsRead(notificationIds: string[]): Promis
 
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(): Promise<void> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -150,7 +150,7 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 
 // Delete notifications
 export async function deleteNotifications(notificationIds: string[]): Promise<void> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -165,7 +165,7 @@ export async function deleteNotifications(notificationIds: string[]): Promise<vo
 
 // Delete all read notifications
 export async function deleteAllReadNotifications(): Promise<void> {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }

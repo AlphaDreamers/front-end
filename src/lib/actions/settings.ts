@@ -2,13 +2,13 @@
 
 import { z } from "zod";
 
-import { PreferencesFormSchema } from "../schemas/settings";
+import { SettingsFormSchema } from "../schemas/settings";
 import { me } from "./auth";
 import { prisma } from "../prisma";
-import { UserSettings } from "../types/settings";
+import { UserSettings } from "../types";
 
 export const getSettings = async (): Promise<UserSettings> => {
-  const user = await me();
+  const { user } = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -34,9 +34,9 @@ export const getSettings = async (): Promise<UserSettings> => {
 };
 
 export const updateSettings = async (
-  values: z.infer<typeof PreferencesFormSchema>
+  values: z.infer<typeof SettingsFormSchema>
 ) => {
-  const user = await me();
+  const { user } = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }

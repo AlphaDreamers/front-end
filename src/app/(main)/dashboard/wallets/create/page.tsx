@@ -53,12 +53,10 @@ export default function CreateWalletPage() {
     values: z.infer<typeof CreateNewWalletFormSchema>
   ) => {
     const mnemonic = generateMnemonic(128);
-    const seed = await mnemonicToSeed(mnemonic);
-    const derivedSeed = derivePath(
-      "m/44'/501'/0'/0'",
-      seed.toString("hex")
-    ).key;
-    const keypair = Keypair.fromSeed(derivedSeed);
+    const seed = await mnemonicToSeed(mnemonic); // BIP39 seed
+
+    const { key } = derivePath("m/44'/501'/0'/0'", seed.toString("hex"));
+    const keypair = Keypair.fromSeed(key.slice(0, 32)); // ✅ FIXED
 
     const encryptedWalletData = await encryptPrivateKey(
       keypair.secretKey,
@@ -98,10 +96,7 @@ export default function CreateWalletPage() {
     );
 
     // Create wallet in database
-    await createWallet({
-      publicKey: walletData.publicKey,
-      name: walletData.name,
-    });
+    await createWallet(walletData.publicKey, walletData.name);
 
     router.push("/wallets");
   };

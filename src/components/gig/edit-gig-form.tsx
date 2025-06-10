@@ -12,6 +12,8 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 
 import { updateGig } from "@/lib/actions/gig";
@@ -26,7 +28,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 
 // Import our reusable form components
@@ -38,6 +48,15 @@ import FormImageUpload from "@/components/forms/form-image-upload";
 import FormPackages from "@/components/forms/form-packages";
 import { KeyValuePair } from "@/lib/types";
 import Link from "next/link";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
 
 interface EditGigFormProps {
   gig: z.infer<typeof EditGigFormSchema>;
@@ -152,17 +171,75 @@ export default function EditGigForm({
             />
 
             <div className="grid gap-6 md:grid-cols-2">
-              <FormSelect
+              <FormField
                 control={form.control}
                 name="categoryId"
-                label="Category"
-                placeholder="Select a category"
-                options={categories.map((cat) => ({
-                  label: cat.title,
-                  value: cat.id,
-                }))}
-                description="Choose the most relevant category"
-                required
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Category
+                      <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-[200px] justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value
+                              ? categories.find(
+                                  (cat) => cat.value === field.value
+                                )?.label
+                              : "Select category"}
+                            <ChevronsUpDown className="opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search categories..."
+                            className="h-9"
+                          />
+                          <CommandList>
+                            <CommandEmpty>No framework found.</CommandEmpty>
+                            <CommandGroup>
+                              {categories.map((cat) => (
+                                <CommandItem
+                                  value={cat.value}
+                                  key={cat.value}
+                                  onSelect={() => {
+                                    form.setValue("categoryId", cat.value);
+                                  }}
+                                >
+                                  {cat.label}
+                                  <Check
+                                    className={cn(
+                                      "ml-auto",
+                                      cat.value === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription>
+                      Choose the most relevant category for your gig
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
 
               <FormMultiSelect

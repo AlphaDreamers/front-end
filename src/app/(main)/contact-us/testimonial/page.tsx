@@ -3,7 +3,7 @@ import { me } from "@/lib/actions/auth";
 import TestimonialForm from "@/components/contact/testimonial-form";
 
 export default async function TestimonialContactPage() {
-  const user = await me();
+  const {user,} = await me();
 
   const isAuth = !!user?.isVerified;
 

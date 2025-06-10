@@ -33,7 +33,7 @@ export const getKeyValueOrders = async (
 };
 
 export const orderPackage = async (packageId: string) => {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) throw new Error("User not authenticated");
 
   const gigPackage = await prisma.package.findUnique({
@@ -72,7 +72,7 @@ export const orderPackage = async (packageId: string) => {
 };
 
 export const confirmPayment = async (orderId: string) => {
-  const user = await me();
+  const {user,} = await me();
   if (!user?.isVerified) throw new Error("User not authenticated");
 
   const order = await prisma.order.findUnique({

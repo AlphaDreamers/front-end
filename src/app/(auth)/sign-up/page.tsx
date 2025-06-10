@@ -263,7 +263,7 @@ export default function SignUpPage() {
 
           <FormField
             control={form.control}
-            name="countryCode"
+            name="country"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>
@@ -305,7 +305,7 @@ export default function SignUpPage() {
                               value={country.label}
                               key={country.code}
                               onSelect={() => {
-                                form.setValue("countryCode", country.code);
+                                form.setValue("country", country.code);
                               }}
                             >
                               {country.label}

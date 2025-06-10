@@ -6,11 +6,18 @@ import SettingsForm from "@/components/settings/settings-form";
 import { getSettings } from "@/lib/actions/settings";
 
 export default async function SettingsPage() {
-  const user = await me();
+  const { user, error } = await me();
 
-  // Middlewere should handle this, this is a safety check
   if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/settings");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/settings`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   const settings = await getSettings();

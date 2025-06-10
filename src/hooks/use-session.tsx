@@ -10,7 +10,7 @@ import {
 } from "react";
 
 interface Session {
-  user: Awaited<ReturnType<typeof me>>;
+  user: Awaited<ReturnType<typeof me>>["user"];
 }
 
 interface SessionContextType {
@@ -31,7 +31,7 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
     try {
       setIsLoading(true);
       setError(null);
-      const user = await me();
+  const {user,} = await me();
       const sessionData = user ? { user } : null;
       setSession(sessionData);
     } catch (err) {

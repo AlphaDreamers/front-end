@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ import { signIn } from "@/lib/actions/auth";
 import { SignInFormSchema } from "@/lib/schemas";
 import AuthCard from "@/components/templates/auth-card";
 import PasswordInput from "@/components/password-input";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 export default function SignInPage() {
   const { push } = useRouter();
@@ -42,6 +43,7 @@ export default function SignInPage() {
         const params = new URLSearchParams(searchParams);
         const callbackUrl = params.get("callback-url") || "/";
         params.delete("callback-url");
+        params.delete("error");
         push(`${callbackUrl}?${params.toString()}`);
         return "Welcome back!";
       },
@@ -55,6 +57,8 @@ export default function SignInPage() {
       },
     });
   const isLoading = form.formState.isSubmitting;
+
+  const err = searchParams.get("error");
 
   return (
     <AuthCard
@@ -89,6 +93,12 @@ export default function SignInPage() {
         </>
       }
     >
+      {err && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle />
+          <AlertTitle>{err}</AlertTitle>
+        </Alert>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField

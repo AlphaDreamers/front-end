@@ -96,7 +96,7 @@ const GigCard = ({ gig }: GigCardProps) => {
         </div>
 
         <div className="flex gap-2 items-center">
-          <BookmarkToggle gigId={gig.id} />
+          <BookmarkToggle gigId={gig.id} isBookmarked={gig.isBookmarked} />
           <Link
             className={buttonVariants({
               variant: "outline",

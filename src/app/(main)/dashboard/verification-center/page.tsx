@@ -21,11 +21,18 @@ import {
 import PageTemplate from "@/components/templates/page-template";
 
 export default async function VerificationCenterPage() {
-  const user = await me();
+  const { user, error } = await me();
 
-  // This is handled by the middleware, but we can also check here
   if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/dashboard/verification-center");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/varification-center`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
   return (
@@ -50,6 +57,7 @@ export default async function VerificationCenterPage() {
                 profileCompletion={profileCompletion}
                 isKycVerified={isKycVerified}
                 orderCompletion={orderCompletion}
+                recievedVerification={user.isProfileVerified}
               />
             )}
           </Async>

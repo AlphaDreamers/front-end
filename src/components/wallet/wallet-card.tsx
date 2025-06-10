@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { 
-  Eye, 
-  Key, 
-  Star, 
-  Trash2, 
-  WalletIcon, 
+} from "@/components/ui/card";
+import {
+  Eye,
+  Key,
+  Star,
+  Trash2,
+  WalletIcon,
   RefreshCw,
   AlertCircle,
-  Loader2
-} from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+  Loader2,
+} from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,38 +32,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useWallets, WalletWithBalance } from './wallet-provider';
-import HiddenField from '@/components/hidden-field';
+} from "@/components/ui/tooltip";
+import { useWallets, WalletWithBalance } from "./wallet-provider";
+import HiddenField from "@/components/hidden-field";
 
 interface WalletCardProps {
   wallet: WalletWithBalance;
 }
 
 export default function WalletCard({ wallet }: WalletCardProps) {
-  const { 
-    fetchWalletBalance, 
-    setMainWallet, 
-    deleteWallet 
-  } = useWallets();
-  
+  const { setMainWallet, deleteWallet } = useWallets();
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSettingMain, setIsSettingMain] = useState(false);
-
-  const handleRetry = () => {
-    fetchWalletBalance(wallet.id);
-  };
 
   const handleSetMain = async () => {
     setIsSettingMain(true);
     try {
-      await setMainWallet(wallet.id);
+      await setMainWallet(wallet.publicKey);
     } finally {
       setIsSettingMain(false);
     }
@@ -72,7 +64,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await deleteWallet(wallet.id);
+      await deleteWallet(wallet.publicKey);
     } finally {
       setIsDeleting(false);
     }
@@ -82,7 +74,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
   const cardClassName = cn(
     "relative overflow-hidden transition-all duration-300",
     wallet.isMain && "ring-2 ring-primary",
-    wallet.status === 'error' && "border-destructive/50"
+    wallet.status === "error" && "border-destructive/50"
   );
 
   return (
@@ -107,11 +99,11 @@ export default function WalletCard({ wallet }: WalletCardProps) {
       <CardContent className="space-y-4">
         {/* Balance Display */}
         <div className="text-center py-4 rounded-lg border bg-card">
-          {wallet.status === 'loading' ? (
+          {wallet.status === "loading" ? (
             <div className="flex items-center justify-center py-2">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : wallet.status === 'error' ? (
+          ) : wallet.status === "error" ? (
             <div className="space-y-2">
               <div className="flex items-center justify-center text-destructive">
                 <AlertCircle className="h-5 w-5 mr-2" />
@@ -120,7 +112,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRetry}
+                onClick={() => console.log("Retrying...")}
                 className="text-xs"
               >
                 <RefreshCw className="h-3 w-3 mr-1" />
@@ -160,8 +152,8 @@ export default function WalletCard({ wallet }: WalletCardProps) {
 
       <CardFooter className="gap-2">
         <Link
-          href={`/dashboard/wallets/${wallet.id}`}
-          className={cn(buttonVariants({ variant: 'outline' }), 'flex-1')}
+          href={`/dashboard/wallets/${wallet.publicKey}`}
+          className={cn(buttonVariants({ variant: "outline" }), "flex-1")}
         >
           <Eye className="h-4 w-4 mr-2" />
           Details
@@ -171,7 +163,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant={wallet.isMain ? 'secondary' : 'default'}
+                variant={wallet.isMain ? "secondary" : "default"}
                 disabled={wallet.isMain || isSettingMain}
                 onClick={handleSetMain}
                 className="flex-1"
@@ -179,12 +171,14 @@ export default function WalletCard({ wallet }: WalletCardProps) {
                 {isSettingMain ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
-                  <Star className={cn(
-                    "h-4 w-4 mr-2",
-                    wallet.isMain && "fill-current"
-                  )} />
+                  <Star
+                    className={cn(
+                      "h-4 w-4 mr-2",
+                      wallet.isMain && "fill-current"
+                    )}
+                  />
                 )}
-                {wallet.isMain ? 'Main' : 'Set Main'}
+                {wallet.isMain ? "Main" : "Set Main"}
               </Button>
             </TooltipTrigger>
             {wallet.isMain && (
@@ -197,8 +191,8 @@ export default function WalletCard({ wallet }: WalletCardProps) {
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               size="icon"
               disabled={wallet.isMain || isDeleting}
             >
@@ -213,15 +207,16 @@ export default function WalletCard({ wallet }: WalletCardProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Wallet</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{wallet.name}&ldquo;? This action cannot be undone.
-                Make sure you have backed up your private keys if needed.
+                Are you sure you want to delete &ldquo;{wallet.name}&ldquo;?
+                This action cannot be undone. Make sure you have backed up your
+                private keys if needed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
-                className={buttonVariants({ variant: 'destructive' })}
+                className={buttonVariants({ variant: "destructive" })}
               >
                 Delete Wallet
               </AlertDialogAction>

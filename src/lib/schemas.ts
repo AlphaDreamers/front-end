@@ -35,7 +35,7 @@ export const SignUpFormSchema = z
       .min(1, "Last name is required")
       .max(50, "Last name must be at most 50 characters"),
     username: z.string().min(3, "Username must be at least 3 characters"),
-    email: z.string().email(),
+    email: z.string().email("Please enter a valid email address"),
     password: PasswordSchema,
     confirmPassword: z.string(),
     country: z.enum(
@@ -156,8 +156,8 @@ export const MneumonicsVerificationFormSchema = z.object({
 export const CreateGigFormSchema = z.object({
   title: z
     .string()
-    .min(10, "Title must be at least 10 characters")
-    .max(80, "Title must be at most 80 characters")
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title must be at most 100 characters")
     .regex(
       /^[a-zA-Z0-9\s\-.,!?'"]+$/,
       "Title can only contain letters, numbers, spaces, and basic punctuation"
@@ -418,60 +418,142 @@ export const EditGigFormSchema = z
 // --- Profile and Communication Schemas ---
 
 // Reusable schema for user skills
-const SkillSchema = z.object({
-  id: z.string().uuid().optional(),
-  level: z.number().min(1).max(5, "Skill level must be between 1 and 5"),
-  skillId: z.string().uuid(),
-});
-
-// Reusable schema for social links
-const SocialLinkSchema = z.object({
-  id: z.string().uuid().optional(),
-  url: z.string().url("Must be a valid URL"),
-  type: z.enum([
-    "WEBSITE",
-    "GITHUB",
-    "LINKEDIN",
-    "INSTAGRAM",
-    "FACEBOOK",
-    "TIKTOK",
-    "YOUTUBE",
-    "DISCORD",
-    "TELEGRAM",
-    "WHATSAPP",
-    "EMAIL",
-  ]),
-});
-
-// Reusable schema for portfolio items
-const PortfolioItemSchema = z.object({
-  id: z.string().uuid().optional(),
-  title: z.string().min(1, "Title is required").max(100, "Title too long"),
-  description: z.string().max(500, "Description too long"),
-  url: z.string().url("Must be a valid URL"),
-  images: z.array(
-    z.object({
-      id: z.string().uuid().optional(),
-      url: z.string().url("Must be a valid URL"),
-      isPrimary: z.boolean(),
-    })
-  ),
-});
 
 // Schema for updating user profile
+import { SocialLinkType } from "@prisma/client";
+
+// Enhanced schema for updating profile that handles both existing and new items
 export const UpdateProfileFormSchema = z.object({
-  username: z.string(),
-  avatar: z.string(),
-  banner: z.string(),
-  headline: z.string(),
-  bio: z.string(),
-  firstName: z.string(),
-  lastName: z.string(),
-  skills: z.array(SkillSchema),
-  socialLinks: z.array(SocialLinkSchema),
-  portfolioItems: z.array(PortfolioItemSchema),
-  featuredBadge: z.string().uuid(),
+  // Basic information
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username must be at most 30 characters")
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      "Username can only contain letters, numbers, hyphens, and underscores"
+    ),
+
+  firstName: z
+    .string()
+    .min(1, "First name is required")
+    .max(50, "First name must be at most 50 characters"),
+
+  lastName: z
+    .string()
+    .min(1, "Last name is required")
+    .max(50, "Last name must be at most 50 characters"),
+
+  headline: z
+    .string()
+    .max(100, "Headline must be at most 100 characters")
+    .optional()
+    .nullable(),
+
+  bio: z
+    .string()
+    .max(1000, "Bio must be at most 1000 characters")
+    .optional()
+    .nullable(),
+
+  // Avatar and banner can be existing (URL) or new (File)
+  avatar: z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("existing"),
+        url: z.string().url(),
+      }),
+      z.object({
+        type: z.literal("new"),
+        file: z.instanceof(File),
+        tempId: z.string(),
+      }),
+    ])
+    .nullable(),
+
+  banner: z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("existing"),
+        url: z.string().url(),
+      }),
+      z.object({
+        type: z.literal("new"),
+        file: z.instanceof(File),
+        tempId: z.string(),
+      }),
+    ])
+    .nullable(),
+
+  // Skills array
+  skills: z.array(
+    z.object({
+      id: z.string().uuid().optional(), // Existing skills have IDs
+      tempId: z.string().optional(), // New skills get temp IDs
+      skillId: z.string().uuid(), // The skill reference
+      label: z.string(), // For display purposes
+      level: z.number().min(1).max(5),
+    })
+  ),
+
+  // Social links
+  socialLinks: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(), // Existing links have IDs
+        tempId: z.string().optional(), // New links get temp IDs
+        type: z.nativeEnum(SocialLinkType),
+        url: z.string().min(1, "URL is required"),
+      })
+    )
+    .refine(
+      (links) => {
+        // Ensure no duplicate social link types
+        const types = links.map((link) => link.type);
+        return types.length === new Set(types).size;
+      },
+      { message: "Each social platform can only be added once" }
+    ),
+
+  // Portfolio items
+  portfolioItems: z.array(
+    z.object({
+      id: z.string().uuid().optional(), // Existing items have IDs
+      tempId: z.string().optional(), // New items get temp IDs
+      title: z.string().min(1, "Title is required").max(100),
+      description: z.string().max(500).optional(),
+      url: z.string().url().optional().or(z.literal("")),
+      images: z
+        .array(
+          z.discriminatedUnion("type", [
+            // Existing images
+            z.object({
+              type: z.literal("existing"),
+              id: z.string().uuid(),
+              url: z.string().url(),
+              isPrimary: z.boolean(),
+            }),
+            // New images
+            z.object({
+              type: z.literal("new"),
+              file: z.instanceof(File),
+              isPrimary: z.boolean(),
+              tempId: z.string(),
+            }),
+          ])
+        )
+        .min(1, "At least one image is required")
+        .refine((images) => images.some((img) => img.isPrimary), {
+          message: "One image must be marked as primary",
+        }),
+    })
+  ),
+
+  // Featured badge
+  featuredBadgeId: z.string().uuid().nullable(),
 });
+
+export type UpdateProfileFormData = z.infer<typeof UpdateProfileFormSchema>;
 
 // Schema for contacting a seller
 export const ContactSellerFormSchema = z.object({

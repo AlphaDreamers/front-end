@@ -30,12 +30,11 @@ export async function me() {
   const token = cookieStore.get("token")?.value;
 
   if (!token) {
-    return null;
+    return { user: null, error: null };
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTToken;
-
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: {
@@ -47,6 +46,7 @@ export async function me() {
         firstName: true,
         lastName: true,
         isKycVerified: true,
+        isProfileVerified: true,
         _count: {
           select: {
             notifications: {
@@ -57,9 +57,19 @@ export async function me() {
       },
     });
 
-    return user;
-  } catch {
-    return null;
+    return { user, error: null };
+  } catch (error) {
+    // Check if it's a token expiration error
+    if (error instanceof jwt.TokenExpiredError) {
+      // Clear the expired token
+      const cookieStore = await cookies();
+      cookieStore.delete("token");
+
+      return { user: null, error: "TOKEN_EXPIRED" as const };
+    }
+
+    // Other JWT errors (invalid signature, malformed token, etc.)
+    return { user: null, error: "INVALID_TOKEN" as const };
   }
 }
 
@@ -285,7 +295,7 @@ export async function resetPassword(
   const { email, code, newPassword } = values;
 
   // For authenticated users changing their password
-  const currentUser = await me();
+  const { user: currentUser } = await me();
   if (currentUser) {
     await prisma.user.update({
       where: { id: currentUser.id },
@@ -480,7 +490,7 @@ export async function signOut() {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
-  const user = await me();
+  const { user } = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }

@@ -5,10 +5,11 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,12 +31,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import { confirmFullVerification } from "@/lib/actions/profile";
 
 interface VerificationStatusCardProps {
   overallProgress: number;
   profileCompletion: number;
   isKycVerified: boolean;
   orderCompletion: number;
+  recievedVerification?: boolean;
 }
 
 export function VerificationStatusCard({
@@ -43,8 +47,16 @@ export function VerificationStatusCard({
   profileCompletion,
   isKycVerified,
   orderCompletion,
+  recievedVerification,
 }: VerificationStatusCardProps) {
   const isVerified = overallProgress >= 100;
+
+  const handleApplyForFullVerification = async () =>
+    toast.promise(async () => confirmFullVerification(), {
+      loading: "Applying for full verification...",
+      success: "Verification application submitted successfully!",
+      error: "Failed to apply for verification. Please try again.",
+    });
 
   return (
     <Card className="overflow-hidden">
@@ -121,6 +133,14 @@ export function VerificationStatusCard({
           } more orders with ratings above 2.5 stars`}
         />
       </CardContent>
+
+      {isVerified && !recievedVerification && (
+        <CardFooter>
+          <Button onClick={handleApplyForFullVerification} className="w-full">
+            Apply for Full Verification
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }

@@ -4,7 +4,7 @@ import ContactPageTemplate from "@/components/contact/contact-page-template";
 import ComplaintForm from "@/components/contact/complaint-form";
 
 export default async function ContactPage() {
-  const user = await me();
+  const {user,} = await me();
   const isAuth = !!user;
 
   const orders = user?.id

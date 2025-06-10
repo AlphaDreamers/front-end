@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Message } from "@/lib/types/chat";
+import { Message } from "@/lib/types";
 
 interface ChatMessageProps {
   message: Message;

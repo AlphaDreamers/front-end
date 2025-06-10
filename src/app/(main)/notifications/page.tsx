@@ -74,6 +74,20 @@ async function NotificationsContent({
 }: {
   searchParams: SearchParams;
 }) {
+  const { user, error } = await me();
+
+  if (!user?.isVerified) {
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/notifications`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
+  }
+
   const { filters, page } = parseSearchParams(searchParams);
 
   const { notifications, total } = await getNotifications(filters, {
@@ -103,7 +117,7 @@ export default async function NotificationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   // Check authentication
-  const user = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/notifications");
   }

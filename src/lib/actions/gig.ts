@@ -13,11 +13,12 @@ import {
   Gig,
   LucideIconName,
 } from "../types";
+import { revalidatePath } from "next/cache";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
 ) => {
-  const user = await me();
+  const { user } = await me();
 
   if (!user) {
     throw new Error("You must be logged in to create a gig");
@@ -167,7 +168,7 @@ export const createGig = async (
 export const getUpdateGigFormGig = async (
   gigId: string
 ): Promise<z.infer<typeof EditGigFormSchema>> => {
-  const user = await me();
+  const { user } = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -252,8 +253,8 @@ export const getUpdateGigFormGig = async (
 export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
   try {
     // 1. Authenticate the user
-    const user = await me();
-    if (!user) {
+    const { user } = await me();
+    if (!user?.isVerified) {
       throw new Error("User not authenticated");
     }
 
@@ -578,7 +579,7 @@ export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
 };
 
 export const deleteGig = async (gigId: string) => {
-  const user = await me();
+  const { user } = await me();
 
   if (!user) {
     throw new Error("User not authenticated");
@@ -599,12 +600,14 @@ export const deleteGig = async (gigId: string) => {
   await prisma.gig.delete({
     where: { id: gigId },
   });
+
+  revalidatePath("/dashboard/gigs");
 };
 
 export const getGigs = async (
   args: Omit<Prisma.GigFindManyArgs, "select" | "include">
 ): Promise<Gig[]> => {
-  const user = await me();
+  const { user } = await me();
   const gigs = await prisma.gig.findMany({
     ...args,
     select: {
@@ -718,14 +721,14 @@ export const getGigs = async (
 };
 
 export const getGigCount = async (
-  args?: Prisma.GigCountArgs
+  args?: Prisma.GigWhereInput
 ): Promise<number> => {
-  const count = await prisma.gig.count(args);
+  const count = await prisma.gig.count({ where: args });
   return count;
 };
 
 export const toggleBookmark = async (gigId: string) => {
-  const user = await me();
+  const { user } = await me();
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -760,6 +763,8 @@ export const toggleBookmark = async (gigId: string) => {
       },
     });
   }
+
+  revalidatePath("/bookmarks");
 };
 
 export const getDetailedGig = async (

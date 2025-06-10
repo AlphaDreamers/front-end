@@ -10,11 +10,20 @@ export default async function Page({
 }: {
   params: Promise<{ publicKey: string }>;
 }) {
-  const user = await me();
-  if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/dashboard/wallets");
-  }
   const { publicKey } = await params;
+  const { user, error } = await me();
+
+  if (!user?.isVerified) {
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/wallets/${publicKey}`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
+  }
 
   const transactions = await getWalletTransactions(publicKey);
 

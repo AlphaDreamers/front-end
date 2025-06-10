@@ -1,4 +1,4 @@
-import { Tier } from "@prisma/client";
+import { SocialLinkType, Tier } from "@prisma/client";
 import * as icons from "lucide-react";
 import { NotificationType as PrismaNotificationType } from "@prisma/client";
 
@@ -345,7 +345,54 @@ export interface DetailedWallet {
 }
 
 export interface DetailedUser {
+  email: string;
   id: string;
+  gigCnt: number;
+  gigs: Gig[];
+  firstName: string;
+  lastName: string;
+  username: string;
+  reviews: Review[];
+  ratingCnt: number;
+  avgRating: number;
+  portfolioItemsCnt: number;
+  portfolioItems: PortfolioItem[];
+  socialLinks: SocialLink[];
+  skills: UserSkill[];
+  bio?: string;
+  isKycVerified: boolean;
+  banner?: string;
+  avatar?: string;
+  joinedAt: Date;
+  headline?: string;
+  badge?: {
+    id: string;
+    icon: LucideIconName;
+    color: Color;
+    tier: Tier;
+    title: string;
+  };
+  ordersCnt: number;
+}
+export interface PortfolioItem {
+  id: string;
+  primaryImage: string;
+  images: string[];
+  title: string;
+  description?: string;
+  url?: string;
+}
+
+export interface SocialLink {
+  id: string;
+  url: string;
+  type: SocialLinkType;
+}
+
+interface UserSkill {
+  id: string;
+  level: number;
+  title: string;
 }
 
 export type EncryptedWalletData = {
@@ -353,9 +400,6 @@ export type EncryptedWalletData = {
   salt: string;
   iv: string;
 };
-
-// lib/types/chat.ts
-
 export interface Message {
   id: string;
   chatId: string;

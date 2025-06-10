@@ -8,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileHeader from "@/components/profile/profile-header";
 import ProfileAbout from "@/components/profile/profile-about";
 import ProfilePortfolio from "@/components/profile/profile-portfolio";
-import ProfileReviews from "@/components/profile/profile-reviews";
-import { GigsGallery } from "@/components/gigs-gallery";
 
 import { me } from "@/lib/actions/auth";
-import { getDetailedUser, getProfileReviews } from "@/lib/actions/profile";
+import { getDetailedUser } from "@/lib/actions/profile";
+
+import GigCard from "@/components/gig/gig-card";
+import ReviewsSection from "@/components/reviews/reviews-list";
 
 export default async function ProfilePage({
   params,
@@ -21,74 +22,84 @@ export default async function ProfilePage({
 }) {
   const { username } = await params;
 
-  const [profileData, currentUser] = await Promise.all([
+  const [user, { user: currentUser }] = await Promise.all([
     getDetailedUser(username),
     me(),
   ]);
 
-  if (!profileData) {
+  if (!user) {
     return notFound();
   }
 
-  const { user, gigs, portfolioItems, reviewStats } = profileData;
   const isMe = currentUser?.id === user.id;
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Profile Header */}
-        <ProfileHeader user={user} />
+    <main className="flex flex-col gap-4">
+      <ProfileHeader user={user} />
 
-        {/* Edit Profile Button */}
-        {isMe && (
-          <div className="flex justify-end">
-            <Button asChild>
-              <Link href="/profile/edit">
-                <Edit className="size-4 mr-2" />
-                Edit Profile
-              </Link>
-            </Button>
+      {/* Edit Profile Button */}
+      {isMe && (
+        <div className="flex justify-end">
+          <Button asChild>
+            <Link href="/profile/edit">
+              <Edit />
+              Edit Profile
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Content Tabs */}
+      <Tabs defaultValue="about" className="w-full">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="about">About</TabsTrigger>
+          <TabsTrigger value="gigs">Gigs ({user.gigCnt})</TabsTrigger>
+          <TabsTrigger value="portfolio">
+            Portfolio ({user.portfolioItemsCnt})
+          </TabsTrigger>
+          <TabsTrigger value="reviews">Reviews ({user.ratingCnt})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="about" className="mt-6">
+          <ProfileAbout user={user} />
+        </TabsContent>
+
+        <TabsContent value="gigs" className="mt-6">
+          <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {user.gigs.map((gig) => (
+              <GigCard key={gig.id} gig={gig} />
+            ))}
           </div>
-        )}
+        </TabsContent>
 
-        {/* Content Tabs */}
-        <Tabs defaultValue="about" className="w-full">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="gigs">Gigs ({gigs.length})</TabsTrigger>
-            <TabsTrigger value="portfolio">
-              Portfolio ({portfolioItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="reviews">
-              Reviews ({reviewStats.total})
-            </TabsTrigger>
-          </TabsList>
+        <TabsContent value="portfolio" className="mt-6">
+          <ProfilePortfolio items={user.portfolioItems} />
+        </TabsContent>
 
-          <TabsContent value="about" className="mt-6">
-            <ProfileAbout
-              user={user}
-              socialLinks={user.socialLinks}
-              skills={user.skills}
-            />
-          </TabsContent>
-
-          <TabsContent value="gigs" className="mt-6">
-            <GigsGallery gigs={gigs} isMe={isMe} />
-          </TabsContent>
-
-          <TabsContent value="portfolio" className="mt-6">
-            <ProfilePortfolio items={portfolioItems} />
-          </TabsContent>
-
-          <TabsContent value="reviews" className="mt-6">
-            <ProfileReviews
-              userId={user.id}
-              stats={reviewStats}
-              fetchReviews={getProfileReviews}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+        <TabsContent value="reviews" className="mt-6">
+          <ReviewsSection
+            initialReviews={user.reviews}
+            reviewStats={{
+              average: user.avgRating,
+              total: user.ratingCnt,
+              distribution: user.reviews.reduce(
+                (acc, review) => {
+                  acc[review.rating] = (acc[review.rating] || 0) + 1;
+                  return acc;
+                },
+                {
+                  1: 0,
+                  2: 0,
+                  3: 0,
+                  4: 0,
+                  5: 0,
+                } as Record<number, number>
+              ),
+            }}
+            totalReviews={user.ratingCnt}
+          />
+        </TabsContent>
+      </Tabs>
+    </main>
   );
 }

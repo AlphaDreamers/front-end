@@ -1,99 +1,44 @@
-import EditProfileForm from "@/components/profile/edit-profile-form";
+import { redirect, notFound } from "next/navigation";
 import { me } from "@/lib/actions/auth";
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+import EditProfileForm from "@/components/profile/edit/edit-profile-form";
+import { getProfileForEdit } from "@/lib/actions/profile";
+import { getKeyValueSkills } from "@/lib/actions/profile";
+import PageTemplate from "@/components/templates/page-template";
 
-export default async function Page() {
-  const user = await me();
+export default async function EditProfilePage() {
+  const { user, error } = await me();
 
   if (!user?.isVerified) {
-    redirect("/sign-in?callback-url=/profile/edit");
+    redirect(
+      `/sign-in?callback-url=${encodeURIComponent(`/notifications`)}&error=${encodeURIComponent(
+        error === "INVALID_TOKEN"
+          ? "Invalid token. Please log in again"
+          : error === "TOKEN_EXPIRED"
+            ? "Your session has expired. Please log in again"
+            : "You must be logged in to access this page"
+      )}`
+    );
   }
 
-  const userData = await prisma.user.findFirst({
-    where: {
-      id: user.id,
-    },
-    select: {
-      username: true,
-      avatar: true,
-      banner: true,
-      headline: true,
-      bio: true,
-      firstName: true,
-      lastName: true,
-      skills: {
-        select: {
-          id: true,
-          level: true,
-          skillId: true,
-        },
-      },
-      socialLinks: {
-        select: {
-          id: true,
-          url: true,
-          type: true,
-        },
-      },
-      portfolioItems: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          url: true,
-          images: {
-            select: {
-              id: true,
-              url: true,
-              isPrimary: true,
-            },
-          },
-        },
-      },
-      badgeProgress: {
-        select: {
-          id: true,
-          isFeatured: true,
-          highestTier: true,
-          badge: {
-            select: {
-              title: true,
-              description: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  const [defaultProfileData, availableSkills] = await Promise.all([
+    getProfileForEdit(user.id),
+    getKeyValueSkills(),
+  ]);
 
-  const skills = await prisma.skill.findMany({
-    select: {
-      id: true,
-      label: true,
-    },
-  });
+  if (!defaultProfileData) {
+    notFound();
+  }
 
   return (
-    <EditProfileForm
-      defaultValues={{
-        ...userData,
-        badgeProgress: await prisma.userBadgeProgress.findMany({
-          select: {
-            id: true,
-            isFeatured: true,
-            highestTier: true,
-            badge: {
-              select: {
-                title: true,
-                description: true,
-              },
-            },
-          },
-          take: 8,
-        }),
-      }}
-      skills={skills}
-    />
+    <PageTemplate
+      title="Edit Profile"
+      description="Update your profile information and showcase your skills"
+    >
+      <EditProfileForm
+        defaultValues={defaultProfileData}
+        profile={defaultProfileData}
+        availableSkills={availableSkills}
+      />
+    </PageTemplate>
   );
 }

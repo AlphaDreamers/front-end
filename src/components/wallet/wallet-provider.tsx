@@ -3,15 +3,32 @@
 import React, {
   createContext,
   useContext,
-  useReducer,
+  useState,
   useCallback,
   useEffect,
 } from "react";
-import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  Keypair,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 import { toast } from "sonner";
-import { setMainWallet, deleteWallet } from "@/lib/actions/wallet";
+import {
+  setMainWallet,
+  deleteWallet,
+  getWallets,
+  getOrderForTransaction,
+  confirmTransaction,
+} from "@/lib/actions/wallet";
+import { decryptPrivateKey } from "@/lib/utils";
+import { EncryptedWalletData } from "@/lib/types";
+import useSession from "@/hooks/use-session";
 
-// Types
+// Types (keeping as requested)
 export interface Wallet {
   name: string;
   publicKey: string;
@@ -26,301 +43,314 @@ export interface WalletWithBalance extends Wallet {
   lastFetched?: Date;
 }
 
-// State
-interface WalletState {
-  wallets: WalletWithBalance[];
-  isRefreshing: boolean;
-  connection: Connection;
-}
-
-// Actions
-type WalletAction =
-  | { type: "SET_WALLETS"; wallets: Wallet[] }
-  | {
-      type: "UPDATE_WALLET_STATUS";
-      publicKey: string;
-      status: WalletWithBalance["status"];
-      error?: string;
-    }
-  | { type: "UPDATE_WALLET_BALANCE"; publicKey: string; balance: number }
-  | { type: "SET_MAIN_WALLET"; publicKey: string }
-  | { type: "DELETE_WALLET"; publicKey: string }
-  | { type: "SET_REFRESHING"; isRefreshing: boolean }
-  | { type: "ADD_WALLET"; wallet: Wallet };
-
-// Reducer
-function walletReducer(state: WalletState, action: WalletAction): WalletState {
-  switch (action.type) {
-    case "SET_WALLETS":
-      return {
-        ...state,
-        wallets: action.wallets.map((wallet) => ({
-          ...wallet,
-          balance: null,
-          status: "idle",
-        })),
-      };
-
-    case "UPDATE_WALLET_STATUS":
-      return {
-        ...state,
-        wallets: state.wallets.map((wallet) =>
-          wallet.publicKey === action.publicKey
-            ? { ...wallet, status: action.status, error: action.error }
-            : wallet
-        ),
-      };
-
-    case "UPDATE_WALLET_BALANCE":
-      return {
-        ...state,
-        wallets: state.wallets.map((wallet) =>
-          wallet.publicKey === action.publicKey
-            ? {
-                ...wallet,
-                balance: action.balance,
-                status: "success",
-                error: undefined,
-                lastFetched: new Date(),
-              }
-            : wallet
-        ),
-      };
-
-    case "SET_MAIN_WALLET":
-      return {
-        ...state,
-        wallets: state.wallets.map((wallet) => ({
-          ...wallet,
-          isMain: wallet.publicKey === action.publicKey,
-        })),
-      };
-
-    case "DELETE_WALLET":
-      return {
-        ...state,
-        wallets: state.wallets.filter(
-          (wallet) => wallet.publicKey !== action.publicKey
-        ),
-      };
-
-    case "SET_REFRESHING":
-      return {
-        ...state,
-        isRefreshing: action.isRefreshing,
-      };
-
-    case "ADD_WALLET":
-      return {
-        ...state,
-        wallets: [
-          {
-            ...action.wallet,
-            balance: null,
-            status: "idle",
-          },
-          ...state.wallets,
-        ],
-      };
-
-    default:
-      return state;
-  }
-}
-
-// Context
 interface WalletContextValue {
   wallets: WalletWithBalance[];
-  isRefreshing: boolean;
-  fetchWalletBalance: (walletId: string) => Promise<void>;
-  fetchAllBalances: () => Promise<void>;
-  refreshBalances: () => Promise<void>;
-  setMainWallet: (walletId: string) => Promise<void>;
-  deleteWallet: (walletId: string) => Promise<void>;
+  mainWallet: WalletWithBalance | null;
+  deleteWallet: (publicKey: string) => Promise<void>;
+  setMainWallet: (publicKey: string) => Promise<void>;
+  performTransaction: (password: string, orderId: string) => Promise<void>;
+  refetchBalances: () => Promise<void>;
   getTotalBalance: () => number;
+  isLoading: boolean;
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
-// Provider component
-export function WalletProvider({
-  children,
-  initialWallets,
-}: {
-  children: React.ReactNode;
-  initialWallets: Wallet[];
-}) {
-  // Initialize connection once
-  const [state, dispatch] = useReducer(walletReducer, {
-    wallets: [],
-    isRefreshing: false,
-    connection: new Connection(
-      process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com",
-      "confirmed"
-    ),
-  });
+const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-  // Set initial wallets
+export function WalletProvider({ children }: { children: React.ReactNode }) {
+  const {
+    session,
+    isLoading: sessionLoading,
+    error: sessionError,
+  } = useSession();
+  const [wallets, setWallets] = useState<WalletWithBalance[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isAuthenticated = !sessionLoading && session?.user?.id && !sessionError;
+
+  // Fetch initial wallets
   useEffect(() => {
-    dispatch({ type: "SET_WALLETS", wallets: initialWallets });
-  }, [initialWallets]);
-
-  // Fetch balance for a single wallet
-  const fetchWalletBalance = useCallback(
-    async (walletPublicKey: string) => {
-      const wallet = state.wallets.find((w) => w.publicKey === walletPublicKey);
-      if (!wallet) return;
-
-      dispatch({
-        type: "UPDATE_WALLET_STATUS",
-        publicKey: walletPublicKey,
-        status: "loading",
-      });
-
-      try {
-        const publicKey = new PublicKey(wallet.publicKey);
-        const balanceInLamports = await state.connection.getBalance(publicKey);
-        const balanceInSOL = balanceInLamports / LAMPORTS_PER_SOL;
-
-        dispatch({
-          type: "UPDATE_WALLET_BALANCE",
-          publicKey: walletPublicKey,
-          balance: balanceInSOL,
-        });
-      } catch (error) {
-        console.error(
-          `Failed to fetch balance for wallet ${walletPublicKey}:`,
-          error
-        );
-        dispatch({
-          type: "UPDATE_WALLET_STATUS",
-          publicKey: walletPublicKey,
-          status: "error",
-          error:
-            error instanceof Error ? error.message : "Failed to fetch balance",
-        });
-      }
-    },
-    [state.wallets, state.connection]
-  );
-
-  // Fetch all balances in batches for efficiency
-  const fetchAllBalances = useCallback(async () => {
-    const BATCH_SIZE = 10; // Fetch 10 wallets at a time
-    const walletBatches = [];
-
-    for (let i = 0; i < state.wallets.length; i += BATCH_SIZE) {
-      walletBatches.push(state.wallets.slice(i, i + BATCH_SIZE));
-    }
-
-    for (const batch of walletBatches) {
-      await Promise.all(
-        batch.map((wallet) => fetchWalletBalance(wallet.publicKey))
-      );
-    }
-  }, [state.wallets, fetchWalletBalance]);
-
-  // Refresh all balances
-  const refreshBalances = useCallback(async () => {
-    dispatch({ type: "SET_REFRESHING", isRefreshing: true });
-
-    try {
-      await fetchAllBalances();
-      toast.success("Balances refreshed successfully");
-    } catch {
-      toast.error("Failed to refresh some balances");
-    } finally {
-      dispatch({ type: "SET_REFRESHING", isRefreshing: false });
-    }
-  }, [fetchAllBalances]);
-
-  // Set main wallet
-  const handleSetMainWallet = useCallback(
-    async (walletId: string) => {
-      try {
-        // Optimistically update UI
-        dispatch({ type: "SET_MAIN_WALLET", publicKey: walletId });
-
-        // Call server action
-        await setMainWallet(walletId);
-
-        toast.success("Main wallet updated");
-      } catch {
-        // Revert on error
-        const previousMain = state.wallets.find((w) => w.isMain);
-        if (previousMain) {
-          dispatch({
-            type: "SET_MAIN_WALLET",
-            publicKey: previousMain.publicKey,
-          });
-        }
-
-        toast.error("Failed to update main wallet");
-      }
-    },
-    [state.wallets]
-  );
-
-  // Delete wallet
-  const handleDeleteWallet = useCallback(
-    async (walletId: string) => {
-      const wallet = state.wallets.find((w) => w.publicKey === walletId);
-      if (!wallet) return;
-
-      if (wallet.isMain) {
-        toast.error(
-          "Cannot delete main wallet. Please set another wallet as main first."
-        );
+    const fetchInitialWallets = async () => {
+      if (!isAuthenticated || !session?.user?.id) {
+        setIsLoading(false);
         return;
       }
 
       try {
-        // Optimistically remove from UI
-        dispatch({ type: "DELETE_WALLET", publicKey: walletId });
+        const wallets = await getWallets();
 
-        // Call server action
-        await deleteWallet(walletId);
-
-        toast.success("Wallet deleted successfully");
-      } catch {
-        // Re-add on error
-        dispatch({ type: "ADD_WALLET", wallet });
-
-        toast.error("Failed to delete wallet");
+        setWallets(wallets);
+      } catch (error) {
+        console.error("Failed to fetch wallets:", error);
+        toast.error("Failed to load wallets");
+      } finally {
+        setIsLoading(false);
       }
+    };
+
+    fetchInitialWallets();
+  }, [isAuthenticated, session?.user?.id]);
+
+  const mainWallet = wallets.find((w) => w.isMain) || null;
+
+  const deleteWalletHandler = useCallback(
+    async (publicKey: string) => {
+      toast.promise(
+        async () => {
+          const wallet = wallets.find((w) => w.publicKey === publicKey);
+          if (!wallet) return;
+
+          if (wallet.isMain) {
+            throw new Error(
+              "Cannot delete main wallet. Please set another wallet as main first."
+            );
+          }
+          await deleteWallet(publicKey);
+        },
+        {
+          loading: "Deleting wallet...",
+          success: () => {
+            setWallets((prev) => prev.filter((w) => w.publicKey !== publicKey));
+            localStorage.removeItem(`wallet_data_${publicKey}`);
+            return "Wallet deleted successfully";
+          },
+          error: (err) => {
+            console.error("Error deleting wallet:", err);
+            return "Failed to delete wallet";
+          },
+        }
+      );
     },
-    [state.wallets]
+    [wallets]
   );
 
-  // Calculate total balance
+  const setMainWalletHandler = useCallback(
+    async (publicKey: string) => {
+      toast.promise(
+        async () => {
+          const wallet = wallets.find((w) => w.publicKey === publicKey);
+          if (!wallet) {
+            throw new Error("Wallet not found");
+          }
+          if (wallet.isMain) {
+            throw new Error("This wallet is already set as main");
+          }
+          await setMainWallet(publicKey);
+        },
+        {
+          loading: "Setting main wallet...",
+          success: () => {
+            setWallets((prev) =>
+              prev.map((w) => ({
+                ...w,
+                isMain: w.publicKey === publicKey,
+              }))
+            );
+            return "Main wallet updated successfully";
+          },
+          error: "Failed to update main wallet",
+        }
+      );
+    },
+    [wallets]
+  );
+  const refetchBalances = useCallback(async () => {
+    setWallets((prevWallets) => {
+      const currentWallets = prevWallets.map((w) => ({
+        ...w,
+        status: "loading" as const,
+      }));
+
+      Promise.allSettled(
+        prevWallets.map(async (wallet) => {
+          try {
+            const balance = await connection.getBalance(
+              new PublicKey(wallet.publicKey)
+            );
+            return {
+              publicKey: wallet.publicKey,
+              balance: balance / LAMPORTS_PER_SOL,
+              status: "success" as const,
+              lastFetched: new Date(),
+            };
+          } catch (error) {
+            console.error(
+              `Failed to fetch balance for wallet ${wallet.publicKey}:`,
+              error
+            );
+            return {
+              publicKey: wallet.publicKey,
+              status: "error" as const,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to fetch balance",
+            };
+          }
+        })
+      ).then((updates) => {
+        setWallets((prev) =>
+          prev.map((wallet) => {
+            const update = updates.find(
+              (u) =>
+                u.status === "fulfilled" &&
+                u.value.publicKey === wallet.publicKey
+            );
+
+            if (update && update.status === "fulfilled") {
+              return { ...wallet, ...update.value };
+            }
+
+            return { ...wallet, status: "error" as const };
+          })
+        );
+      });
+
+      return currentWallets;
+    });
+  }, [connection]);
+
+  const performTransaction = useCallback(
+    async (password: string, orderId: string) => {
+      toast.promise(
+        async () => {
+          if (!mainWallet) {
+            throw new Error("No main wallet selected");
+          }
+
+          const order = await getOrderForTransaction(orderId);
+          if (!order) {
+            throw new Error("Order not found");
+          }
+          order.price = 0.1;
+
+          const recipientPubKey = new PublicKey(order.recipientPublickey);
+          const senderPubKey = new PublicKey(mainWallet.publicKey);
+          console.log(senderPubKey.toBase58());
+
+          // Check balance and calculate available amount
+          const balance = await connection.getBalance(senderPubKey);
+
+          // Get the minimum rent-exempt balance for this account
+          const rentExemptBalance =
+            await connection.getMinimumBalanceForRentExemption(0);
+
+          // Estimate transaction fee (typically around 5,000 lamports)
+          const estimatedFee = 5000;
+
+          // Calculate how much we can actually send
+          const availableForTransfer =
+            balance - rentExemptBalance - estimatedFee;
+
+          console.log(`Total balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+          console.log(
+            `Rent requirement: ${rentExemptBalance / LAMPORTS_PER_SOL} SOL`
+          );
+          console.log(`Estimated fee: ${estimatedFee / LAMPORTS_PER_SOL} SOL`);
+          console.log(
+            `Available to send: ${availableForTransfer / LAMPORTS_PER_SOL} SOL`
+          );
+
+          // Convert your desired amount to lamports
+          const requiredSol = order.price; // Use the actual order price
+          const requiredLamports = requiredSol * LAMPORTS_PER_SOL;
+
+          // Check if we have enough available funds
+          if (availableForTransfer < requiredLamports) {
+            toast.error(
+              `Insufficient available balance. Need ${requiredSol} SOL, but only ${availableForTransfer / LAMPORTS_PER_SOL} SOL available after rent and fees.`
+            );
+            return;
+          }
+
+          // Get wallet data and decrypt
+          const walletData = localStorage.getItem(
+            `wallet_data_${mainWallet.publicKey}`
+          );
+          console.log("FLAG2");
+          if (!walletData) {
+            throw new Error("Wallet data not found in local storage");
+          }
+          console.log("FLAG3");
+
+          const decryptedPrivateKey = await decryptPrivateKey(
+            JSON.parse(walletData) as EncryptedWalletData,
+            password
+          );
+          console.log("FLAG4");
+
+          // Create and send transaction
+          const transaction = new Transaction();
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: senderPubKey,
+              toPubkey: recipientPubKey,
+              lamports: requiredLamports, // This should now work!
+            })
+          );
+          console.log("FLAG5");
+          const { blockhash } = await connection.getLatestBlockhash();
+          console.log("FLAG6");
+          transaction.recentBlockhash = blockhash;
+          console.log("FLAG7");
+          transaction.feePayer = senderPubKey;
+          console.log("FLAG8");
+
+          const signature = await sendAndConfirmTransaction(
+            connection,
+            transaction,
+            [Keypair.fromSecretKey(decryptedPrivateKey)]
+          );
+
+          console.log("Transaction signature:", signature);
+          await confirmTransaction(
+            orderId,
+            signature,
+            order.price,
+            order.recipientPublickey,
+            mainWallet.publicKey,
+            order.sellerId,
+            order.buyerId
+          );
+        },
+        {
+          loading: "Processing transaction...",
+          success: async () => {
+            return "Transaction successful!";
+          },
+          error: (error) => {
+            console.error("Transaction error:", error);
+            return `Transaction failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+          },
+        }
+      );
+    },
+    [mainWallet, refetchBalances]
+  );
+
   const getTotalBalance = useCallback(() => {
-    return state.wallets.reduce((total, wallet) => {
-      return total + (wallet.balance || 0);
-    }, 0);
-  }, [state.wallets]);
-
-  // Auto-fetch balances on mount
-  useEffect(() => {
-    fetchAllBalances();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const value: WalletContextValue = {
-    wallets: state.wallets,
-    isRefreshing: state.isRefreshing,
-    fetchWalletBalance,
-    fetchAllBalances,
-    refreshBalances,
-    setMainWallet: handleSetMainWallet,
-    deleteWallet: handleDeleteWallet,
-    getTotalBalance,
-  };
+    return wallets.reduce((total, wallet) => total + (wallet.balance || 0), 0);
+  }, [wallets]);
 
   return (
-    <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
+    <WalletContext.Provider
+      value={{
+        wallets,
+        mainWallet,
+        deleteWallet: deleteWalletHandler,
+        setMainWallet: setMainWalletHandler,
+        performTransaction,
+        refetchBalances,
+        getTotalBalance,
+        isLoading,
+      }}
+    >
+      {children}
+    </WalletContext.Provider>
   );
 }
 
-// Hook to use wallet context
 export function useWallets() {
   const context = useContext(WalletContext);
   if (!context) {
