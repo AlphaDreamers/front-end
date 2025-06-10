@@ -10,7 +10,7 @@ interface UserDetailsProps {
 
 const UserDetails = ({ user }: UserDetailsProps) => {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 w-fit">
       <div className="flex items-center gap-2">
         <Link href={`/profile/${user.username}`}>
           <Image

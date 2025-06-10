@@ -1,22 +1,10 @@
 "use client";
 
-import { useConnection } from "@solana/wallet-adapter-react";
-import {
-  Connection,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import { useEffect, useState } from "react";
-import { decode } from "bs58"; // Import bs58 for decoding the secret key
+import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { useWallets } from "./wallet/wallet-provider";
-import { toast } from "sonner";
 import Link from "next/link";
 import {
   Dialog,
@@ -27,9 +15,7 @@ import {
 import { Textarea } from "./ui/textarea";
 
 interface SolanaBuyButtonProps {
-  recipient: string;
   orderId: string;
-  numberOfSol: number;
 }
 
 const SolanaBuyButton = ({ orderId }: SolanaBuyButtonProps) => {

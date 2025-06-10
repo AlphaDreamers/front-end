@@ -53,8 +53,11 @@ enum SystemContentType {
 
 enum OrderStatus {
   WAITING_FOR_PAYMENT
+  PENDING
   IN_PROGRESS
+  DELIVERED
   COMPLETED
+  CANCELLED
 }
 
 enum NotificationType {
@@ -63,6 +66,8 @@ enum NotificationType {
   PAYMENT
   SYSTEM
   REVIEW
+  REVISION_REQUESTED
+  DELIVERY_UPLOADED
 }
 
 enum MediaType {
@@ -291,6 +296,11 @@ model Order {
   gigId     String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@index([status, deadline])
 }
 
 model Notification {

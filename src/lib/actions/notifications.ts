@@ -1,15 +1,13 @@
 "use server";
 
-// src/lib/actions/notifications.ts
-
 import { prisma } from "@/lib/prisma";
 import { me } from "./auth";
 import { Prisma } from "@prisma/client";
-import { 
-  Notification, 
-  NotificationMetadata, 
+import {
+  Notification,
+  NotificationMetadata,
   NotificationFilters,
-  NotificationPaginationOptions 
+  NotificationPaginationOptions,
 } from "@/lib/types";
 
 // Helper function to parse metadata from description field
@@ -31,7 +29,7 @@ export async function getNotifications(
   filters: NotificationFilters = {},
   pagination: NotificationPaginationOptions = { page: 1, limit: 10 }
 ): Promise<{ notifications: Notification[]; total: number }> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -73,7 +71,8 @@ export async function getNotifications(
       skip,
       take: pagination.limit,
       orderBy: {
-        [pagination.orderBy || "createdAt"]: pagination.orderDirection || "desc",
+        [pagination.orderBy || "createdAt"]:
+          pagination.orderDirection || "desc",
       },
       select: {
         id: true,
@@ -89,17 +88,19 @@ export async function getNotifications(
   ]);
 
   // Transform notifications to include parsed metadata
-  const transformedNotifications: Notification[] = notifications.map((notification) => ({
-    ...notification,
-    metadata: parseNotificationMetadata(notification.description),
-  }));
+  const transformedNotifications: Notification[] = notifications.map(
+    (notification) => ({
+      ...notification,
+      metadata: parseNotificationMetadata(notification.description),
+    })
+  );
 
   return { notifications: transformedNotifications, total };
 }
 
 // Get unread notification count
 export async function getUnreadNotificationCount(): Promise<number> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -113,8 +114,10 @@ export async function getUnreadNotificationCount(): Promise<number> {
 }
 
 // Mark notifications as read
-export async function markNotificationsAsRead(notificationIds: string[]): Promise<void> {
-  const {user,} = await me();
+export async function markNotificationsAsRead(
+  notificationIds: string[]
+): Promise<void> {
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -132,7 +135,7 @@ export async function markNotificationsAsRead(notificationIds: string[]): Promis
 
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(): Promise<void> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -149,8 +152,10 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 }
 
 // Delete notifications
-export async function deleteNotifications(notificationIds: string[]): Promise<void> {
-  const {user,} = await me();
+export async function deleteNotifications(
+  notificationIds: string[]
+): Promise<void> {
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -165,7 +170,7 @@ export async function deleteNotifications(notificationIds: string[]): Promise<vo
 
 // Delete all read notifications
 export async function deleteAllReadNotifications(): Promise<void> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }

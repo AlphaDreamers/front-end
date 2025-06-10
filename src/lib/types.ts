@@ -1,4 +1,4 @@
-import { SocialLinkType, Tier } from "@prisma/client";
+import { OrderStatus, SocialLinkType, Tier } from "@prisma/client";
 import * as icons from "lucide-react";
 import { NotificationType as PrismaNotificationType } from "@prisma/client";
 
@@ -92,6 +92,7 @@ export interface GigSearchParams {
 }
 
 export interface User {
+  id: string;
   firstName: string;
   lastName: string;
   username: string;
@@ -445,4 +446,70 @@ export interface SocketEvents {
   connect: void;
   disconnect: void;
   error: string;
+}
+
+export interface OrderPackage {
+  id: string;
+  title: string;
+  price: number;
+  deliveryTime: number;
+  gig: {
+    id: string;
+    title: string;
+  };
+}
+
+export interface OrderChat {
+  id: string;
+}
+
+export interface Order {
+  id: string;
+  status: OrderStatus;
+  deadline: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  buyer: User;
+  seller: User;
+  package: OrderPackage;
+  chat: OrderChat | null;
+  transaction: Transaction | null;
+  isOverdue: boolean;
+  daysUntilDeadline: number;
+  formattedDeadline: string;
+  reviewId: string | null;
+}
+
+export interface OrderFilters {
+  role: "buyer" | "seller";
+  status?: OrderStatus[];
+  deadline?: "upcoming" | "overdue" | "all";
+  priceRange?: {
+    min: number;
+    max: number;
+  };
+  search?: string;
+}
+
+export interface OrderCardAction {
+  type: "button" | "link" | "dialog";
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant?:
+    | "default"
+    | "outline"
+    | "destructive"
+    | "secondary"
+    | "ghost"
+    | "link";
+  onClick?: () => void;
+  href?: string;
+  dialog?: React.ReactNode;
+}
+
+export interface OrderVerificationProgress {
+  badgeTitle: string;
+  currentProgress: number;
+  totalRequired: number;
+  contributesToBadge: boolean;
 }
