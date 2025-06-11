@@ -330,7 +330,6 @@ export async function acceptOrder(orderId: string): Promise<void> {
   revalidatePath("/dashboard/orders");
 }
 
-// Deliver work (for sellers)
 export async function deliverWork(
   orderId: string,
   deliveryMessage: string,
@@ -523,17 +522,13 @@ export async function requestRevision(
   }
 
   await prisma.$transaction(async (tx) => {
-    // Update order status back to IN_PROGRESS
     await tx.order.update({
       where: { id: orderId },
       data: {
         status: "IN_PROGRESS",
-        // Extend deadline by 48 hours
         deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
       },
     });
-
-    // Create revision request message in chat
     if (order.chat) {
       const userMessage = await tx.userMessage.create({
         data: {
@@ -658,6 +653,5 @@ function isAfter(now: Date, deadline: Date) {
 }
 function differenceInDays(deadline: Date, now: Date) {
   const msPerDay = 1000 * 60 * 60 * 24;
-  // Floor to ignore partial days
   return Math.ceil((deadline.getTime() - now.getTime()) / msPerDay);
 }

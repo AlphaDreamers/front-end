@@ -87,7 +87,6 @@ export default function ImportWalletPage() {
       JSON.stringify(walletData.encryptedWalletData)
     );
 
-    // Create wallet record in database
     await createWallet({
       publicKey: walletData.publicKey,
       name: walletData.name,

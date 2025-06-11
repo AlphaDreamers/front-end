@@ -144,7 +144,7 @@ export const navItems: NavItem[] = [
   },
   {
     label: "Contact",
-    href: "/contact-us",
+    href: "/contact",
     icon: Mail,
     showInMobile: true,
     description: "Get in touch with us",

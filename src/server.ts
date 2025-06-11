@@ -150,7 +150,6 @@ async function saveMessageToDatabase(
     },
   });
 
-  // Transform database message to our simplified Message type
   return {
     id: dbMessage.id,
     chatId: dbMessage.chatId,

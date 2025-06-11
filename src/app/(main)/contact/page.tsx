@@ -14,7 +14,7 @@ import AuthCard from "@/components/templates/auth-card";
 
 const MESSAGE_TYPE_CONFIG = {
   TESTIMONIAL: {
-    href: "/contact-us/testimonial",
+    href: "/contact/testimonial",
     icon: Star,
     color: "text-yellow-500",
     bgColor: "bg-yellow-500/10",
@@ -23,7 +23,7 @@ const MESSAGE_TYPE_CONFIG = {
     label: "Share Your Experience",
   },
   COMPLAINT: {
-    href: "/contact-us/complaint",
+    href: "/contact/complaint",
     icon: AlertTriangle,
     color: "text-red-500",
     bgColor: "bg-red-500/10",
@@ -32,7 +32,7 @@ const MESSAGE_TYPE_CONFIG = {
     label: "Report an Issue",
   },
   SUPPORT: {
-    href: "/contact-us/support",
+    href: "/contact/support",
     icon: HelpCircle,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
@@ -41,7 +41,7 @@ const MESSAGE_TYPE_CONFIG = {
     label: "Get Support",
   },
   FEEDBACK: {
-    href: "/contact-us/feedback",
+    href: "/contact/feedback",
     icon: MessageSquare,
     color: "text-green-500",
     bgColor: "bg-green-500/10",
@@ -50,7 +50,7 @@ const MESSAGE_TYPE_CONFIG = {
     label: "Improve Our Platform",
   },
   GENERAL_INQUIRY: {
-    href: "/contact-us/general",
+    href: "/contact/general",
     icon: Mail,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
