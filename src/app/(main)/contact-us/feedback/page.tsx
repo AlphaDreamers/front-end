@@ -3,7 +3,7 @@ import { me } from "@/lib/actions/auth";
 import FeedbackForm from "@/components/contact/feedback-form";
 
 export default async function ContactPage() {
-  const {user,} = await me();
+  const { user } = await me();
 
   const isAuth = !!user?.isVerified;
   return (

@@ -4,7 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { FAQ } from "@/lib/types/faq";
+import { FAQ } from "@/lib/types";
 
 interface GigFaqListProps {
   faqs: FAQ[];
@@ -33,16 +33,3 @@ const GigFaqList = ({ faqs }: GigFaqListProps) => {
   );
 };
 export default GigFaqList;
-
-export const FaqListSkeleton = () => {
-  return (
-    <div className="space-y-4">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="bg-gray-800 rounded-lg p-4">
-          <div className="h-6 w-3/4 mb-2 bg-gray-700 animate-pulse" />
-          <div className="h-4 w-full bg-gray-700 animate-pulse" />
-        </div>
-      ))}
-    </div>
-  );
-};

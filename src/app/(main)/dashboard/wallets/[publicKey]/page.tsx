@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import PageTemplate from "@/components/templates/page-template";
 import { getWalletTransactions } from "@/lib/actions/wallet";
 import TransactionCard from "./wrapper";
-import Pagination from "@/components/pagination";
 
 export default async function Page({
   params,

@@ -9,10 +9,13 @@ import Link from "next/link";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import { Textarea } from "./ui/textarea";
+import PasswordInput from "./password-input";
 
 interface SolanaBuyButtonProps {
   orderId: string;
@@ -31,14 +34,19 @@ const SolanaBuyButton = ({ orderId }: SolanaBuyButtonProps) => {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <Textarea
+        <DialogHeader>
+          <DialogTitle>Confirm Payment for Order {orderId}</DialogTitle>
+          <DialogDescription>
+            Please enter your password to confirm the transaction. This will
+            initiate the payment process using your main wallet.
+          </DialogDescription>
+        </DialogHeader>
+
+        <PasswordInput
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password to confirm the transaction"
-          rows={4}
-          className="mb-4"
         />
-
         <DialogFooter>
           <Button
             onClick={() => {

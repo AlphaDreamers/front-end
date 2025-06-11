@@ -553,27 +553,6 @@ export const UpdateProfileFormSchema = z.object({
   featuredBadgeId: z.string().uuid().nullable(),
 });
 
-export type UpdateProfileFormData = z.infer<typeof UpdateProfileFormSchema>;
-
-// Schema for contacting a seller
-export const ContactSellerFormSchema = z.object({
-  message: z.string().min(1, "Message is required"),
-  recipientId: z.string().min(1, "Recipient ID is required"),
-});
-
-// Schema for sending a message (ensures at least text or attachments are provided)
-export const SendMessageFormSchema = z
-  .object({
-    attachments: z.instanceof(File).array().optional(),
-    text: z.string().optional(),
-  })
-  .refine(
-    (data) => data.text || (data.attachments && data.attachments.length > 0),
-    {
-      message: "Message must have either text or attachments",
-    }
-  );
-
 // --- KYC Schema ---
 
 // Schema for KYC verification

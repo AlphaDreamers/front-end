@@ -8,7 +8,7 @@ import { me } from "./auth";
 export async function getChatByOrderId(
   orderId: string
 ): Promise<ChatData | null> {
-  const {user,} = await me();
+  const { user: currentUser } = await me();
   if (!currentUser) {
     throw new Error("User not authenticated");
   }

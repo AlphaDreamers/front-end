@@ -3,7 +3,7 @@
 import { Copy, ExternalLink } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Transaction } from "@/lib/types/wallet";
+import { Transaction } from "@/lib/types";
 import HiddenField from "@/components/hidden-field";
 import Link from "next/link";
 

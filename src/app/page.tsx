@@ -3,7 +3,7 @@ import { FeaturedGigs } from "@/components/home/featured-gigs";
 import { CategoriesShowcase } from "@/components/home/categories-showcase";
 import TestimonialsSection from "@/components/home/testimonials-section";
 import { prisma } from "@/lib/prisma";
-import { Category, Color, Gig, LucideIconName, Testimonial } from "@/lib/types";
+import { Category, Color, LucideIconName } from "@/lib/types";
 import { getTestimonials } from "@/lib/actions/review";
 import { getGigs } from "@/lib/actions/gig";
 

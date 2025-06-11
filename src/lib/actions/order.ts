@@ -1,13 +1,7 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
-import {
-  Color,
-  KeyValuePair,
-  LucideIconName,
-  Order,
-  OrderFilters,
-} from "../types";
+import { Color, KeyValuePair, LucideIconName, Order } from "../types";
 import { prisma } from "../prisma";
 import { me } from "./auth";
 import { formatDistanceToNow } from "date-fns";
@@ -80,27 +74,6 @@ export const orderPackage = async (packageId: string) => {
   });
 };
 
-export const confirmPayment = async (orderId: string) => {
-  const { user } = await me();
-  if (!user?.isVerified) throw new Error("User not authenticated");
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-  });
-
-  if (!order) throw new Error("Order not found");
-  if (order.buyerId !== user.id)
-    throw new Error("You are not the buyer of this order");
-
-  await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      status: "IN_PROGRESS",
-    },
-  });
-
-  return order;
-};
 export async function getOrders(
   args: Omit<Prisma.OrderFindManyArgs, "select" | "include">
 ): Promise<Order[]> {
@@ -365,7 +338,7 @@ export async function deliverWork(
     await tx.order.update({
       where: { id: orderId },
       data: {
-        status: "DELIVERED" as any, // Cast to bypass type checking
+        status: "DELIVERED" as const, // Cast to bypass type checking
         updatedAt: new Date(),
       },
     });
@@ -574,85 +547,6 @@ export async function requestRevision(
   revalidatePath("/dashboard/orders");
 }
 
-// Cancel order
-export async function cancelOrder(
-  orderId: string,
-  reason: string
-): Promise<void> {
-  const { user } = await me();
-  if (!user?.isVerified) {
-    throw new Error("User not authenticated");
-  }
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: {
-      buyerId: true,
-      sellerId: true,
-      status: true,
-    },
-  });
-
-  if (!order) {
-    throw new Error("Order not found");
-  }
-
-  // Check if user is buyer or seller
-  const isBuyer = order.buyerId === user.id;
-  const isSeller = order.sellerId === user.id;
-
-  if (!isBuyer && !isSeller) {
-    throw new Error("You can only cancel your own orders");
-  }
-
-  // Only allow cancellation before completion
-  if (order.status === "COMPLETED") {
-    throw new Error("Cannot cancel completed orders");
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Update order status
-    await tx.order.update({
-      where: { id: orderId },
-      data: { status: "CANCELLED" as any },
-    });
-
-    // Create notification for the other party
-    const recipientId = isBuyer ? order.sellerId : order.buyerId;
-    const cancellerRole = isBuyer ? "buyer" : "seller";
-
-    await createNotification(recipientId, "ORDER_UPDATE", "Order Cancelled", {
-      orderId,
-      message: `The ${cancellerRole} has cancelled the order. Reason: ${reason}`,
-    });
-  });
-
-  revalidatePath("/dashboard/orders");
-}
-
-// Get verification progress for orders
-export async function getOrderVerificationProgress(
-  userId: string
-): Promise<{ contributesToBadge: boolean; progress: number; total: number }> {
-  const completedOrders = await prisma.order.count({
-    where: {
-      sellerId: userId,
-      status: "COMPLETED",
-      review: {
-        rating: { gt: 2.5 },
-      },
-    },
-  });
-
-  // Assuming 5 orders needed for verification
-  const requiredOrders = 5;
-
-  return {
-    contributesToBadge: true,
-    progress: completedOrders,
-    total: requiredOrders,
-  };
-}
 function isAfter(now: Date, deadline: Date) {
   return now.getTime() > deadline.getTime();
 }

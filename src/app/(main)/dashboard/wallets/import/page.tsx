@@ -88,10 +88,7 @@ export default function ImportWalletPage() {
     );
 
     // Create wallet record in database
-    await createWallet({
-      publicKey: walletData.publicKey,
-      name: walletData.name,
-    });
+    await createWallet(walletData.publicKey, walletData.name);
 
     setIsSuccess(true);
 
@@ -115,7 +112,7 @@ export default function ImportWalletPage() {
 
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Your wallet "{walletData?.name}" has been imported and encrypted.
+              Your wallet &quot;{walletData?.name}&quot; has been imported and encrypted.
             </p>
             <p className="text-xs text-muted-foreground">
               Redirecting to your wallets...
@@ -147,7 +144,7 @@ export default function ImportWalletPage() {
           {step === 1 && (
             <div className="w-full text-center">
               <span className="text-sm text-muted-foreground">
-                Don't have a wallet?{" "}
+                Don&apos;t have a wallet?{" "}
               </span>
               <Button
                 variant="link"

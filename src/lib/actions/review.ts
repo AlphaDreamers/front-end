@@ -15,39 +15,6 @@ import {
 } from "@/lib/types";
 import { SellerResponseSchema } from "../schemas/review";
 
-export async function getReviews(
-  args: Omit<Prisma.ReviewFindManyArgs, "select" | "include">
-): Promise<Review[]> {
-  const data = await prisma.review.findMany({
-    ...args,
-    select: {
-      id: true,
-      rating: true,
-      title: true,
-      description: true,
-      createdAt: true,
-      author: {
-        select: {
-          id: true,
-          username: true,
-          firstName: true,
-          lastName: true,
-          avatar: true,
-        },
-      },
-    },
-  });
-
-  return data.map((review) => ({
-    id: review.id,
-    rating: review.rating,
-    title: review.title,
-    description: review.description,
-    createdAt: review.createdAt,
-    author: review.author,
-  }));
-}
-
 export async function getDashboardReviews(
   args: Omit<Prisma.ReviewFindManyArgs, "select" | "include">
 ): Promise<DashboardReview[]> {
@@ -173,7 +140,7 @@ export async function updateReviewResponse({
   reviewId,
   response,
 }: z.infer<typeof SellerResponseSchema>) {
-  const {user,} = await me();
+  const { user } = await me();
 
   if (!user?.isVerified) {
     throw new Error("You must be logged in to respond to reviews");
@@ -220,49 +187,6 @@ export async function updateReviewResponse({
   });
 
   // Revalidate the relevant paths
-  revalidatePath("/dashboard/reviews");
-  revalidatePath(`/gigs/${review.gig.id}`);
-}
-
-export async function deleteReviewResponse(reviewId: string) {
-  const {user,} = await me();
-
-  if (!user?.isVerified) {
-    throw new Error("You must be logged in to delete review responses");
-  }
-
-  const review = await prisma.review.findUnique({
-    where: { id: reviewId },
-    select: {
-      id: true,
-      sellerResponse: true,
-      gig: {
-        select: {
-          id: true,
-          sellerId: true,
-        },
-      },
-    },
-  });
-
-  if (!review) {
-    throw new Error("Review not found");
-  }
-
-  if (!review.gig || review.gig.sellerId !== user.id) {
-    throw new Error(
-      "You can only delete responses to reviews on your own gigs"
-    );
-  }
-
-  await prisma.review.update({
-    where: { id: reviewId },
-    data: {
-      sellerResponse: null,
-      sellerRespondedAt: null,
-    },
-  });
-
   revalidatePath("/dashboard/reviews");
   revalidatePath(`/gigs/${review.gig.id}`);
 }

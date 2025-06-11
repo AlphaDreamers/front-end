@@ -2,72 +2,13 @@
 
 import { prisma } from "@/lib/prisma";
 import { me } from "./auth";
-import {
-  UserProfileFields,
-  BadgeWithProgress,
-  Achievement,
-  VerificationStatus,
-  DashboardStats,
-} from "@/lib/types";
-import { Tier } from "@prisma/client";
+import { BadgeWithProgress, Achievement } from "@/lib/types";
 import { calculateProfileCompletion } from "../utils";
 import { Color, LucideIconName } from "../types";
 
-// Get detailed user information for profile completion calculation
-export async function getDetailedUserProfile(
-  userId: string
-): Promise<UserProfileFields> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      firstName: true,
-      lastName: true,
-      username: true,
-      email: true,
-      avatar: true,
-      banner: true,
-      headline: true,
-      bio: true,
-      isKycVerified: true,
-      skills: {
-        select: { id: true },
-      },
-      socialLinks: {
-        select: { id: true },
-      },
-      portfolioItems: {
-        select: { id: true },
-      },
-    },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  return user;
-}
-
-// Get the count of completed orders with positive ratings
-export async function getCompletedOrdersWithPositiveRating(
-  userId: string
-): Promise<number> {
-  return await prisma.order.count({
-    where: {
-      sellerId: userId,
-      status: "COMPLETED",
-      review: {
-        rating: {
-          gt: 2.5, // Positive rating threshold
-        },
-      },
-    },
-  });
-}
-
 // Get comprehensive verification status
 export async function getVerificationStatus(userId: string) {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -138,7 +79,7 @@ export async function getVerificationStatus(userId: string) {
 
 // Get all badges with user progress
 export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -185,7 +126,7 @@ export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
 }
 
 export async function getAchievements(): Promise<Achievement[]> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -224,7 +165,7 @@ export async function getAchievements(): Promise<Achievement[]> {
 }
 
 export async function setFeaturedBadge(badgeId: string): Promise<void> {
-  const {user,} = await me();
+  const { user } = await me();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }

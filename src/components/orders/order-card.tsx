@@ -22,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,6 +47,7 @@ import {
   requestRevision,
 } from "@/lib/actions/order";
 import UserDetails from "../user-details";
+import { OrderStatus } from "@prisma/client";
 
 interface OrderCardProps {
   order: Order;
@@ -197,6 +197,7 @@ export default function OrderCard({
       </CardHeader>
 
       <CardContent>
+        {order.id}
         <UserDetails user={contact} />
 
         <div className="flex items-center justify-between">
@@ -246,8 +247,8 @@ export default function OrderCard({
                     <DialogTitle>Accept Delivery</DialogTitle>
                     <DialogDescription>
                       By accepting this delivery, you confirm that the work
-                      meets your requirements. You'll be able to leave a review
-                      after accepting.
+                      meets your requirements. You&apos;ll be able to leave a
+                      review after accepting.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>

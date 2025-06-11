@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { me } from "./auth";
-import { Prisma } from "@prisma/client";
+import { NotificationType, Prisma } from "@prisma/client";
 import {
   Notification,
   NotificationMetadata,
@@ -98,21 +98,6 @@ export async function getNotifications(
   return { notifications: transformedNotifications, total };
 }
 
-// Get unread notification count
-export async function getUnreadNotificationCount(): Promise<number> {
-  const { user } = await me();
-  if (!user?.isVerified) {
-    throw new Error("User is not authenticated");
-  }
-
-  return await prisma.notification.count({
-    where: {
-      recipientId: user.id,
-      isRead: false,
-    },
-  });
-}
-
 // Mark notifications as read
 export async function markNotificationsAsRead(
   notificationIds: string[]
@@ -168,25 +153,10 @@ export async function deleteNotifications(
   });
 }
 
-// Delete all read notifications
-export async function deleteAllReadNotifications(): Promise<void> {
-  const { user } = await me();
-  if (!user?.isVerified) {
-    throw new Error("User is not authenticated");
-  }
-
-  await prisma.notification.deleteMany({
-    where: {
-      recipientId: user.id,
-      isRead: true,
-    },
-  });
-}
-
 // Create a notification (for internal use)
 export async function createNotification(
   recipientId: string,
-  type: Prisma.NotificationType,
+  type: NotificationType,
   title: string,
   metadata: NotificationMetadata = {}
 ): Promise<void> {
@@ -199,79 +169,4 @@ export async function createNotification(
       isRead: false,
     },
   });
-}
-
-// Example notification creators for different types
-export async function createOrderNotification(
-  recipientId: string,
-  orderId: string,
-  title: string,
-  status: string
-): Promise<void> {
-  await createNotification(recipientId, "ORDER_UPDATE", title, {
-    orderId,
-    message: `Your order status has been updated to: ${status}`,
-  });
-}
-
-export async function createReviewNotification(
-  recipientId: string,
-  reviewData: {
-    reviewId: string;
-    gigId: string;
-    rating: number;
-    transactionId: string;
-  }
-): Promise<void> {
-  await createNotification(
-    recipientId,
-    "REVIEW",
-    `New ${reviewData.rating}-star review received`,
-    reviewData
-  );
-}
-
-export async function createPaymentNotification(
-  recipientId: string,
-  paymentData: {
-    paymentId: string;
-    orderId?: string;
-    amount: number;
-    transactionId: string;
-  }
-): Promise<void> {
-  await createNotification(
-    recipientId,
-    "PAYMENT",
-    `Payment of ${paymentData.amount} SOL received`,
-    paymentData
-  );
-}
-
-export async function createMessageNotification(
-  recipientId: string,
-  messageData: {
-    orderId: string;
-    senderId: string;
-    senderName: string;
-    senderAvatar?: string;
-  }
-): Promise<void> {
-  await createNotification(
-    recipientId,
-    "MESSAGE",
-    `New message from ${messageData.senderName}`,
-    messageData
-  );
-}
-
-export async function createSystemNotification(
-  recipientId: string,
-  title: string,
-  systemData: {
-    message: string;
-    articleId?: string;
-  }
-): Promise<void> {
-  await createNotification(recipientId, "SYSTEM", title, systemData);
 }

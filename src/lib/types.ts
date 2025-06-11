@@ -19,17 +19,6 @@ export const CLODUINARY_CONFIG = {
 
 export type UploadPreset = keyof typeof CLODUINARY_CONFIG;
 
-export interface OrderDetails {
-  id: string;
-  status: string;
-  createdAt: Date;
-  deadline: Date;
-  package: {
-    title: string;
-    price: number;
-  };
-}
-
 export type KeyValuePair = {
   value: string;
   label: string;
@@ -321,28 +310,12 @@ export interface Achievement {
   earnedAt: Date;
 }
 
-export interface DashboardStats {
-  totalBadges: number;
-  earnedBadges: number;
-  totalAchievements: number;
-  featuredAchievements: number;
-  verificationProgress: number;
-}
-
 export interface Transaction {
   txId: string;
   amount: number;
   date: Date;
   senderPublicKey: string;
   receiverPublicKey: string;
-}
-
-export interface DetailedWallet {
-  publicKey: string;
-  name: string;
-  isMain: boolean;
-  createdAt: Date;
-  transactions: Transaction[];
 }
 
 export interface DetailedUser {
@@ -478,38 +451,4 @@ export interface Order {
   daysUntilDeadline: number;
   formattedDeadline: string;
   reviewId: string | null;
-}
-
-export interface OrderFilters {
-  role: "buyer" | "seller";
-  status?: OrderStatus[];
-  deadline?: "upcoming" | "overdue" | "all";
-  priceRange?: {
-    min: number;
-    max: number;
-  };
-  search?: string;
-}
-
-export interface OrderCardAction {
-  type: "button" | "link" | "dialog";
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  variant?:
-    | "default"
-    | "outline"
-    | "destructive"
-    | "secondary"
-    | "ghost"
-    | "link";
-  onClick?: () => void;
-  href?: string;
-  dialog?: React.ReactNode;
-}
-
-export interface OrderVerificationProgress {
-  badgeTitle: string;
-  currentProgress: number;
-  totalRequired: number;
-  contributesToBadge: boolean;
 }

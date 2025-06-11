@@ -167,20 +167,3 @@ export const legalNavItems: NavItem[] = [
     description: "Learn how we protect your data",
   },
 ];
-
-export const getNavItemByHref = (href: string): NavItem | undefined => {
-  // First check main nav items
-  const mainItem = navItems.find((item) => item.href === href);
-  if (mainItem) return mainItem;
-
-  // Then check children
-  for (const item of navItems) {
-    if (item.children) {
-      const child = item.children.find((child) => child.href === href);
-      if (child) return child;
-    }
-  }
-
-  // Check legal items
-  return legalNavItems.find((item) => item.href === href);
-};

@@ -59,6 +59,7 @@ export default async function OrdersPage() {
                 {(orders) =>
                   orders.length === 0 ? (
                     <Card className="border-dashed">
+
                       <CardContent className="flex flex-col items-center justify-center py-12 px-4">
                         <PackageSearch className="h-12 w-12 text-muted-foreground mb-4" />
                         <h3 className="text-lg font-medium text-center">

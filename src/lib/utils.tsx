@@ -16,11 +16,9 @@ import {
   FaqPageSearchParams,
   GigSearchParams,
   LucideIconName,
-  Message,
   UserProfileFields,
 } from "./types";
 import * as LucideIcons from "lucide-react";
-import { format } from "date-fns";
 import { encode, decode } from "bs58";
 
 export function cn(...inputs: ClassValue[]) {
@@ -169,23 +167,6 @@ export const decryptPrivateKey = async (
   }
 };
 
-export const groupMessagesByDate = (
-  messages: Message[],
-  formatFn: typeof format = format
-): Record<string, Message[]> => {
-  return messages.reduce(
-    (groups, message) => {
-      const date = formatFn(new Date(message.createdAt), "yyyy-MM-dd");
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(message);
-      return groups;
-    },
-    {} as Record<string, Message[]>
-  );
-};
-
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
 
@@ -194,13 +175,6 @@ export function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
-export function formatOrderStatus(status: string): string {
-  return status
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
 }
 
 export const getDashboardReviewsFilters = ({
@@ -443,28 +417,6 @@ export function getNotificationBorderColor(type: NotificationType): string {
   return borderColorMap[type] || "border-gray-500/50";
 }
 
-// Format notification title based on type
-export function formatNotificationTitle(type: NotificationType): string {
-  const titleMap: Record<NotificationType, string> = {
-    REVIEW: "New Review",
-    ORDER_UPDATE: "Order Update",
-    PAYMENT: "Payment Received",
-    MESSAGE: "New Message",
-    SYSTEM: "System Notification",
-  };
-
-  return titleMap[type] || "Notification";
-}
-
-// Get read status filter options
-export function getReadStatusFilters() {
-  return [
-    { value: "all", label: "All Notifications" },
-    { value: "unread", label: "Unread Only" },
-    { value: "read", label: "Read Only" },
-  ];
-}
-
 // Group notifications by date
 export function groupNotificationsByDate(notifications: any[]) {
   const groups: Record<string, any[]> = {
@@ -573,12 +525,6 @@ export function getTierConfig(tier: Tier): {
   }
 }
 
-export function getIconComponent(iconName: string): React.ElementType {
-  // Handle the case where the icon might not exist
-  const Icon = (LucideIcons as any)[iconName];
-  return Icon || LucideIcons.Award;
-}
-
 export const getNextTier = (tier: Tier) => {
   switch (tier) {
     case "NONE":
@@ -593,162 +539,6 @@ export const getNextTier = (tier: Tier) => {
       return "NONE";
   }
 };
-
-export function calculateTierProgress(
-  currentProgress: number,
-  currentMilestone: { threshold: number; tier: Tier },
-  nextMilestone?: { threshold: number; tier: Tier }
-): number {
-  if (!nextMilestone) {
-    // This is the highest tier, show as complete if threshold is met
-    return currentProgress >= currentMilestone.threshold ? 100 : 0;
-  }
-
-  const progressInTier = currentProgress - currentMilestone.threshold;
-  const tierRange = nextMilestone.threshold - currentMilestone.threshold;
-
-  if (progressInTier <= 0) return 0;
-  if (progressInTier >= tierRange) return 100;
-
-  return Math.round((progressInTier / tierRange) * 100);
-}
-
-export function getNextMilestone(
-  milestones: { threshold: number; tier: Tier }[],
-  currentProgress: number
-): { threshold: number; tier: Tier } | null {
-  // Sort milestones by threshold ascending
-  const sortedMilestones = [...milestones].sort(
-    (a, b) => a.threshold - b.threshold
-  );
-
-  for (const milestone of sortedMilestones) {
-    if (currentProgress < milestone.threshold) {
-      return milestone;
-    }
-  }
-
-  return null; // All milestones achieved
-}
-
-export function getCurrentMilestone(
-  milestones: { threshold: number; tier: Tier }[],
-  currentProgress: number
-): { threshold: number; tier: Tier } | null {
-  // Sort milestones by threshold descending
-  const sortedMilestones = [...milestones].sort(
-    (a, b) => b.threshold - a.threshold
-  );
-
-  for (const milestone of sortedMilestones) {
-    if (currentProgress >= milestone.threshold) {
-      return milestone;
-    }
-  }
-
-  return null; // No milestone achieved yet
-}
-
-export function formatProgressText(current: number, total: number): string {
-  if (total === -1) {
-    // Special case for unbounded progress
-    return `${current} completed`;
-  }
-  return `${current} / ${total}`;
-}
-
-export function getVerificationLevelConfig(
-  level: "none" | "partial" | "complete"
-) {
-  const configs = {
-    none: {
-      label: "Not Verified",
-      color: "text-gray-500",
-      bgColor: "bg-gray-500/10",
-      icon: "ShieldOff",
-      description: "Complete the requirements to become a verified seller",
-    },
-    partial: {
-      label: "Partially Verified",
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-500/10",
-      icon: "ShieldAlert",
-      description:
-        "You're on your way! Complete all requirements for full verification",
-    },
-    complete: {
-      label: "Fully Verified",
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
-      icon: "ShieldCheck",
-      description: "Congratulations! You're a fully verified seller",
-    },
-  };
-
-  return configs[level];
-}
-
-export function getProgressColor(percentage: number): string {
-  if (percentage === 100) return "text-green-500";
-  if (percentage >= 75) return "text-blue-500";
-  if (percentage >= 50) return "text-yellow-500";
-  if (percentage >= 25) return "text-orange-500";
-  return "text-gray-500";
-}
-
-export function formatRequirementText(
-  type: "profile" | "kyc" | "orders",
-  status: { isComplete: boolean; current?: number; required?: number }
-): string {
-  switch (type) {
-    case "profile":
-      return status.isComplete
-        ? "Profile completed"
-        : "Complete your profile information";
-
-    case "kyc":
-      return status.isComplete
-        ? "KYC verification completed"
-        : "Complete KYC verification";
-
-    case "orders":
-      if (status.isComplete) {
-        return "Order requirement completed";
-      }
-      return `Complete ${status.current || 0} of ${status.required || 5} orders with positive ratings`;
-
-    default:
-      return "";
-  }
-}
-
-export function sortBadgesByRelevance(
-  badges: Array<{ userProgress?: { currentProgress: number } }>
-) {
-  return badges.sort((a, b) => {
-    const aProgress = a.userProgress?.currentProgress || 0;
-    const bProgress = b.userProgress?.currentProgress || 0;
-
-    // In-progress badges first (between 0 and 100)
-    const aInProgress = aProgress > 0 && aProgress < 100;
-    const bInProgress = bProgress > 0 && bProgress < 100;
-
-    if (aInProgress && !bInProgress) return -1;
-    if (!aInProgress && bInProgress) return 1;
-
-    // Then sort by progress descending
-    return bProgress - aProgress;
-  });
-}
-
-export function isNearMilestone(
-  currentProgress: number,
-  nextMilestone: { threshold: number } | null,
-  proximityPercentage: number = 0.9
-): boolean {
-  if (!nextMilestone) return false;
-  return currentProgress >= nextMilestone.threshold * proximityPercentage;
-}
 
 // Calculate profile completion percentage
 export function calculateProfileCompletion(user: UserProfileFields): number {

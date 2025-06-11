@@ -43,7 +43,7 @@ export default async function ChatPage({ params }: ChatPageProps) {
         otherUser={chatData.otherUser}
         initialMessages={chatData.messages}
       >
-        <ChatContainer orderId={params.orderId} />
+        <ChatContainer orderId={orderId} />
       </ChatProvider>
     </div>
   );

@@ -31,7 +31,7 @@ export const SessionProvider = ({ children }: PropsWithChildren) => {
     try {
       setIsLoading(true);
       setError(null);
-  const {user,} = await me();
+      const { user } = await me();
       const sessionData = user ? { user } : null;
       setSession(sessionData);
     } catch (err) {
@@ -69,11 +69,6 @@ export const useSession = (): SessionContextType => {
     throw new Error("useSession must be used within a SessionProvider");
   }
   return context;
-};
-
-export const useUser = () => {
-  const { session } = useSession();
-  return session?.user || null;
 };
 
 export default useSession;
