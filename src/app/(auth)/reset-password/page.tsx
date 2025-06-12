@@ -1,67 +1,60 @@
-// src/app/(auth)/reset-password/page.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, KeyRound, Loader2, ArrowRight } from "lucide-react";
+import { Lock, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { calculatePasswordStrength, cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
 
 import { ResetPasswordFormSchema } from "@/lib/schemas";
 import { resetPassword } from "@/lib/actions/auth";
 import AuthCard from "@/components/templates/auth-card";
-import PasswordStrengthIndicator from "@/components/password-strength-indicator";
-import PasswordInput from "@/components/password-input";
+import FormInput from "@/components/forms/form-input";
 
 export default function ResetPasswordPage() {
-  const [passwordStrength, setPasswordStrength] = useState(0);
   const { push } = useRouter();
 
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || undefined;
-  const code = searchParams.get("code") || undefined;
+
   const form = useForm({
     resolver: zodResolver(ResetPasswordFormSchema),
     defaultValues: {
-      email,
-      code,
       newPassword: "",
       confirmNewPassword: "",
     },
   });
-  const onSubmit = async (values: z.infer<typeof ResetPasswordFormSchema>) =>
-    toast.promise(async () => resetPassword(values), {
-      loading: "Resetting password...",
-      success: () => {
-        push("/sign-in");
+  const onSubmit = async (values: z.infer<typeof ResetPasswordFormSchema>) => {
+    toast.promise(
+      async () =>
+        resetPassword({
+          email: searchParams.get("email") || undefined,
+          code: searchParams.get("code") || undefined,
+          newPassword: values.newPassword,
+        }),
+      {
+        loading: "Resetting password...",
+        success: () => {
+          push("/sign-in");
 
-        return "Password reset successful! You can now sign in with your new password.";
-      },
-      error: (error) => {
-        const ms =
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred";
-        form.setError("root", { message: ms });
-        return ms;
-      },
-    });
+          return "Password reset successful! You can now sign in with your new password.";
+        },
+        error: (error) => {
+          const ms =
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred";
+          form.setError("root", { message: ms });
+          return ms;
+        },
+      }
+    );
+  };
 
   const isLoading = form.formState.isSubmitting;
 
@@ -92,61 +85,24 @@ export default function ResetPasswordPage() {
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
         >
-          <div>
-            <FormField
-              control={form.control}
-              name="newPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Lock className="size-4" />
-                    New Password
-                    <span className="text-xs text-destructive">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <PasswordInput
-                      {...field}
-                      placeholder="Enter your new password"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        setPasswordStrength(
-                          calculatePasswordStrength(e.target.value)
-                        );
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <PasswordStrengthIndicator strength={passwordStrength} />
-          </div>
-
-          <FormField
+          <FormInput
             control={form.control}
+            type="password-with-indicator"
+            icon={Lock}
+            name="newPassword"
+            label="New Password"
+            placeholder="Enter your new password"
+            required
+          />
+
+          <FormInput
+            control={form.control}
+            type="password-confirmation"
+            icon={Lock}
             name="confirmNewPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <KeyRound className="size-4" />
-                  Confirm New Password
-                  <span className="text-xs text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="password"
-                    placeholder="Re-enter your new password"
-                  />
-                </FormControl>
-                <FormDescription>
-                  Please re-enter your new password to confirm.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Confirm New Password"
+            placeholder="Re-enter your new password"
+            required
           />
 
           <Button type="submit" className="w-full mt-4" disabled={isLoading}>

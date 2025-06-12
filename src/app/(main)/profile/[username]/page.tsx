@@ -9,11 +9,11 @@ import ProfileHeader from "@/components/profile/profile-header";
 import ProfileAbout from "@/components/profile/profile-about";
 import ProfilePortfolio from "@/components/profile/profile-portfolio";
 
-import { me } from "@/lib/actions/auth";
 import { getDetailedUser } from "@/lib/actions/profile";
 
 import GigCard from "@/components/gig/gig-card";
 import ReviewsSection from "@/components/reviews/reviews-list";
+import { auth } from "@/lib/auth";
 
 export default async function ProfilePage({
   params,
@@ -22,16 +22,16 @@ export default async function ProfilePage({
 }) {
   const { username } = await params;
 
-  const [user, { user: currentUser }] = await Promise.all([
+  const [user, session] = await Promise.all([
     getDetailedUser(username),
-    me(),
+    auth(),
   ]);
 
   if (!user) {
     return notFound();
   }
 
-  const isMe = currentUser?.id === user.id;
+  const isMe = session?.user?.id === user.id;
 
   return (
     <main className="flex flex-col gap-4">

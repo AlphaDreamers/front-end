@@ -8,7 +8,7 @@ import { EarningsSummary } from "@/components/dashboard/earnings-summary";
 import { PerformanceStats } from "@/components/dashboard/performance-stats";
 
 export default async function DashboardPage() {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

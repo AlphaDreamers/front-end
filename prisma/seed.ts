@@ -560,7 +560,7 @@ async function seed() {
         password: await argon2.hash("test"),
         firstName: "Test",
         lastName: "One",
-        isVerified: true,
+        emailVerified: faker.date.past({ years: 1 }),
         avatar: faker.image.avatar(),
         banner: faker.image.url({ width: 1200, height: 300 }),
         headline: "Professional Developer & Designer",
@@ -579,7 +579,7 @@ async function seed() {
         password: await argon2.hash("test"),
         firstName: "Test",
         lastName: "Two",
-        isVerified: true,
+        emailVerified: faker.date.past({ years: 1 }),
         avatar: faker.image.avatar(),
         banner: faker.image.url({ width: 1200, height: 300 }),
         headline: "Creative Designer & Content Creator",
@@ -602,7 +602,9 @@ async function seed() {
           password: await argon2.hash(faker.internet.password({ length: 12 })),
           firstName,
           lastName,
-          isVerified: faker.datatype.boolean({ probability: 0.9 }),
+          emailVerified: faker.datatype.boolean({ probability: 0.9 })
+            ? faker.date.past({ years: 1 })
+            : null,
           avatar: faker.datatype.boolean({ probability: 0.8 })
             ? faker.image.avatar()
             : null,
@@ -671,43 +673,6 @@ async function seed() {
     }
     console.log(`✅ Seeded user preferences for all users.`);
 
-    throw new Error("Seeding stopped for testing purposes");
-
-    // 8. Seed Verification Tokens (for some unverified users)
-    console.log("🔐 Seeding verification tokens...");
-    const unverifiedUsers = users.filter((u) => !u.isVerified);
-    let tokenCount = 0;
-    for (const user of unverifiedUsers.slice(0, 20)) {
-      await prisma.verificationToken.create({
-        data: {
-          userId: user.id,
-          code: faker.string.alphanumeric(32),
-          expiresAt: faker.date.future(),
-        },
-      });
-      tokenCount++;
-    }
-    console.log(`✅ Seeded ${tokenCount} verification tokens.`);
-
-    // 9. Seed Wallets
-    // console.log("💰 Seeding wallets...");
-    // const wallets = [];
-    // for (const user of users) {
-    //   const walletCount = faker.number.int({ min: 1, max: 3 });
-    //   for (let i = 0; i < walletCount; i++) {
-    //     const wallet = await prisma.wallet.create({
-    //       data: {
-    //         publicKey: faker.string.alphanumeric(44), // Solana public key length
-    //         userId: user.id,
-    //         isMain: i === 0,
-    //         name: i === 0 ? "Main Wallet" : `Wallet ${i + 1}`,
-    //       },
-    //     });
-    //     wallets.push(wallet);
-    //   }
-    // }
-    // console.log(`✅ Seeded ${wallets.length} wallets.`);
-    //
     // 10. Seed User Skills
     console.log("🎯 Seeding user skills...");
     let userSkillCount = 0;

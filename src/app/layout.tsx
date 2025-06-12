@@ -5,9 +5,9 @@ import { Toaster } from "@/components/ui/sonner";
 import ThemeProvider from "@/components/ui/theme-provider";
 
 import NavbarWrapper from "@/components/navigation/navbar-wrapper";
+import SessionProvider from "@/components/session-provider";
 
 import "./globals.css";
-import { SessionProvider } from "@/hooks/use-session";
 
 export const metadata: Metadata = {
   title: "Blue frog - Solana Services Marketplace",

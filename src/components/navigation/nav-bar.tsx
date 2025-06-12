@@ -8,7 +8,7 @@ import {
   Menu,
   Search,
   Settings,
-  User,
+  User as UserIcon,
   Wallet,
   Package,
   Home,
@@ -36,23 +36,10 @@ import SearchCommand from "./search-command";
 import NotificationDropdown from "./notification-dropdown";
 import { navItems, NavItem } from "./nav-items";
 import { signOut } from "@/lib/actions/auth";
+import { useSession } from "next-auth/react";
 
-interface NavBarProps {
-  user?: {
-    id: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    avatar: string | null;
-    email: string;
-    isVerified: boolean;
-    _count: {
-      notifications: number;
-    };
-  } | null;
-}
-
-export default function NavBar({ user }: NavBarProps) {
+export default function NavBar() {
+  const session = useSession();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -114,7 +101,10 @@ export default function NavBar({ user }: NavBarProps) {
               {/* Desktop Navigation */}
               <nav className="hidden lg:flex items-center gap-1">
                 {navItems
-                  .filter((item) => !item.requiresAuth || user?.isVerified)
+                  .filter(
+                    (item) =>
+                      !item.requiresAuth || session.status === "authenticated"
+                  )
                   .filter((item) => item.showInMainNav)
                   .map((item) => (
                     <Link
@@ -147,7 +137,7 @@ export default function NavBar({ user }: NavBarProps) {
                 <Search className="h-5 w-5" />
               </Button>
 
-              {user?.isVerified ? (
+              {session.status === "authenticated" ? (
                 <>
                   {/* Create Gig Button - Desktop Only */}
                   <Link
@@ -162,7 +152,7 @@ export default function NavBar({ user }: NavBarProps) {
 
                   {/* Notifications */}
                   <NotificationDropdown
-                    unreadCount={user._count.notifications}
+                    unreadCount={session.data.user.unreadNotifications}
                   />
 
                   {/* User Menu */}
@@ -174,12 +164,12 @@ export default function NavBar({ user }: NavBarProps) {
                       >
                         <Avatar className="h-9 w-9">
                           <AvatarImage
-                            src={user.avatar || undefined}
-                            alt={user.username}
+                            src={session.data.user.avatar || undefined}
+                            alt={session.data.user.username}
                           />
                           <AvatarFallback>
-                            {user.firstName[0]}
-                            {user.lastName[0]}
+                            {session.data.user.firstName[0]}
+                            {session.data.user.lastName[0]}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
@@ -188,10 +178,11 @@ export default function NavBar({ user }: NavBarProps) {
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none">
-                            {user.firstName} {user.lastName}
+                            {session.data.user.firstName}{" "}
+                            {session.data.user.lastName}
                           </p>
                           <p className="text-xs leading-none text-muted-foreground">
-                            @{user.username}
+                            @{session.data.user.username}
                           </p>
                         </div>
                       </DropdownMenuLabel>
@@ -207,10 +198,10 @@ export default function NavBar({ user }: NavBarProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link
-                            href={`/profile/${user.username}`}
+                            href={`/profile/${session.data.user.username}`}
                             className="cursor-pointer"
                           >
-                            <User className="mr-2 h-4 w-4" />
+                            <UserIcon className="mr-2 h-4 w-4" />
                             Profile
                           </Link>
                         </DropdownMenuItem>
@@ -297,7 +288,6 @@ export default function NavBar({ user }: NavBarProps) {
       <MobileSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        user={user}
       />
 
       {/* Search Command Palette */}

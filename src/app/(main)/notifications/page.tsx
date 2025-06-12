@@ -74,7 +74,7 @@ async function NotificationsContent({
 }: {
   searchParams: SearchParams;
 }) {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(
@@ -117,7 +117,7 @@ export default async function NotificationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   // Check authentication
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     redirect("/sign-in?callback-url=/notifications");
   }

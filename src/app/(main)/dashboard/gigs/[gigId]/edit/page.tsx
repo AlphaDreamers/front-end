@@ -4,6 +4,7 @@ import EditGigForm from "@/components/gig/edit-gig-form";
 import { getUpdateGigFormGig } from "@/lib/actions/gig";
 import { getKeyValueCategories } from "@/lib/actions/category";
 import { getKeyValueTags } from "@/lib/actions/tags";
+import { auth } from "@/lib/auth";
 
 interface EditGigPageProps {
   params: Promise<{ gigId: string }>;
@@ -11,18 +12,10 @@ interface EditGigPageProps {
 
 export default async function EditGigPage({ params }: EditGigPageProps) {
   const { gigId } = await params;
-  const { user, error } = await me();
+  const session = await auth();
 
-  if (!user?.isVerified) {
-    redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/gigs/${gigId}/edit`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
-    );
+  if (!session) {
+    redirect(`/sign-in?callbackUrl=/dashboard/gigs/${gigId}/edit`);
   }
 
   const gig = await getUpdateGigFormGig(gigId);

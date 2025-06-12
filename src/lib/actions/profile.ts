@@ -3,15 +3,15 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { Color, DetailedUser, KeyValuePair, LucideIconName } from "../types";
-import { me } from "./auth";
 import { UpdateProfileFormSchema } from "../schemas";
 import { uploadFileToCloudinary } from "./cloudinary";
 import { z } from "zod";
+import { auth } from "../auth";
 
 export async function getDetailedUser(
   username: string
 ): Promise<DetailedUser | null> {
-  const { user: currentUser } = await me();
+  const session = await auth();
   const user = await prisma.user.findUnique({
     where: { username },
     select: {
@@ -112,7 +112,7 @@ export async function getDetailedUser(
           },
           bookmarks: {
             where: {
-              id: currentUser?.id,
+              id: session?.user?.id,
             },
           },
           category: {
@@ -166,6 +166,7 @@ export async function getDetailedUser(
       id: true,
       createdAt: true,
       headline: true,
+      isProfileVerified: true,
     },
   });
 
@@ -176,6 +177,7 @@ export async function getDetailedUser(
   const allReviews = user.gigs.flatMap((gig) => gig.reviews);
 
   return {
+    isVerified: user.isProfileVerified,
     email: user.email,
     ordersCnt: user.ordersAsSeller.length,
     headline: user.headline ?? undefined,
@@ -412,7 +414,7 @@ export async function updateProfile(
   values: z.infer<typeof UpdateProfileFormSchema>
 ) {
   try {
-    const { user } = await me();
+    const { user } = await auth();
     if (!user) {
       return { success: false, error: "User not authenticated" };
     }
@@ -715,7 +717,7 @@ export async function getKeyValueSkills(): Promise<KeyValuePair[]> {
 }
 
 export const confirmFullVerification = async () => {
-  const { user: currentUser } = await me();
+  const { user: currentUser } = await auth();
   if (!currentUser) {
     return { success: false, error: "User not authenticated" };
   }

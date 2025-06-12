@@ -39,7 +39,7 @@ export const SignUpFormSchema = z
     password: PasswordSchema,
     confirmPassword: z.string(),
     country: z.enum(
-      COUNTRIES.map((country) => country.code) as [string, ...string[]],
+      COUNTRIES.map((country) => country.value) as [string, ...string[]],
       {
         message: "Please select a valid country",
       }
@@ -78,11 +78,6 @@ export const VerifyResetPasswordCodeFormSchema = z.object({
 // Schema for resetting the password
 export const ResetPasswordFormSchema = z
   .object({
-    email: z.string().email().optional(),
-    code: z
-      .string()
-      .regex(/^\d{6}$/, { message: "Code must be a 6-digit number" })
-      .optional(),
     newPassword: PasswordSchema,
     confirmNewPassword: z.string(),
   })
@@ -552,7 +547,6 @@ export const UpdateProfileFormSchema = z.object({
   // Featured badge
   featuredBadgeId: z.string().uuid().nullable(),
 });
-
 
 // --- KYC Schema ---
 

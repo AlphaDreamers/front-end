@@ -1,8 +1,8 @@
-import { me } from "@/lib/actions/auth";
 import NavBar from "./nav-bar";
+import { auth } from "@/lib/auth";
 
 export default async function NavbarWrapper() {
-  const {user,} = await me();
+  const session = await auth();
 
-  return <NavBar user={user} />;
+  return <NavBar user={session?.user} />;
 }

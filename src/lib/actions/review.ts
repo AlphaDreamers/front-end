@@ -140,7 +140,7 @@ export async function updateReviewResponse({
   reviewId,
   response,
 }: z.infer<typeof SellerResponseSchema>) {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("You must be logged in to respond to reviews");
@@ -295,7 +295,7 @@ export async function leaveReview(data: {
   description: string;
   orderId: string;
 }): Promise<Review> {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("You must be logged in to leave a review");

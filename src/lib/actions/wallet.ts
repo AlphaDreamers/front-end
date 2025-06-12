@@ -1,21 +1,21 @@
 "use server";
 
-import { me } from "./auth";
 import { prisma } from "../prisma";
 import { revalidatePath } from "next/cache";
 import { WalletWithBalance } from "@/components/wallet/wallet-provider";
 import { Transaction } from "../types";
+import { auth } from "../auth";
 
 export const createWallet = async (publicKey: string, name: string) => {
-  const { user } = await me();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("Please verify your email before creating a wallet");
   }
 
   const existingWallets = await prisma.wallet.findMany({
     where: {
-      userId: user.id,
+      userId: session.user.id,
     },
   });
 
@@ -36,23 +36,23 @@ export const createWallet = async (publicKey: string, name: string) => {
     data: {
       publicKey,
       name,
-      userId: user.id,
+      userId: session.user.id,
       isMain: existingWallets.length === 0,
     },
   });
 };
 
 export async function setMainWallet(walletId: string) {
-  const { user } = await me();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
   const wallet = await prisma.wallet.findFirst({
     where: {
       publicKey: walletId,
-      userId: user.id,
+      userId: session.user.id,
     },
   });
 
@@ -63,7 +63,7 @@ export async function setMainWallet(walletId: string) {
   await prisma.$transaction([
     // First, set all user's wallets to not main
     prisma.wallet.updateMany({
-      where: { userId: user.id },
+      where: { userId: session.user.id },
       data: { isMain: false },
     }),
     // Then set the selected wallet as main
@@ -77,9 +77,9 @@ export async function setMainWallet(walletId: string) {
 }
 
 export async function deleteWallet(walletId: string) {
-  const { user } = await me();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -87,7 +87,7 @@ export async function deleteWallet(walletId: string) {
   const wallet = await prisma.wallet.findFirst({
     where: {
       publicKey: walletId,
-      userId: user.id,
+      userId: session.user.id,
     },
   });
 
@@ -160,13 +160,13 @@ export const getWalletTransactions = async (
 };
 
 export const getWallets = async (): Promise<WalletWithBalance[]> => {
-  const { user } = await me();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     return [];
   }
 
   const wallets = await prisma.wallet.findMany({
-    where: { userId: user.id },
+    where: { userId: session.user.id },
     orderBy: [{ isMain: "desc" }, { createdAt: "desc" }],
     select: {
       name: true,
@@ -184,13 +184,13 @@ export const getWallets = async (): Promise<WalletWithBalance[]> => {
 };
 
 export const getOrderForTransaction = async (orderId: string) => {
-  const { user } = await me();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
   const order = await prisma.order.findUnique({
-    where: { id: orderId, buyerId: user.id },
+    where: { id: orderId, buyerId: session.user.id },
     select: {
       sellerId: true,
       buyer: { select: { id: true } },

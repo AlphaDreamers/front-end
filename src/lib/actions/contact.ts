@@ -2,9 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import {
-  TestimonialContentSchema,
-} from "@/lib/schemas/contact";
+import { TestimonialContentSchema } from "@/lib/schemas/contact";
 import { me } from "./auth";
 import { Resend } from "resend";
 
@@ -20,7 +18,7 @@ async function createContactMessage(
     | "GENERAL_INQUIRY",
   requiresAuth: boolean = false
 ) {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (requiresAuth && !user) {
     throw new Error("Please log in to submit this type of message");

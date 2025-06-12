@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { CreateGigFormSchema } from "../schemas";
-import { me } from "./auth";
 import { prisma } from "../prisma";
 import { EditGigFormSchema } from "@/lib/schemas";
 import { Prisma } from "@prisma/client";
@@ -14,18 +13,15 @@ import {
   LucideIconName,
 } from "../types";
 import { revalidatePath } from "next/cache";
+import { auth } from "../auth";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
 ) => {
-  const { user } = await me();
+  const session = await auth();
 
-  if (!user) {
+  if (!session) {
     throw new Error("You must be logged in to create a gig");
-  }
-
-  if (!user.isVerified) {
-    throw new Error("Please verify your email before creating gigs");
   }
 
   const { title, description, categoryId, tags, packages, images, features } =
@@ -78,7 +74,7 @@ export const createGig = async (
         data: {
           title,
           description,
-          sellerId: user.id,
+          sellerId: session.user.id,
           categoryId,
           tags: {
             connect: tags.map((tag) => ({ id: tag.id })),
@@ -168,13 +164,13 @@ export const createGig = async (
 export const getUpdateGigFormGig = async (
   gigId: string
 ): Promise<z.infer<typeof EditGigFormSchema>> => {
-  const { user } = await me();
-  if (!user) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
   const gig = await prisma.gig.findUnique({
-    where: { id: gigId, sellerId: user.id },
+    where: { id: gigId, sellerId: session.user.id },
     select: {
       category: true,
       title: true,
@@ -223,7 +219,7 @@ export const getUpdateGigFormGig = async (
     id: gigId,
     title: gig.title,
     description: gig.description,
-    categoryId: gig.category?.id ?? "", // Fallback to empty string if category is null
+    categoryId: gig.category?.id,
     tags: gig.tags.map((tag) => tag.id),
     features: gig.features.map((feature) => ({
       id: feature.id,
@@ -250,11 +246,30 @@ export const getUpdateGigFormGig = async (
   };
 };
 
-export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
+export const updateGig = async ({
+  title,
+  description,
+  images,
+}: {
+  title?: string;
+  description?: string;
+  images?: {
+    metadata: "create" | "update" | "delete";
+  }[];
+}) => {
+  const data: Prisma.GigUpdateInput = {};
+
+  if (title) {
+    data.title = title;
+  }
+  if (description) {
+    data.description = description;
+  }
+
   try {
     // 1. Authenticate the user
-    const { user } = await me();
-    if (!user?.isVerified) {
+    const session = await auth();
+    if (!session) {
       throw new Error("User not authenticated");
     }
 
@@ -288,7 +303,7 @@ export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
       throw new Error("Gig not found");
     }
 
-    if (existingGig.sellerId !== user.id) {
+    if (existingGig.sellerId !== session.user.id) {
       throw new Error("You do not have permission to update this gig");
     }
 
@@ -579,9 +594,9 @@ export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
 };
 
 export const deleteGig = async (gigId: string) => {
-  const { user } = await me();
+  const session = await auth();
 
-  if (!user) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -593,7 +608,7 @@ export const deleteGig = async (gigId: string) => {
     throw new Error("Gig not found");
   }
 
-  if (existingGig.sellerId !== user.id) {
+  if (existingGig.sellerId !== session.user.id) {
     throw new Error("You do not have permission to delete this gig");
   }
 
@@ -607,7 +622,7 @@ export const deleteGig = async (gigId: string) => {
 export const getGigs = async (
   args: Omit<Prisma.GigFindManyArgs, "select" | "include">
 ): Promise<Gig[]> => {
-  const { user } = await me();
+  const session = await auth();
   const gigs = await prisma.gig.findMany({
     ...args,
     select: {
@@ -664,7 +679,7 @@ export const getGigs = async (
       },
       bookmarks: {
         where: {
-          id: user?.id,
+          id: session?.user.id,
         },
       },
       category: {
@@ -728,8 +743,8 @@ export const getGigCount = async (
 };
 
 export const toggleBookmark = async (gigId: string) => {
-  const { user } = await me();
-  if (!user) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -738,7 +753,7 @@ export const toggleBookmark = async (gigId: string) => {
       id: gigId,
       bookmarks: {
         some: {
-          id: user.id,
+          id: session.user.id,
         },
       },
     },
@@ -749,7 +764,7 @@ export const toggleBookmark = async (gigId: string) => {
       where: { id: gigId },
       data: {
         bookmarks: {
-          disconnect: { id: user.id },
+          disconnect: { id: session.user.id },
         },
       },
     });
@@ -758,7 +773,7 @@ export const toggleBookmark = async (gigId: string) => {
       where: { id: gigId },
       data: {
         bookmarks: {
-          connect: { id: user.id },
+          connect: { id: session.user.id },
         },
       },
     });
@@ -787,6 +802,7 @@ export const getDetailedGig = async (
       },
       seller: {
         select: {
+          id: true,
           firstName: true,
           lastName: true,
           username: true,
@@ -878,6 +894,7 @@ export const getDetailedGig = async (
     description: gig.description,
     images: gig.images.map((img) => img.file.url),
     seller: {
+      id: gig.seller.id,
       firstName: gig.seller.firstName,
       lastName: gig.seller.lastName,
       username: gig.seller.username,

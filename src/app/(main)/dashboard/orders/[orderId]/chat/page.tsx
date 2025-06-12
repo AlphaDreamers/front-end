@@ -14,7 +14,7 @@ interface ChatPageProps {
 
 export default async function ChatPage({ params }: ChatPageProps) {
   const { orderId } = await params;
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

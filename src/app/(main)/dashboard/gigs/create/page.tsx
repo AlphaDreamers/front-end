@@ -5,7 +5,7 @@ import { me } from "@/lib/actions/auth";
 import CreateGigForm from "@/components/create-gig-form";
 
 export default async function GigCreatePage() {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

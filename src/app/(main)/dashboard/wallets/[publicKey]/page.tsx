@@ -10,7 +10,7 @@ export default async function Page({
   params: Promise<{ publicKey: string }>;
 }) {
   const { publicKey } = await params;
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

@@ -9,25 +9,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { Form } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 
 import { useCountdown } from "@/hooks/use-countdown";
 import { verifyEmail, resendVerificationEmail } from "@/lib/actions/auth";
 import { VerifyEmailFormSchema } from "@/lib/schemas";
 import AuthCard from "@/components/templates/auth-card";
+import FormOtpInput from "@/components/forms/form-otp-input";
 
 export default function VerifyEmailPage() {
   const { push } = useRouter();
@@ -124,26 +113,12 @@ export default function VerifyEmailPage() {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <FormField
-            control={form.control}
+          <FormOtpInput
             name="code"
-            render={({ field }) => (
-              <FormItem className="flex flex-col gap-4 items-center">
-                <FormLabel className="text-center text-lg font-semibold">
-                  Enter the 6-digit code below
-                </FormLabel>
-                <FormControl>
-                  <InputOTP maxLength={6} {...field}>
-                    <InputOTPGroup>
-                      {[...Array(6)].map((_, i) => (
-                        <InputOTPSlot key={i} index={i} className="size-12" />
-                      ))}
-                    </InputOTPGroup>
-                  </InputOTP>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Verification Code"
+            control={form.control}
+            description="Enter the 6-digit code sent to your email"
+            length={6}
           />
 
           <Button type="submit" className="w-full mt-4" disabled={isLoading}>

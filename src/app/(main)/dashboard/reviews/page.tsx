@@ -14,7 +14,7 @@ import {
 import DashboardReviewsList from "@/components/reviews/dashboard-reviews-list";
 import Pagination from "@/components/pagination";
 import { getDashboardReviewsFilters } from "@/lib/utils";
-import { me } from "@/lib/actions/auth";
+
 import Async from "@/components/async";
 import { Prisma } from "@prisma/client";
 
@@ -25,7 +25,7 @@ export default async function DashboardReviewsPage({
 }) {
   const params = await searchParams;
 
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

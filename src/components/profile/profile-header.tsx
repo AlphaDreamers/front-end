@@ -4,6 +4,7 @@ import { Calendar, Shield, Star, Award } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { DetailedUser } from "@/lib/types";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface ProfileHeaderProps {
   user: DetailedUser;
@@ -25,13 +26,18 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
       <div className="flex flex-col md:flex-row items-center md:items-end gap-6 -mt-20 px-6">
         {/* Avatar */}
         <div className="relative z-10">
-          <Image
-            src={user.avatar || "/avatar-fallback.png"}
-            alt={user.firstName}
-            width={160}
-            height={160}
-            className="size-28 md:size-32 rounded-full"
-          />
+          <Avatar className="min-w-28 min-h-28">
+            <AvatarImage
+              src={user.avatar || "/avatar-fallback.png"}
+              alt={user.firstName}
+              width={160}
+              height={160}
+            />
+            <AvatarFallback className="text-4xl">
+              {user.firstName[0]}
+              {user.lastName[0]}
+            </AvatarFallback>
+          </Avatar>
         </div>
 
         {/* User Details */}
@@ -41,7 +47,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
               <h1 className="text-3xl font-bold">
                 {user.firstName} {user.lastName}
               </h1>
-              {user.isKycVerified && (
+              {user.isVerified && (
                 <Badge className="bg-green-600/10 text-green-600 border-green-600/20">
                   <Shield className="size-3 mr-1" />
                   Verified

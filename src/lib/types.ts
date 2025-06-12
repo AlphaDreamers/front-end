@@ -181,6 +181,7 @@ export interface DetailedGig {
   images: string[];
   packages: DetailedGigPackage[];
   seller: {
+    id: string;
     firstName: string;
     lastName: string;
     username: string;
@@ -338,6 +339,7 @@ export interface DetailedUser {
   banner?: string;
   avatar?: string;
   joinedAt: Date;
+  isVerified: boolean;
   headline?: string;
   badge?: {
     id: string;

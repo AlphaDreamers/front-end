@@ -6,7 +6,7 @@ import SettingsForm from "@/components/settings/settings-form";
 import { getSettings } from "@/lib/actions/settings";
 
 export default async function SettingsPage() {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

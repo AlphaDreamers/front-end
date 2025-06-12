@@ -10,7 +10,7 @@ interface PasswordResetEmailTemplateProps {
 const PasswordResetEmailTemplate: React.FC<
   Readonly<PasswordResetEmailTemplateProps>
 > = ({ code, email, firstName }) => {
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-reset-code?email=${encodeURIComponent(email)}&code=${code}`;
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&code=${code}`;
 
   return (
     <div
@@ -96,8 +96,7 @@ const PasswordResetEmailTemplate: React.FC<
               }}
             >
               We received a request to reset the password for your Blue Frog
-              account. Use the code below to proceed with resetting your
-              password.
+              account. Click the button below to create a new password.
             </p>
 
             {/* Security Notice */}
@@ -134,50 +133,6 @@ const PasswordResetEmailTemplate: React.FC<
               </p>
             </div>
 
-            {/* Reset Code Box */}
-            <div
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: "2px solid #e5e7eb",
-                borderRadius: "8px",
-                padding: "30px",
-                textAlign: "center",
-                margin: "0 0 30px 0",
-              }}
-            >
-              <p
-                style={{
-                  color: "#6b7280",
-                  fontSize: "14px",
-                  margin: "0 0 10px 0",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                Your reset code
-              </p>
-              <div
-                style={{
-                  color: "#dc2626",
-                  fontSize: "36px",
-                  fontWeight: "700",
-                  letterSpacing: "8px",
-                  fontFamily: "'Courier New', monospace",
-                }}
-              >
-                {code}
-              </div>
-              <p
-                style={{
-                  color: "#9ca3af",
-                  fontSize: "12px",
-                  margin: "10px 0 0 0",
-                }}
-              >
-                Valid for 24 hours • One-time use only
-              </p>
-            </div>
-
             {/* Call to Action */}
             <div style={{ textAlign: "center", margin: "0 0 30px 0" }}>
               <a
@@ -197,7 +152,18 @@ const PasswordResetEmailTemplate: React.FC<
               </a>
             </div>
 
-            {/* Additional Info */}
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "14px",
+                margin: "0 0 20px 0",
+                textAlign: "center",
+              }}
+            >
+              This link will expire in 24 hours for your security.
+            </p>
+
+            {/* Alternative access info */}
             <div
               style={{
                 backgroundColor: "#f9fafb",
@@ -214,29 +180,31 @@ const PasswordResetEmailTemplate: React.FC<
                   margin: "0 0 12px 0",
                 }}
               >
-                What happens next?
+                Can&apos;t click the button?
               </h3>
-              <ol
+              <p
                 style={{
                   color: "#6b7280",
                   fontSize: "14px",
-                  margin: "0",
-                  paddingLeft: "20px",
+                  margin: "0 0 10px 0",
                 }}
               >
-                <li style={{ marginBottom: "8px" }}>
-                  Click the button above or enter the code manually
-                </li>
-                <li style={{ marginBottom: "8px" }}>
-                  Create a new, strong password
-                </li>
-                <li style={{ marginBottom: "8px" }}>
-                  Sign in with your new password
-                </li>
-                <li>
-                  Consider enabling two-factor authentication for added security
-                </li>
-              </ol>
+                Copy and paste this link into your browser:
+              </p>
+              <p
+                style={{
+                  color: "#dc2626",
+                  fontSize: "12px",
+                  fontFamily: "'Courier New', monospace",
+                  wordBreak: "break-all",
+                  backgroundColor: "#f3f4f6",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  margin: "0",
+                }}
+              >
+                {resetUrl}
+              </p>
             </div>
           </td>
         </tr>

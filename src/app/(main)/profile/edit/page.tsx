@@ -6,7 +6,7 @@ import { getKeyValueSkills } from "@/lib/actions/profile";
 import PageTemplate from "@/components/templates/page-template";
 
 export default async function EditProfilePage() {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

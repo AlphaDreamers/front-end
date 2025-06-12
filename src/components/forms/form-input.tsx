@@ -1,3 +1,5 @@
+"use client";
+
 import { Control, FieldValues, Path } from "react-hook-form";
 import {
   FormField,
@@ -9,18 +11,24 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { calculatePasswordStrength } from "@/lib/utils";
+import PasswordInput from "../password-input";
+import PasswordStrengthIndicator from "../password-strength-indicator";
 
 interface FormInputProps<T extends FieldValues = FieldValues> {
   control: Control<T>;
   name: Path<T>;
   label: string;
   placeholder?: string;
-  type?: "text" | "email" | "number";
-  icon?: LucideIcon;
+  type?:
+    | "text"
+    | "email"
+    | "password"
+    | "password-with-indicator"
+    | "password-confirmation";
+  icon: LucideIcon;
   description?: string;
   required?: boolean;
-  disabled?: boolean;
   className?: string;
 }
 
@@ -33,7 +41,6 @@ export default function FormInput<T extends FieldValues = FieldValues>({
   icon: Icon,
   description,
   required = false,
-  disabled = false,
   className,
 }: FormInputProps<T>) {
   return (
@@ -42,30 +49,28 @@ export default function FormInput<T extends FieldValues = FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem className={className}>
-          <FormLabel>
+          <FormLabel className="flex items-center gap-2">
+            <Icon className="h-4 w-4" />
             {label}
-            {required && <span className="text-destructive ml-1">*</span>}
+            {required && <span className="text-xs text-destructive">*</span>}
           </FormLabel>
           <FormControl>
-            <div className="relative">
-              {Icon && (
-                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              )}
-              <Input
-                {...field}
-                type={type}
-                placeholder={placeholder}
-                disabled={disabled}
-                className={cn(Icon && "pl-10")}
-                onChange={(e) => {
-                  const value =
-                    type === "number" ? e.target.valueAsNumber : e.target.value;
-                  field.onChange(value);
-                }}
-              />
-            </div>
+            {type === "password-with-indicator" ? (
+              <div className="flex flex-col ga-2">
+                <PasswordInput {...field} placeholder={placeholder} />
+                <PasswordStrengthIndicator
+                  strength={calculatePasswordStrength(field.value)}
+                />
+              </div>
+            ) : type === "password" ? (
+              <PasswordInput {...field} placeholder={placeholder} />
+            ) : type === "password-confirmation" ? (
+              <Input type="password" {...field} placeholder={placeholder} />
+            ) : (
+              <Input type={type} {...field} placeholder={placeholder} />
+            )}
           </FormControl>
-          {description && <FormDescription>{description}</FormDescription>}
+          <FormDescription>{description}</FormDescription>
           <FormMessage />
         </FormItem>
       )}

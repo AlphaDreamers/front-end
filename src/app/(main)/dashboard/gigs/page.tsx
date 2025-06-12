@@ -27,7 +27,7 @@ export default async function DashboardGigsPage({
 }: {
   searchParams: Promise<GigSearchParams>;
 }) {
-  const { user } = await me();
+  const { user } = await auth();
 
   // This is handled by the middleware, but we check here to avoid unnecessary DB calls
   if (!user) {

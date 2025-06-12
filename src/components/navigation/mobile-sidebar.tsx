@@ -19,29 +19,15 @@ import {
 import { cn } from "@/lib/utils";
 
 import { navItems, legalNavItems } from "./nav-items";
+import { useSession } from "next-auth/react";
 
 interface MobileSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  user?: {
-    id: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    avatar: string | null;
-    email: string;
-    isVerified: boolean;
-    _count: {
-      notifications: number;
-    };
-  } | null;
 }
 
-export default function MobileSidebar({
-  isOpen,
-  onClose,
-  user,
-}: MobileSidebarProps) {
+export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
+  const session = useSession();
   const pathname = usePathname();
 
   const isActive = (href: string) => {
@@ -51,6 +37,8 @@ export default function MobileSidebar({
     return pathname.startsWith(href);
   };
 
+  const user = session.data?.user;
+  console.log(JSON.stringify(session));
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="left" className="w-[300px] p-0">
@@ -78,29 +66,29 @@ export default function MobileSidebar({
         <ScrollArea className="h-[calc(100vh-80px)]">
           <div className="p-4">
             {/* User Profile Section */}
-            {user?.isVerified ? (
+            {session.status === "authenticated" ? (
               <div className="mb-6">
                 <Link
-                  href={`/profile/${user.username}`}
+                  href={`/profile/${user?.username}`}
                   onClick={onClose}
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
                 >
                   <Avatar className="h-10 w-10">
                     <AvatarImage
-                      src={user.avatar || undefined}
-                      alt={user.username}
+                      src={user?.avatar || undefined}
+                      alt={user?.username}
                     />
                     <AvatarFallback>
-                      {user.firstName[0]}
-                      {user.lastName[0]}
+                      {user?.firstName[0]}
+                      {user?.lastName[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <p className="text-sm font-medium">
-                      {user.firstName} {user.lastName}
+                      {user?.firstName} {user?.lastName}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      @{user.username}
+                      @{user?.username}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -138,7 +126,10 @@ export default function MobileSidebar({
               <Accordion type="single" collapsible className="w-full">
                 {navItems
                   .filter((item) => item.showInMobile)
-                  .filter((item) => !item.requiresAuth || user?.isVerified)
+                  .filter(
+                    (item) =>
+                      !item.requiresAuth || session.status === "authenticated"
+                  )
                   .map((item) => {
                     if (item.children && item.children.length > 0) {
                       return (
@@ -199,12 +190,12 @@ export default function MobileSidebar({
                           {item.label}
                         </div>
                         {item.href === "/notifications" &&
-                          user?._count.notifications > 0 && (
+                          user?.unreadNotifications > 0 && (
                             <Badge
                               variant="destructive"
                               className="h-5 px-1 text-xs"
                             >
-                              {user._count.notifications}
+                              {user?.unreadNotifications}
                             </Badge>
                           )}
                       </Link>
@@ -239,7 +230,7 @@ export default function MobileSidebar({
             </div>
 
             {/* Sign Out */}
-            {user?.isVerified && (
+            {session.status === "unauthenticated" && (
               <>
                 <Separator className="my-4" />
                 <Button

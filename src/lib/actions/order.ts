@@ -39,7 +39,7 @@ export const getKeyValueOrders = async (
 export async function getOrders(
   args: Omit<Prisma.OrderFindManyArgs, "select" | "include">
 ): Promise<Order[]> {
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
   }
@@ -222,7 +222,7 @@ export async function getOrders(
 }
 
 export const createOrder = async (packageId: string) => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -289,7 +289,7 @@ export const createOrder = async (packageId: string) => {
 };
 
 export const expireOrder = async (orderId: string) => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -348,7 +348,7 @@ export const confirmPayment = async (
   senderPublicKey: string,
   receiverPublicKey: string
 ) => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -425,7 +425,7 @@ export const confirmPayment = async (
 };
 
 export const cancelOrder = async (orderId: string): Promise<void> => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -504,7 +504,7 @@ export const deliverWork = async ({
   files?: File[];
   explanation: string;
 }) => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -612,7 +612,7 @@ export const deliverWork = async ({
 };
 
 export const rejectDelivery = async (orderId: string): Promise<void> => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
@@ -660,7 +660,7 @@ export const rejectDelivery = async (orderId: string): Promise<void> => {
 };
 
 export const acceptDelivery = async (orderId: string): Promise<void> => {
-  const { user } = await me();
+  const { user } = await auth();
 
   if (!user?.isVerified) {
     throw new Error("User not authenticated");

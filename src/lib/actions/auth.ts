@@ -5,20 +5,14 @@ import { prisma } from "../prisma";
 import { cookies } from "next/headers";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
-import {
-  ForgotPasswordFormSchema,
-  KycFormSchema,
-  ResetPasswordFormSchema,
-  SignInFormSchema,
-  SignUpFormSchema,
-  VerifyEmailFormSchema,
-  VerifyResetPasswordCodeFormSchema,
-} from "../schemas";
+import { KycFormSchema, VerifyEmailFormSchema } from "../schemas";
 import { Resend } from "resend";
 import { JWTToken } from "../types";
 import VerificationEmailTemplate from "@/components/email-templates/verification-email";
 import WelcomeEmailTemplate from "@/components/email-templates/welcome-email";
 import PasswordResetEmailTemplate from "@/components/email-templates/password-reset-email";
+import { auth } from "../auth";
+import { User } from "next-auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -39,7 +33,7 @@ export async function me() {
       where: { id: decoded.id },
       select: {
         id: true,
-        isVerified: true,
+        //emailVerified: new Date()
         avatar: true,
         email: true,
         username: true,
@@ -73,9 +67,21 @@ export async function me() {
   }
 }
 
-export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
-  const { username, country, email, password, firstName, lastName } = values;
-
+export async function signUp({
+  username,
+  country,
+  email,
+  password,
+  firstName,
+  lastName,
+}: {
+  username: string;
+  country: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}) {
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [{ email }, { username }],
@@ -83,14 +89,14 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
     select: {
       email: true,
       username: true,
-      isVerified: true,
+      emailVerified: true,
     },
   });
 
   if (existingUser) {
     if (existingUser.email === email) {
       throw new Error(
-        existingUser.isVerified
+        existingUser.emailVerified
           ? "This email is already registered"
           : "This email is registered but not verified. Please check your inbox."
       );
@@ -113,12 +119,6 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
         firstName,
         lastName,
         password: hashedPassword,
-        verificationToken: {
-          create: {
-            code: verificationCode,
-            expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-          },
-        },
         country,
       },
     });
@@ -139,41 +139,6 @@ export async function signUp(values: z.infer<typeof SignUpFormSchema>) {
   });
 }
 
-export async function signIn(values: z.infer<typeof SignInFormSchema>) {
-  const { email, password } = values;
-
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      password: true,
-      isVerified: true,
-    },
-  });
-
-  // Generic error for security - don't reveal if email exists
-  if (!user || !(await argon2.verify(user.password, password))) {
-    throw new Error("Invalid email or password");
-  }
-
-  if (!user.isVerified) {
-    throw new Error("Please verify your email before signing in");
-  }
-
-  const token = jwt.sign({ id: user.id } as JWTToken, process.env.JWT_SECRET!, {
-    expiresIn: "7d",
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set("token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-    path: "/",
-  });
-}
-
 export async function verifyEmail(
   values: z.infer<typeof VerifyEmailFormSchema>
 ) {
@@ -181,18 +146,9 @@ export async function verifyEmail(
 
   const token = await prisma.verificationToken.findFirst({
     where: {
-      code,
-      user: { email },
-      expiresAt: { gt: new Date() }, // Check expiry in the query
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          username: true,
-          firstName: true,
-        },
-      },
+      identifier: email,
+      token: code,
+      expires: { gt: new Date() }, // Check expiry in the query
     },
   });
 
@@ -200,13 +156,13 @@ export async function verifyEmail(
     throw new Error("Invalid or expired verification code");
   }
 
-  await prisma.$transaction([
+  const [user] = await prisma.$transaction([
     prisma.user.update({
-      where: { id: token.user.id },
-      data: { isVerified: true },
+      where: { email },
+      data: { emailVerified: new Date() },
     }),
     prisma.verificationToken.delete({
-      where: { id: token.id },
+      where: { identifier_token: { identifier: email, token: code } },
     }),
   ]);
 
@@ -216,23 +172,23 @@ export async function verifyEmail(
       to: [email],
       subject: "Welcome to Blue Frog!",
       react: await WelcomeEmailTemplate({
-        username: token.user.username,
-        firstName: token.user.firstName,
+        username: user!.username,
+        firstName: user!.firstName,
       }),
     })
     .catch(console.error);
 }
 
-export async function forgotPassword(
-  values: z.infer<typeof ForgotPasswordFormSchema>
-) {
+export async function forgotPassword(values: { email: string }) {
   const { email } = values;
 
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
       id: true,
-      isVerified: true,
+      firstName: true,
+      emailVerified: true,
+      email: true,
     },
   });
 
@@ -241,23 +197,20 @@ export async function forgotPassword(
     return; // Silent success
   }
 
-  if (!user.isVerified) {
+  if (!user.emailVerified) {
     throw new Error("Please verify your email first");
   }
 
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Delete any existing token and create new one
-  await prisma.verificationToken.upsert({
-    where: { userId: user.id },
-    update: {
-      code: resetCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-    },
-    create: {
-      userId: user.id,
-      code: resetCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: email },
+  });
+  await prisma.verificationToken.create({
+    data: {
+      identifier: email,
+      token: resetCode,
+      expires: new Date(Date.now() + TOKEN_EXPIRY),
     },
   });
 
@@ -266,59 +219,47 @@ export async function forgotPassword(
       from: DEFAULT_FROM_EMAIL,
       to: [email],
       subject: "Reset your password",
-      react: await PasswordResetEmailTemplate({ code: resetCode, email }),
+      react: await PasswordResetEmailTemplate({
+        code: resetCode,
+        email,
+        firstName: user.firstName,
+      }),
     })
-    .catch(console.error);
+    .catch((error) => {
+      console.error("Failed to send password reset email:", error);
+    });
 }
 
-export async function verifyPasswordResetCode(
-  values: z.infer<typeof VerifyResetPasswordCodeFormSchema>
-) {
-  const { code, email } = values;
+export async function resetPassword({
+  newPassword,
+  email,
+  code,
+}: {
+  newPassword: string;
+  email?: string; // From URL search params for unauthenticated users
+  code?: string; // From URL search params for unauthenticated users
+}) {
+  const session = await auth();
 
-  const exists = await prisma.verificationToken.findFirst({
-    where: {
-      code,
-      user: { email },
-      expiresAt: { gt: new Date() },
-    },
-  });
-
-  if (!exists) {
-    throw new Error("Invalid or expired code");
-  }
-}
-
-export async function resetPassword(
-  values: z.infer<typeof ResetPasswordFormSchema>
-) {
-  const { email, code, newPassword } = values;
-
-  // For authenticated users changing their password
-  const { user: currentUser } = await me();
-  if (currentUser) {
+  if (session) {
     await prisma.user.update({
-      where: { id: currentUser.id },
+      where: { id: session.user.id },
       data: {
         password: await argon2.hash(newPassword),
       },
     });
-    return;
   }
 
-  // For anonymous password reset
   if (!email || !code) {
-    throw new Error("Missing reset credentials");
+    throw new Error("Authentication required or missing reset credentials");
   }
 
+  // Verify the reset code
   const token = await prisma.verificationToken.findFirst({
     where: {
-      code,
-      user: { email },
-      expiresAt: { gt: new Date() },
-    },
-    include: {
-      user: { select: { id: true } },
+      identifier: email,
+      token: code,
+      expires: { gt: new Date() },
     },
   });
 
@@ -326,13 +267,16 @@ export async function resetPassword(
     throw new Error("Invalid or expired reset code");
   }
 
+  // Update password and clean up verification token
   await prisma.$transaction([
     prisma.user.update({
-      where: { id: token.user.id },
-      data: { password: await argon2.hash(newPassword) },
+      where: { email },
+      data: {
+        password: await argon2.hash(newPassword),
+      },
     }),
     prisma.verificationToken.delete({
-      where: { id: token.id },
+      where: { identifier_token: { identifier: email, token: code } },
     }),
   ]);
 }
@@ -343,7 +287,7 @@ export async function resendVerificationEmail(email: string) {
     select: {
       id: true,
       firstName: true,
-      isVerified: true,
+      emailVerified: true,
     },
   });
 
@@ -351,31 +295,8 @@ export async function resendVerificationEmail(email: string) {
     throw new Error("No account found with this email address");
   }
 
-  if (user.isVerified) {
+  if (user.emailVerified) {
     throw new Error("This email is already verified");
-  }
-
-  const existingToken = await prisma.verificationToken.findUnique({
-    where: { userId: user.id },
-    select: {
-      createdAt: true,
-      expiresAt: true,
-    },
-  });
-
-  // Rate limiting - prevent resending too frequently
-  if (existingToken) {
-    const timeSinceCreation = Date.now() - existingToken.createdAt.getTime();
-    const minResendInterval = 60 * 1000; // 1 minute
-
-    if (timeSinceCreation < minResendInterval) {
-      const waitTime = Math.ceil(
-        (minResendInterval - timeSinceCreation) / 1000
-      );
-      throw new Error(
-        `Please wait ${waitTime} seconds before requesting a new code`
-      );
-    }
   }
 
   const verificationCode = Math.floor(
@@ -383,15 +304,15 @@ export async function resendVerificationEmail(email: string) {
   ).toString();
 
   await prisma.verificationToken.upsert({
-    where: { userId: user.id },
+    where: { identifier_token: { identifier: email, token: verificationCode } },
     update: {
-      code: verificationCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+      token: verificationCode,
+      expires: new Date(Date.now() + TOKEN_EXPIRY),
     },
     create: {
-      userId: user.id,
-      code: verificationCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
+      identifier: email,
+      token: verificationCode,
+      expires: new Date(Date.now() + TOKEN_EXPIRY),
     },
   });
 
@@ -410,78 +331,6 @@ export async function resendVerificationEmail(email: string) {
   }
 }
 
-export async function resendPasswordResetCode(email: string) {
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      firstName: true,
-      isVerified: true,
-    },
-  });
-
-  // Silent return for security - don't reveal if email exists
-  if (!user) {
-    return;
-  }
-
-  if (!user.isVerified) {
-    throw new Error("Please verify your email address first");
-  }
-
-  // Rate limiting check
-  const existingToken = await prisma.verificationToken.findUnique({
-    where: { userId: user.id },
-    select: {
-      createdAt: true,
-    },
-  });
-
-  if (existingToken) {
-    const timeSinceCreation = Date.now() - existingToken.createdAt.getTime();
-    const minResendInterval = 2 * 60 * 1000; // 2 minutes for password reset
-
-    if (timeSinceCreation < minResendInterval) {
-      const waitTime = Math.ceil(
-        (minResendInterval - timeSinceCreation) / 1000
-      );
-      throw new Error(
-        `Please wait ${waitTime} seconds before requesting a new code`
-      );
-    }
-  }
-
-  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-  await prisma.verificationToken.upsert({
-    where: { userId: user.id },
-    update: {
-      code: resetCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-    },
-    create: {
-      userId: user.id,
-      code: resetCode,
-      expiresAt: new Date(Date.now() + TOKEN_EXPIRY),
-    },
-  });
-
-  resend.emails
-    .send({
-      from: DEFAULT_FROM_EMAIL,
-      to: [email],
-      subject: "Password reset code - New request",
-      react: await PasswordResetEmailTemplate({
-        code: resetCode,
-        email,
-        firstName: user.firstName,
-      }),
-    })
-    .catch((error) => {
-      console.error("Failed to send password reset email:", error);
-    });
-}
-
 export async function signOut() {
   const cookieStore = await cookies();
 
@@ -490,17 +339,70 @@ export async function signOut() {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
-  const { user } = await me();
-  if (!user) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
   await new Promise((resolve) => setTimeout(resolve, 15000));
 
   await prisma.user.update({
-    where: { id: user.id },
+    where: { id: session.user.id },
     data: {
       isKycVerified: true,
     },
   });
+};
+
+export const validateCredentials = async ({
+  email,
+  password,
+}: {
+  email: string;
+  password: string;
+}): Promise<User> => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+      email: true,
+      _count: {
+        select: {
+          notifications: {
+            where: { isRead: false },
+          },
+        },
+      },
+      emailVerified: true,
+      password: true,
+      avatar: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("No user found");
+  }
+
+  if (!user.emailVerified) {
+    throw new Error("Please verify your email before signing in");
+  }
+
+  const valid = await argon2.verify(user.password, password);
+
+  if (!valid) {
+    throw new Error("Incorrect password");
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    unreadNotifications: user._count.notifications,
+    avatar: user.avatar ?? undefined,
+  };
 };

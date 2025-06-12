@@ -8,20 +8,12 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 
 import AuthCard from "@/components/templates/auth-card";
 import { ForgotPasswordFormSchema } from "@/lib/schemas";
 import { forgotPassword } from "@/lib/actions/auth";
+import FormInput from "@/components/forms/form-input";
 
 export default function ForgotPasswordPage() {
   const searchParams = useSearchParams();
@@ -32,24 +24,31 @@ export default function ForgotPasswordPage() {
       email: "",
     },
   });
-  const onSubmit = async (values: z.infer<typeof ForgotPasswordFormSchema>) =>
-    toast.promise(async () => forgotPassword(values), {
-      loading: "Sending reset code...",
-      success: () => {
-        const params = new URLSearchParams(searchParams);
-        params.set("email", values.email);
-        push(`/verify-reset-code?${params.toString()}`);
-        return "Reset code sent! Please check your email.";
-      },
-      error: (error) => {
-        const ms =
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred";
-        form.setError("root", { message: ms });
-        return ms;
-      },
-    });
+  const onSubmit = async (values: z.infer<typeof ForgotPasswordFormSchema>) => {
+    toast.promise(
+      async () =>
+        forgotPassword({
+          email: values.email,
+        }),
+      {
+        loading: "Sending reset code...",
+        success: () => {
+          const params = new URLSearchParams(searchParams);
+          params.set("email", values.email);
+          push(`/verify-reset-code?${params.toString()}`);
+          return "Reset code sent! Please check your email.";
+        },
+        error: (error) => {
+          const ms =
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred";
+          form.setError("root", { message: ms });
+          return ms;
+        },
+      }
+    );
+  };
   const isLoading = form.formState.isSubmitting;
 
   return (
@@ -59,27 +58,13 @@ export default function ForgotPasswordPage() {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
+          <FormInput
+            type="email"
+            icon={Mail}
             name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Email address
-                  <span className="text-xs text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    placeholder="Enter your email"
-                  />
-                </FormControl>
-                <FormDescription />
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Email"
+            control={form.control}
+            required
           />
 
           <Button type="submit" className="w-full mt-4" disabled={isLoading}>

@@ -24,7 +24,7 @@ export async function getNotifications(
   filters: NotificationFilters = {},
   pagination: NotificationPaginationOptions = { page: 1, limit: 10 }
 ): Promise<{ notifications: Notification[]; total: number }> {
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -97,7 +97,7 @@ export async function getNotifications(
 export async function markNotificationsAsRead(
   notificationIds: string[]
 ): Promise<void> {
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -115,7 +115,7 @@ export async function markNotificationsAsRead(
 
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(): Promise<void> {
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }
@@ -135,7 +135,7 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 export async function deleteNotifications(
   notificationIds: string[]
 ): Promise<void> {
-  const { user } = await me();
+  const { user } = await auth();
   if (!user?.isVerified) {
     throw new Error("User is not authenticated");
   }

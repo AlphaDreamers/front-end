@@ -21,7 +21,7 @@ import {
 import PageTemplate from "@/components/templates/page-template";
 
 export default async function VerificationCenterPage() {
-  const { user, error } = await me();
+  const { user, error } = await auth();
 
   if (!user?.isVerified) {
     redirect(

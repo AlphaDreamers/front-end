@@ -1,23 +1,7 @@
-import { me } from "@/lib/actions/auth";
-import { redirect } from "next/navigation";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 import WalletDashboard from "@/components/wallet/wallet-dashboard";
 
 export default async function WalletsPage() {
-  const { user, error } = await me();
-
-  if (!user?.isVerified) {
-    redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/wallets`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
-    );
-  }
-
   return (
     <WalletProvider>
       <WalletDashboard />

@@ -218,41 +218,83 @@ model SocialLink {
 model User {
   id String @id @default(uuid())
 
-  username          String  @unique
-  email             String  @unique
+  username          String    @unique
   password          String
-  isVerified        Boolean @default(false)
+  email             String    @unique
+  emailVerified     DateTime?
   avatar            String?
   banner            String?
   headline          String?
   bio               String?
   firstName         String
   lastName          String
-  isKycVerified     Boolean @default(false)
-  isProfileVerified Boolean @default(false)
+  isKycVerified     Boolean   @default(false)
+  isProfileVerified Boolean   @default(false)
 
-  verificationToken VerificationToken?
-  gigs              Gig[]               @relation("Seller")
-  bookmarked        Gig[]               @relation("Bookmarked")
-  reviews           Review[]
-  skills            UserSkill[]
-  buyerChats        Chat[]              @relation("BuyerChat")
-  sellerChats       Chat[]              @relation("SellerChat")
-  badgeProgress     UserBadgeProgress[]
-  ordersAsBuyer     Order[]             @relation("Buyer")
-  ordersAsSeller    Order[]             @relation("Seller")
-  notifications     Notification[]
-  socialLinks       SocialLink[]
-  portfolioItems    PortfolioItem[]
-  messages          UserMessage[]
-  readMessages      Message[]           @relation("MessageReadBy")
-  contactMessages   ContactMessage[]
-  wallets           Wallet[]
-  preferences       UserPreferences?
-  country           String
-  languages         String[]
+  gigs            Gig[]               @relation("Seller")
+  bookmarked      Gig[]               @relation("Bookmarked")
+  reviews         Review[]
+  skills          UserSkill[]
+  buyerChats      Chat[]              @relation("BuyerChat")
+  sellerChats     Chat[]              @relation("SellerChat")
+  badgeProgress   UserBadgeProgress[]
+  ordersAsBuyer   Order[]             @relation("Buyer")
+  ordersAsSeller  Order[]             @relation("Seller")
+  notifications   Notification[]
+  socialLinks     SocialLink[]
+  portfolioItems  PortfolioItem[]
+  messages        UserMessage[]
+  readMessages    Message[]           @relation("MessageReadBy")
+  contactMessages ContactMessage[]
+  wallets         Wallet[]
+  preferences     UserPreferences?
+  country         String
+  languages       String[]
+
+  accounts Account[]
+  sessions Session[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UserMessage {
@@ -314,19 +356,6 @@ model Notification {
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   recipientId String
-
-  createdAt DateTime @default(now())
-}
-
-model VerificationToken {
-  id String @id @default(uuid())
-
-  code      String   @unique
-  expiresAt DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  userId String @unique
 
   createdAt DateTime @default(now())
 }
