@@ -1,12 +1,13 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
+import { MediaFile, Prisma } from "@prisma/client";
 import { Color, KeyValuePair, LucideIconName, Order } from "../types";
 import { prisma } from "../prisma";
 import { me } from "./auth";
-import { formatDistanceToNow } from "date-fns";
+import { differenceInDays, formatDistanceToNow, isAfter } from "date-fns";
 import { createNotification } from "./notifications";
 import { revalidatePath } from "next/cache";
+import { uploadFilesToCloudinary } from "./cloudinary";
 
 export const getKeyValueOrders = async (
   args: Omit<Prisma.OrderFindFirstArgs, "select">
@@ -33,45 +34,6 @@ export const getKeyValueOrders = async (
     value: order.id,
     label: `${order.gig?.title} - ${order.package.title} (${order.createdAt.toLocaleDateString()})`,
   }));
-};
-
-export const orderPackage = async (packageId: string) => {
-  const { user } = await me();
-  if (!user?.isVerified) throw new Error("User not authenticated");
-
-  const gigPackage = await prisma.package.findUnique({
-    where: { id: packageId },
-    include: {
-      gig: {
-        select: {
-          id: true,
-          title: true,
-          sellerId: true,
-        },
-      },
-    },
-  });
-
-  if (!gigPackage) throw new Error("Package not found");
-
-  await prisma.order.create({
-    data: {
-      status: "WAITING_FOR_PAYMENT",
-      buyerId: user.id,
-      sellerId: gigPackage.gig.sellerId,
-      packageId: gigPackage.id,
-      deadline: new Date(
-        Date.now() + gigPackage.deliveryTime * 24 * 60 * 60 * 1000 // Convert delivery time to milliseconds
-      ),
-      gigId: gigPackage.gig.id,
-      chat: {
-        create: {
-          buyerId: user.id,
-          sellerId: gigPackage.gig.sellerId,
-        },
-      },
-    },
-  });
 };
 
 export async function getOrders(
@@ -258,9 +220,77 @@ export async function getOrders(
     };
   });
 }
-// Accept order (for sellers)
-export async function acceptOrder(orderId: string): Promise<void> {
+
+export const createOrder = async (packageId: string) => {
   const { user } = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  const pkg = await prisma.package.findUnique({
+    where: { id: packageId },
+    select: {
+      id: true,
+      deliveryTime: true,
+      title: true,
+      gig: {
+        select: {
+          title: true,
+          sellerId: true,
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!pkg) {
+    throw new Error("Package not found");
+  }
+
+  const order = await prisma.order.create({
+    data: {
+      status: "PENDING_PAYMENT",
+      buyerId: user.id,
+      sellerId: pkg.gig.sellerId,
+      packageId: pkg.id,
+      deadline: new Date(Date.now() + pkg.deliveryTime * 24 * 60 * 60 * 1000),
+      gigId: pkg.gig.id,
+      chat: {
+        create: {
+          buyerId: user.id,
+          sellerId: pkg.gig.sellerId,
+        },
+      },
+    },
+  });
+
+  await createNotification(
+    pkg.gig.sellerId,
+    "New Order Received",
+    `You have a new order for ${pkg.gig.title} - ${pkg.title}.`,
+    {
+      type: "ORDER_UPDATE",
+      orderId: order.id,
+    }
+  );
+
+  await createNotification(
+    user.id,
+    "Order Created",
+    `Your order for ${pkg.gig.title} - ${pkg.title} has been created. Please proceed to payment.`,
+    {
+      type: "ORDER_UPDATE",
+      orderId: order.id,
+    }
+  );
+
+  return order;
+};
+
+export const expireOrder = async (orderId: string) => {
+  const { user } = await me();
+
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
   }
@@ -268,9 +298,10 @@ export async function acceptOrder(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
-      sellerId: true,
-      buyerId: true,
       status: true,
+      buyerId: true,
+      sellerId: true,
+      createdAt: true,
     },
   });
 
@@ -278,46 +309,219 @@ export async function acceptOrder(orderId: string): Promise<void> {
     throw new Error("Order not found");
   }
 
-  if (order.sellerId !== user.id) {
-    throw new Error("You can only accept your own orders");
+  if (order.status !== "PENDING_PAYMENT") {
+    throw new Error("Order is not in pending payment status");
   }
 
-  if (order.status !== "PENDING") {
-    throw new Error("Order is not in pending status");
+  if (order.buyerId !== user.id && order.sellerId !== user.id) {
+    throw new Error("You can only expire your own orders");
+  }
+
+  if (order.createdAt.getTime() + 24 * 60 * 60 * 1000 > Date.now()) {
+    throw new Error("Order can only be expired after 24 hours");
   }
 
   await prisma.$transaction(async (tx) => {
-    // Update order status
     await tx.order.update({
       where: { id: orderId },
-      data: { status: "IN_PROGRESS" },
+      data: { status: "EXPIRED" },
     });
 
-    // Create notification for buyer
-    await createNotification(order.buyerId, "ORDER_UPDATE", "Order Accepted", {
-      orderId,
-      message: "The seller has accepted your order and started working on it.",
-    });
+    await createNotification(
+      order.buyerId,
+      "Order Expired",
+      "Your order has expired due to non-payment. Please create a new order if you still wish to proceed.",
+      {
+        type: "ORDER_UPDATE",
+        orderId,
+      }
+    );
   });
 
   revalidatePath("/dashboard/orders");
-}
+};
 
-// Deliver work (for sellers)
-export async function deliverWork(
+export const confirmPayment = async (
   orderId: string,
-  deliveryMessage: string,
-  files?: string[] // URLs from file upload
-): Promise<void> {
+  txId: string,
+  amount: number,
+  senderPublicKey: string,
+  receiverPublicKey: string
+) => {
   const { user } = await me();
+
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
   }
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: {
-      chat: true,
+    select: {
+      status: true,
+      buyerId: true,
+      sellerId: true,
+      package: {
+        select: {
+          gig: {
+            select: {
+              sellerId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.status !== "PENDING_PAYMENT") {
+    throw new Error("Order is not in pending payment status");
+  }
+
+  if (order.buyerId !== user.id) {
+    throw new Error("You can only confirm payment for your own orders");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "PAID",
+        transaction: {
+          create: {
+            txId,
+            amount,
+            senderPublicKey,
+            receiverPublicKey,
+          },
+        },
+      },
+    });
+
+    await createNotification(
+      order.sellerId,
+      "Payment Confirmed",
+      "The buyer has confirmed payment. You can now start working on the order.",
+      {
+        type: "ORDER_UPDATE",
+        orderId,
+      }
+    );
+
+    await createNotification(
+      order.buyerId,
+      "Payment Confirmed",
+      `Payment of ${amount} SOL for your order has been confirmed.`,
+      {
+        type: "PAYMENT",
+        txId,
+      }
+    );
+  });
+
+  revalidatePath("/dashboard/orders");
+};
+
+export const cancelOrder = async (orderId: string): Promise<void> => {
+  const { user } = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      status: true,
+      buyerId: true,
+      sellerId: true,
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.buyerId === user.id) {
+    if (order.status === "PENDING_PAYMENT") {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "CANCELLED" },
+        });
+
+        await createNotification(
+          order.sellerId,
+          "Order Cancelled",
+          "The buyer has cancelled the order before payment.",
+          {
+            type: "ORDER_UPDATE",
+            orderId,
+          }
+        );
+      });
+
+      revalidatePath("/dashboard/orders");
+    } else {
+      throw new Error("You can only cancel orders that are pending payment");
+    }
+  } else if (order.sellerId === user.id) {
+    if (order.status === "PAID") {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "CANCELLED" },
+        });
+
+        await createNotification(
+          order.buyerId,
+          "Order Cancelled",
+          "The seller has cancelled the order after payment.",
+          {
+            type: "ORDER_UPDATE",
+            orderId,
+          }
+        );
+      });
+
+      revalidatePath("/dashboard/orders");
+    } else {
+      throw new Error("You can only cancel orders that are paid");
+    }
+  } else {
+    throw new Error("You can only cancel your own orders");
+  }
+};
+
+export const deliverWork = async ({
+  orderId,
+  files,
+  explanation,
+}: {
+  orderId: string;
+  files?: File[];
+  explanation: string;
+}) => {
+  const { user } = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      status: true,
+      sellerId: true,
+      buyerId: true,
+      chat: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -329,96 +533,87 @@ export async function deliverWork(
     throw new Error("You can only deliver your own orders");
   }
 
-  if (order.status !== "IN_PROGRESS") {
-    throw new Error("Order must be in progress to deliver");
+  if (order.status !== "PAID") {
+    throw new Error("Order must be in paid status to deliver");
   }
 
   await prisma.$transaction(async (tx) => {
-    // Update order status
     await tx.order.update({
       where: { id: orderId },
       data: {
-        status: "DELIVERED" as const, // Cast to bypass type checking
+        status: "DELIVERED",
         updatedAt: new Date(),
       },
     });
 
-    // Create a delivery message in chat
-    if (order.chat) {
-      const userMessage = await tx.userMessage.create({
-        data: {
-          userId: user.id,
-          textContent: {
-            create: {
-              text: deliveryMessage || "Work delivered",
+    let mediaFiles: MediaFile[] = [];
+    if (files && files.length > 0) {
+      const uploadedFiles = await uploadFilesToCloudinary(files, "chat_media");
+      mediaFiles = await Promise.all(
+        uploadedFiles.map((url) =>
+          tx.mediaFile.create({
+            data: {
+              url,
+              type: "DOCUMENT",
             },
-          },
-        },
-      });
-
-      await tx.message.create({
-        data: {
-          chatId: order.chat.id,
-          type: "TEXT",
-          status: "SENT",
-          textContent: {
-            connect: { id: userMessage.textContent!.id },
-          },
-        },
-      });
-
-      // If files are provided, create media messages
-      if (files && files.length > 0) {
-        const mediaFiles = await Promise.all(
-          files.map((url) =>
-            tx.mediaFile.create({
-              data: {
-                url,
-                type: "DOCUMENT",
-              },
-            })
-          )
-        );
-
-        const mediaUserMessage = await tx.userMessage.create({
-          data: {
-            userId: user.id,
-            mediaContent: {
-              create: {
-                files: {
-                  connect: mediaFiles.map((file) => ({ id: file.id })),
-                },
-              },
-            },
-          },
-        });
-
-        await tx.message.create({
-          data: {
-            chatId: order.chat.id,
-            type: "MEDIA",
-            status: "SENT",
-            mediaContent: {
-              connect: { id: mediaUserMessage.mediaContent!.id },
-            },
-          },
-        });
-      }
+          })
+        )
+      );
     }
 
-    // Create notification for buyer
-    await createNotification(order.buyerId, "ORDER_UPDATE", "Work Delivered", {
-      orderId,
-      message: "The seller has delivered your order. Please review and accept.",
+    await tx.message.create({
+      data: {
+        chatId: order.chat!.id,
+        type: "TEXT",
+        textContent: {
+          create: {
+            userMessage: {
+              create: { userId: user.id },
+            },
+            text: explanation,
+          },
+        },
+      },
     });
+
+    if (mediaFiles.length > 0) {
+      await tx.message.create({
+        data: {
+          chatId: order.chat!.id,
+          type: "MEDIA",
+          mediaContent: {
+            create: {
+              userMessage: {
+                create: {
+                  userId: user.id,
+                },
+              },
+              files: {
+                connect: mediaFiles.map((file) => ({ id: file.id })),
+              },
+            },
+          },
+        },
+      });
+    }
+
+    await createNotification(
+      order.buyerId,
+      "Work Delivered",
+      "The seller has delivered your order. Please review and accept.",
+      {
+        type: "ORDER_UPDATE",
+        orderId,
+      }
+    );
   });
 
   revalidatePath("/dashboard/orders");
-}
+};
 
-// Accept delivery (for buyers)
-export async function acceptDelivery(orderId: string): Promise<void> {
+export const rejectDelivery = async (orderId: string): Promise<void> => {
   const { user } = await me();
+
   if (!user?.isVerified) {
     throw new Error("User not authenticated");
   }
@@ -426,8 +621,56 @@ export async function acceptDelivery(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
+      status: true,
       buyerId: true,
       sellerId: true,
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.buyerId !== user.id) {
+    throw new Error("You can only reject deliveries for your own orders");
+  }
+
+  if (order.status !== "DELIVERED") {
+    throw new Error("Order must be delivered to reject");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "DISPUTE" },
+    });
+
+    await createNotification(
+      order.sellerId,
+      "Delivery Rejected",
+      "The buyer has rejected your delivery and opened a dispute. Please resolve the issue.",
+      {
+        type: "ORDER_UPDATE",
+        orderId,
+      }
+    );
+  });
+
+  revalidatePath("/dashboard/orders");
+};
+
+export const acceptDelivery = async (orderId: string): Promise<void> => {
+  const { user } = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("User not authenticated");
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      sellerId: true,
+      buyerId: true,
       status: true,
     },
   });
@@ -445,113 +688,21 @@ export async function acceptDelivery(orderId: string): Promise<void> {
   }
 
   await prisma.$transaction(async (tx) => {
-    // Update order status
     await tx.order.update({
       where: { id: orderId },
       data: { status: "COMPLETED" },
     });
 
-    // Create notification for seller
     await createNotification(
       order.sellerId,
-      "ORDER_UPDATE",
-      "Delivery Accepted",
+      "Order Completed",
+      "The buyer has accepted your delivery. Order is now complete.",
       {
+        type: "ORDER_UPDATE",
         orderId,
-        message: "The buyer has accepted your delivery. Order completed!",
       }
     );
   });
 
   revalidatePath("/dashboard/orders");
-}
-
-// Request revision (for buyers)
-export async function requestRevision(
-  orderId: string,
-  revisionDetails: string
-): Promise<void> {
-  const { user } = await me();
-  if (!user?.isVerified) {
-    throw new Error("User not authenticated");
-  }
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      chat: true,
-    },
-  });
-
-  if (!order) {
-    throw new Error("Order not found");
-  }
-
-  if (order.buyerId !== user.id) {
-    throw new Error("You can only request revisions for your own orders");
-  }
-
-  if (order.status !== "DELIVERED") {
-    throw new Error("Order must be delivered to request revision");
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Update order status back to IN_PROGRESS
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: "IN_PROGRESS",
-        // Extend deadline by 48 hours
-        deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
-      },
-    });
-
-    // Create revision request message in chat
-    if (order.chat) {
-      const userMessage = await tx.userMessage.create({
-        data: {
-          userId: user.id,
-          textContent: {
-            create: {
-              text: `Revision requested: ${revisionDetails}`,
-            },
-          },
-        },
-      });
-
-      await tx.message.create({
-        data: {
-          chatId: order.chat.id,
-          type: "TEXT",
-          status: "SENT",
-          textContent: {
-            connect: { id: userMessage.textContent!.id },
-          },
-        },
-      });
-    }
-
-    // Create notification for seller
-    await createNotification(
-      order.sellerId,
-      "ORDER_UPDATE",
-      "Revision Requested",
-      {
-        orderId,
-        message:
-          "The buyer has requested revisions. Deadline extended by 48 hours.",
-      }
-    );
-  });
-
-  revalidatePath("/dashboard/orders");
-}
-
-function isAfter(now: Date, deadline: Date) {
-  return now.getTime() > deadline.getTime();
-}
-function differenceInDays(deadline: Date, now: Date) {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  // Floor to ignore partial days
-  return Math.ceil((deadline.getTime() - now.getTime()) / msPerDay);
-}
+};

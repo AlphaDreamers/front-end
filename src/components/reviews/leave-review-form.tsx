@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/form";
 import Rating from "@/components/rating";
 import AuthCard from "@/components/templates/auth-card";
+import { leaveReview } from "@/lib/actions/review";
 
 const schema = z.object({
   rating: z.number().min(1, "Please select a rating"),
@@ -49,7 +50,12 @@ export default function LeaveReviewForm({ orderId }: LeaveReviewFormProps) {
   const onSubmit = async (data: z.infer<typeof schema>) =>
     toast.promise(
       async () => {
-        console.log("Submitting review:", data);
+        await leaveReview({
+          rating: data.rating,
+          title: data.comment,
+          description: data.comment,
+          orderId: data.orderId,
+        });
       },
       {
         loading: "Submitting your review...",

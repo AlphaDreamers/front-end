@@ -808,26 +808,7 @@ export const getDetailedGig = async (
           },
         },
       },
-      reviews: {
-        select: {
-          id: true,
-          rating: true,
-          orderId: true,
-          author: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              username: true,
-              avatar: true,
-            },
-          },
-          title: true,
-          description: true,
-          createdAt: true,
-          sellerResponse: true,
-        },
-      },
+
       faqs: {
         select: {
           id: true,
@@ -837,6 +818,30 @@ export const getDetailedGig = async (
       },
       packages: {
         select: {
+          orders: {
+            select: {
+              review: {
+                select: {
+                  id: true,
+                  rating: true,
+                  orderId: true,
+                  author: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      username: true,
+                      avatar: true,
+                    },
+                  },
+                  title: true,
+                  description: true,
+                  createdAt: true,
+                  sellerResponse: true,
+                },
+              },
+            },
+          },
           id: true,
           price: true,
           title: true,
@@ -863,6 +868,10 @@ export const getDetailedGig = async (
     return null;
   }
 
+  const reviews = gig.packages
+    .flatMap((pkg) => pkg.orders.flatMap((order) => order.review))
+    .filter((review) => review !== null);
+
   return {
     id: gig.id,
     title: gig.title,
@@ -884,10 +893,10 @@ export const getDetailedGig = async (
           : null,
     },
     avgRating:
-      gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
-      (gig.reviews.length || 1),
-    reviewCount: gig.reviews.length,
-    reviews: gig.reviews.map((review) => ({
+      reviews.reduce((sum, review) => sum + review.rating, 0) /
+      (reviews.length || 1),
+    reviewCount: reviews.length,
+    reviews: reviews.map((review) => ({
       id: review.id,
       rating: review.rating,
       orderId: review.orderId,

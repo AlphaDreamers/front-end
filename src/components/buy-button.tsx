@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { orderPackage } from "@/lib/actions/order";
+import { createOrder } from "@/lib/actions/order";
 import { useRouter } from "next/navigation";
 import { ComponentProps } from "react";
 
@@ -15,7 +15,7 @@ const BuyButton = ({ packageId, ...props }: BuyButtonProps) => {
   const { push } = useRouter();
 
   const handleClick = async () =>
-    toast.promise(async () => orderPackage(packageId), {
+    toast.promise(async () => createOrder(packageId), {
       loading: "Processing your order...",
       success: () => {
         push("/dashboard/orders");

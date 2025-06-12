@@ -52,22 +52,21 @@ enum SystemContentType {
 }
 
 enum OrderStatus {
-  WAITING_FOR_PAYMENT
-  PENDING
-  IN_PROGRESS
-  DELIVERED
-  COMPLETED
-  CANCELLED
+  PENDING_PAYMENT // Waiting for Solana payment
+  PAID // Payment received by platform
+  DELIVERED // Work submitted, in review
+  COMPLETED // Auto-complete or buyer approved
+  DISPUTE // Buyer reported issue
+  REFUNDED // Platform manually refunded
+  EXPIRED // Payment timeout
+  CANCELLED // Seller cancelled before delivery
 }
 
 enum NotificationType {
   ORDER_UPDATE
   MESSAGE
   PAYMENT
-  SYSTEM
   REVIEW
-  REVISION_REQUESTED
-  DELIVERY_UPLOADED
 }
 
 enum MediaType {
@@ -280,7 +279,7 @@ model Order {
   id String @id @default(uuid())
 
   deadline DateTime
-  status   OrderStatus @default(WAITING_FOR_PAYMENT)
+  status   OrderStatus @default(PENDING_PAYMENT)
 
   package     Package      @relation(fields: [packageId], references: [id], onDelete: Restrict)
   review      Review?
@@ -310,6 +309,7 @@ model Notification {
   title       String
   description String
   isRead      Boolean          @default(false)
+  metadata    Json?
 
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 

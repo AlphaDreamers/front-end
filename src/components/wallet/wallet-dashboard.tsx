@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { useWallets } from "./wallet-provider";
 import WalletCard from "./wallet-card";
-import WalletSkeleton from "./wallet-skeleton";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -44,6 +43,14 @@ export default function WalletDashboard() {
             />
             Refresh
           </Button>
+
+          <Link
+            href="/dashboard/wallets/import"
+            className={cn(buttonVariants())}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Import Wallet
+          </Link>
 
           <Link
             href="/dashboard/wallets/create"

@@ -34,7 +34,11 @@ export default async function Page({
     return notFound();
   }
 
-  if (order.status !== "COMPLETED" || order.transaction?.txId || order.review) {
+  if (
+    order.status !== "COMPLETED" ||
+    !order.transaction?.txId ||
+    order.review
+  ) {
     throw new Error("You cannot leave a review for this order.");
   }
 

@@ -288,3 +288,62 @@ export async function getFilteredReviews(params: ReviewFilterParams): Promise<{
     hasMore: skip + take < totalCount,
   };
 }
+
+export async function leaveReview(data: {
+  rating: number;
+  title: string;
+  description: string;
+  orderId: string;
+}): Promise<Review> {
+  const { user } = await me();
+
+  if (!user?.isVerified) {
+    throw new Error("You must be logged in to leave a review");
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    select: {
+      id: true,
+      status: true,
+      transaction: {
+        select: {
+          txId: true,
+        },
+      },
+      review: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.status !== "COMPLETED") {
+    throw new Error("You can only leave a review for completed orders");
+  }
+
+  if (order.review) {
+    throw new Error("You have already left a review for this order");
+  }
+
+  if (!order.transaction?.txId) {
+    throw new Error("Transaction not found for this order");
+  }
+
+  await prisma.review.create({
+    data: {
+      rating: data.rating,
+      title: data.title,
+      description: data.description,
+      authorId: user.id,
+      orderId: order.id,
+    },
+  });
+  revalidatePath("/dashboard/reviews");
+  revalidatePath(`/orders/${data.orderId}/review`);
+}

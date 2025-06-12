@@ -553,6 +553,7 @@ export const UpdateProfileFormSchema = z.object({
   featuredBadgeId: z.string().uuid().nullable(),
 });
 
+
 // --- KYC Schema ---
 
 // Schema for KYC verification

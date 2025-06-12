@@ -19,11 +19,6 @@ function parseNotificationMetadata(description: string): NotificationMetadata {
   }
 }
 
-// Helper function to serialize metadata to description field
-function serializeNotificationMetadata(metadata: NotificationMetadata): string {
-  return JSON.stringify(metadata);
-}
-
 // Get notifications with filtering and pagination
 export async function getNotifications(
   filters: NotificationFilters = {},
@@ -153,20 +148,34 @@ export async function deleteNotifications(
   });
 }
 
-// Create a notification (for internal use)
-export async function createNotification(
+export const createNotification = async (
   recipientId: string,
-  type: NotificationType,
   title: string,
-  metadata: NotificationMetadata = {}
-): Promise<void> {
+  description: string,
+  metadata:
+    | {
+        type: "ORDER_UPDATE";
+        orderId: string;
+      }
+    | {
+        type: "PAYMENT";
+        txId: string;
+      }
+) => {
   await prisma.notification.create({
     data: {
       recipientId,
-      type,
+      type: metadata.type as NotificationType,
       title,
-      description: serializeNotificationMetadata(metadata),
-      isRead: false,
+      description,
+      metadata: {
+        toJSON:
+          metadata.type === "ORDER_UPDATE"
+            ? { orderId: metadata.orderId }
+            : metadata.type === "PAYMENT"
+              ? { txId: metadata.txId }
+              : null,
+      },
     },
   });
-}
+};

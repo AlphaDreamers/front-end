@@ -41,10 +41,10 @@ import { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import SolanaBuyButton from "@/components/solana-pay-button";
 import {
-  acceptOrder,
   deliverWork,
   acceptDelivery,
-  requestRevision,
+  rejectDelivery,
+  cancelOrder,
 } from "@/lib/actions/order";
 import UserDetails from "../user-details";
 import { OrderStatus } from "@prisma/client";
@@ -59,15 +59,11 @@ interface OrderCardProps {
 // Status badge configuration
 const statusConfig: Record<OrderStatus, { label: string; className: string }> =
   {
-    WAITING_FOR_PAYMENT: {
+    PENDING_PAYMENT: {
       label: "Waiting for Payment",
       className: "bg-purple-600 hover:bg-purple-700 text-white",
     },
-    PENDING: {
-      label: "Pending",
-      className: "bg-yellow-600 hover:bg-yellow-700 text-white",
-    },
-    IN_PROGRESS: {
+    PAID: {
       label: "In Progress",
       className: "bg-blue-600 hover:bg-blue-700 text-white",
     },
@@ -82,6 +78,18 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> =
     CANCELLED: {
       label: "Cancelled",
       className: "bg-red-600 hover:bg-red-700 text-white",
+    },
+    DISPUTE: {
+      label: "In Dispute",
+      className: "bg-yellow-600 hover:bg-yellow-700 text-white",
+    },
+    REFUNDED: {
+      label: "Refunded",
+      className: "bg-gray-600 hover:bg-gray-700 text-white",
+    },
+    EXPIRED: {
+      label: "Expired",
+      className: "bg-gray-500 hover:bg-gray-600 text-white",
     },
   };
 
@@ -99,29 +107,36 @@ export default function OrderCard({
   const isSeller = currentUserId === order.seller.id;
   const contact = isBuyer ? order.seller : order.buyer;
 
-  // Handle order actions
-  const handleAcceptOrder = async () => {
+  // Handler for accepting delivery (buyer action)
+  const handleAcceptDelivery = async () => {
     setIsProcessing(true);
     try {
-      await acceptOrder(order.id);
-      toast.success("Order accepted successfully");
+      await acceptDelivery(order.id);
+      toast.success("Delivery accepted! You can now leave a review.");
       onUpdate?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to accept order"
+        error instanceof Error ? error.message : "Failed to accept delivery"
       );
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Handler for delivering work (seller action)
   const handleDeliverWork = async () => {
+    if (!deliveryMessage.trim()) {
+      toast.error("Please provide a delivery message");
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      // In a real app, you'd upload files to Cloudinary first
-      const fileUrls: string[] = []; // Placeholder for uploaded file URLs
-
-      await deliverWork(order.id, deliveryMessage, fileUrls);
+      await deliverWork({
+        orderId: order.id,
+        files: deliveryFiles,
+        explanation: deliveryMessage,
+      });
       toast.success("Work delivered successfully");
       setDeliveryMessage("");
       setDeliveryFiles([]);
@@ -135,45 +150,64 @@ export default function OrderCard({
     }
   };
 
-  const handleAcceptDelivery = async () => {
+  // Handler for canceling order (buyer: before payment, seller: after payment)
+  const handleCancelOrder = async () => {
     setIsProcessing(true);
     try {
-      await acceptDelivery(order.id);
-      toast.success("Delivery accepted. Don't forget to leave a review!");
+      await cancelOrder(order.id);
+      const message =
+        order.status === "PENDING_PAYMENT"
+          ? "Order cancelled"
+          : "Order cancelled. Refund will be processed.";
+      toast.success(message);
       onUpdate?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to accept delivery"
+        error instanceof Error ? error.message : "Failed to cancel order"
       );
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleRequestRevision = async () => {
-    if (!revisionDetails.trim()) {
-      toast.error("Please provide revision details");
+  // Handler for rejecting delivery (buyer action)
+  const handleRejectDelivery = async (reason: string) => {
+    if (!reason.trim()) {
+      toast.error("Please provide a reason for rejection");
       return;
     }
 
     setIsProcessing(true);
     try {
-      await requestRevision(order.id, revisionDetails);
-      toast.success("Revision request sent. Deadline extended by 48 hours.");
+      await rejectDelivery(order.id);
+      toast.success("Delivery rejected. Dispute opened.");
       setRevisionDetails("");
       onUpdate?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to request revision"
+        error instanceof Error ? error.message : "Failed to reject delivery"
       );
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Handler for file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setDeliveryFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      // Optional: Add file size validation
+      const maxSize = 1024 * 1024 * 1024; // 1GB
+      const oversizedFiles = files.filter((file) => file.size > maxSize);
+
+      if (oversizedFiles.length > 0) {
+        toast.error(
+          `Some files exceed 1GB limit: ${oversizedFiles.map((f) => f.name).join(", ")}`
+        );
+        return;
+      }
+
+      setDeliveryFiles(files);
     }
   };
 
@@ -225,85 +259,93 @@ export default function OrderCard({
           </span>
         </div>
       </CardContent>
-
       <CardFooter className="flex-col gap-2 w-full">
         {/* Buyer Actions */}
         {isBuyer && (
           <>
-            {order.status === "WAITING_FOR_PAYMENT" && (
-              <SolanaBuyButton orderId={order.id} />
+            {order.status === "PENDING_PAYMENT" && (
+              <>
+                <SolanaBuyButton orderId={order.id} />
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={handleCancelOrder}
+                >
+                  Cancel Order
+                </Button>
+              </>
             )}
 
             {order.status === "DELIVERED" && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full justify-start">
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Accept Delivery
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Accept Delivery</DialogTitle>
-                    <DialogDescription>
-                      By accepting this delivery, you confirm that the work
-                      meets your requirements. You&apos;ll be able to leave a
-                      review after accepting.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline">Cancel</Button>
-                    <Button
-                      onClick={handleAcceptDelivery}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? "Processing..." : "Accept Delivery"}
+              <>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full justify-start">
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Accept Delivery
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Accept Delivery</DialogTitle>
+                      <DialogDescription>
+                        By accepting this delivery, you confirm that the work
+                        meets your requirements. You&apos;ll be able to leave a
+                        review after accepting.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline">Cancel</Button>
+                      <Button
+                        onClick={handleAcceptDelivery}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? "Processing..." : "Accept Delivery"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-            {order.status === "COMPLETED" && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    Request Revision
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Request Revision</DialogTitle>
-                    <DialogDescription>
-                      Describe what needs to be revised. The deadline will be
-                      extended by 48 hours.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Textarea
-                      placeholder="Please describe the revisions needed..."
-                      value={revisionDetails}
-                      onChange={(e) => setRevisionDetails(e.target.value)}
-                      className="min-h-[120px]"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setRevisionDetails("")}
-                    >
-                      Cancel
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      Reject Delivery
                     </Button>
-                    <Button
-                      onClick={handleRequestRevision}
-                      disabled={isProcessing || !revisionDetails.trim()}
-                    >
-                      {isProcessing ? "Sending..." : "Request Revision"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reject Delivery</DialogTitle>
+                      <DialogDescription>
+                        Describe why you&apos;re rejecting this delivery. This
+                        will open a dispute.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Textarea
+                        placeholder="Please describe why you're rejecting this delivery..."
+                        value={revisionDetails}
+                        onChange={(e) => setRevisionDetails(e.target.value)}
+                        className="min-h-[120px]"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setRevisionDetails("")}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => handleRejectDelivery(revisionDetails)}
+                        disabled={isProcessing || !revisionDetails.trim()}
+                      >
+                        {isProcessing ? "Processing..." : "Reject Delivery"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
 
             {order.status === "COMPLETED" && !order.reviewId && (
@@ -311,113 +353,138 @@ export default function OrderCard({
                 href={`/dashboard/orders/${order.id}/review`}
                 className={cn(buttonVariants({}), "w-full justify-start")}
               >
-                <CheckCircle />
+                <CheckCircle className="mr-2 h-4 w-4" />
                 Leave Review
+              </Link>
+            )}
+
+            {order.status === "EXPIRED" && (
+              <Link
+                href={`/gig/${order.package.gig.id}`}
+                className={cn(buttonVariants({}), "w-full justify-start")}
+              >
+                Create New Order
               </Link>
             )}
           </>
         )}
 
+        {/* Seller Actions */}
         {isSeller && (
           <>
-            {order.status === "PENDING" && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full justify-start">
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Accept Order
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Accept Order</DialogTitle>
-                    <DialogDescription>
-                      By accepting this order, you commit to delivering the work
-                      by the deadline.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => {}}>
-                      Cancel
+            {order.status === "PAID" && (
+              <>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full justify-start">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Deliver Work
                     </Button>
-                    <Button onClick={handleAcceptOrder} disabled={isProcessing}>
-                      {isProcessing ? "Processing..." : "Accept Order"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Deliver Your Work</DialogTitle>
+                      <DialogDescription>
+                        Upload your files and add a message for the buyer.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-message">
+                          Delivery Message
+                        </Label>
+                        <Textarea
+                          id="delivery-message"
+                          placeholder="Describe what you're delivering..."
+                          value={deliveryMessage}
+                          onChange={(e) => setDeliveryMessage(e.target.value)}
+                          className="min-h-[100px]"
+                        />
+                      </div>
 
-            {order.status === "IN_PROGRESS" && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full justify-start">
-                    <Upload />
-                    Deliver Work
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Deliver Your Work</DialogTitle>
-                    <DialogDescription>
-                      Upload your files and add a message for the buyer.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="delivery-message">Delivery Message</Label>
-                      <Textarea
-                        id="delivery-message"
-                        placeholder="Describe what you're delivering..."
-                        value={deliveryMessage}
-                        onChange={(e) => setDeliveryMessage(e.target.value)}
-                        className="min-h-[100px]"
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-files">Files (Optional)</Label>
+                        <Input
+                          id="delivery-files"
+                          type="file"
+                          multiple
+                          accept=".zip,.pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          onChange={handleFileChange}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Max 1GB per file. Supported: ZIP, PDF, images,
+                          documents
+                        </p>
+                        {deliveryFiles.length > 0 && (
+                          <div className="text-sm text-muted-foreground">
+                            {deliveryFiles.length} file(s) selected
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setDeliveryMessage("");
+                          setDeliveryFiles([]);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleDeliverWork}
+                        disabled={isProcessing || !deliveryMessage.trim()}
+                      >
+                        {isProcessing ? "Uploading..." : "Deliver Work"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="delivery-files">Files (Optional)</Label>
-                      <Input
-                        id="delivery-files"
-                        type="file"
-                        multiple
-                        accept=".zip,.pdf,.png,.jpg,.jpeg,.doc,.docx"
-                        onChange={handleFileChange}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Max 1GB per file. Supported: ZIP, PDF, images, documents
-                      </p>
-                      {deliveryFiles.length > 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          {deliveryFiles.length} file(s) selected
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setDeliveryMessage("");
-                        setDeliveryFiles([]);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleDeliverWork}
-                      disabled={isProcessing || !deliveryMessage.trim()}
-                    >
-                      {isProcessing ? "Uploading..." : "Deliver Work"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={handleCancelOrder}
+                >
+                  Cancel Order
+                </Button>
+              </>
             )}
           </>
         )}
 
-        {order.status !== "COMPLETED" && (
+        {/* Common Actions - Message and Support (not for completed orders) */}
+        {order.status !== "COMPLETED" &&
+          order.status !== "CANCELLED" &&
+          order.status !== "EXPIRED" && (
+            <div className="flex gap-2 w-full">
+              <Link
+                href={`/dashboard/orders/${order.id}/chat`}
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "flex-1 justify-start"
+                )}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Message
+              </Link>
+
+              <Link
+                href={"/contact/support"}
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "flex-1 justify-start"
+                )}
+              >
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Get Support
+              </Link>
+            </div>
+          )}
+
+        {/* Dispute Status - Both users can message and get support */}
+        {order.status === "DISPUTE" && (
           <div className="flex gap-2 w-full">
             <Link
               href={`/dashboard/orders/${order.id}/chat`}
@@ -426,25 +493,24 @@ export default function OrderCard({
                 "flex-1 justify-start"
               )}
             >
-              <MessageSquare />
-              Message
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Resolve via Message
             </Link>
 
             <Link
               href={"/contact/support"}
               className={cn(
-                buttonVariants({
-                  variant: "outline",
-                  className: "flex-1 justify-start",
-                })
+                buttonVariants({ variant: "default" }),
+                "flex-1 justify-start"
               )}
             >
-              <HelpCircle />
-              Get Support
+              <HelpCircle className="mr-2 h-4 w-4" />
+              Escalate to Support
             </Link>
           </div>
         )}
 
+        {/* Transaction Link for Completed Orders */}
         {order.status === "COMPLETED" && order.transaction && (
           <Link
             href={`https://explorer.solana.com/tx/${order.transaction.txId}?cluster=devnet`}
@@ -455,7 +521,23 @@ export default function OrderCard({
               "w-full justify-start"
             )}
           >
-            <ExternalLink />
+            <ExternalLink className="mr-2 h-4 w-4" />
+            View Transaction
+          </Link>
+        )}
+
+        {/* Transaction Link for Cancelled Orders (if payment was made) */}
+        {order.status === "CANCELLED" && order.transaction && (
+          <Link
+            href={`https://explorer.solana.com/tx/${order.transaction.txId}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-full justify-start"
+            )}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
             View Transaction
           </Link>
         )}

@@ -22,11 +22,11 @@ import {
   deleteWallet,
   getWallets,
   getOrderForTransaction,
-  confirmTransaction,
 } from "@/lib/actions/wallet";
 import { decryptPrivateKey } from "@/lib/utils";
 import { EncryptedWalletData } from "@/lib/types";
 import useSession from "@/hooks/use-session";
+import { confirmPayment } from "@/lib/actions/order";
 
 // Types (keeping as requested)
 export interface Wallet {
@@ -223,6 +223,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           if (!order) {
             throw new Error("Order not found");
           }
+          //TODO remove this line when testing is done
           order.price = 0.1;
 
           const recipientPubKey = new PublicKey(order.recipientPublickey);
@@ -304,14 +305,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           );
 
           console.log("Transaction signature:", signature);
-          await confirmTransaction(
+          await confirmPayment(
             orderId,
             signature,
             order.price,
             order.recipientPublickey,
-            mainWallet.publicKey,
-            order.sellerId,
-            order.buyerId
+            mainWallet.publicKey
           );
         },
         {
