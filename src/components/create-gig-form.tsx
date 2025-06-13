@@ -43,7 +43,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 // Import our reusable form components
 import FormInput from "@/components/forms/form-input";
 import FormTextarea from "@/components/forms/form-textarea";
-import FormSelect from "@/components/forms/form-select";
 import FormMultiSelect from "@/components/forms/form-multi-select";
 import FormImageUpload from "@/components/forms/form-image-upload";
 import FormPackages from "@/components/forms/form-packages";
@@ -199,6 +198,7 @@ export default function CreateGigForm({
             <FormInput
               control={form.control}
               name="title"
+              icon={Package}
               label="Gig Title"
               placeholder="I will design a professional logo for your business"
               description="Create a clear, searchable title that describes your service"

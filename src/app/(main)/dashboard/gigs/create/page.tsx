@@ -1,21 +1,15 @@
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { me } from "@/lib/actions/auth";
 import CreateGigForm from "@/components/create-gig-form";
+import { auth } from "@/lib/auth";
 
 export default async function GigCreatePage() {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/gigs/create`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/gigs/create`)}`
     );
   }
 

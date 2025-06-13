@@ -10,24 +10,18 @@ import Filters, { FilterType } from "@/components/filter-card";
 import OrderCard from "@/components/orders/order-card";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 
-import { me } from "@/lib/actions/auth";
 import { getOrders } from "@/lib/actions/order";
 import Link from "next/link";
 import Async from "@/components/async";
 import PageTemplate from "@/components/templates/page-template";
+import { auth } from "@/lib/auth";
 
 export default async function OrdersPage() {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/orders`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/orders`)}`
     );
   }
 
@@ -50,7 +44,7 @@ export default async function OrdersPage() {
                 fetch={() =>
                   getOrders({
                     where: {
-                      OR: [{ buyerId: user.id }, { sellerId: user.id }],
+                      OR: [{ buyerId: session.user.id }, { sellerId: session.user.id }],
                     },
                     take: 10,
                   })
@@ -84,7 +78,7 @@ export default async function OrdersPage() {
                         <OrderCard
                           key={order.id}
                           order={order}
-                          currentUserId={user.id}
+                          currentUserId={session.user.id}
                         />
                       ))}
                     </div>

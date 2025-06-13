@@ -317,19 +317,26 @@ model MediaFile {
   mediaContent MediaContent[]
 }
 
+enum PaymentMethod {
+  SOLANA
+  STRIPE
+}
+
 model Order {
   id String @id @default(uuid())
 
-  deadline DateTime
-  status   OrderStatus @default(PENDING_PAYMENT)
+  deadline      DateTime
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod PaymentMethod @default(SOLANA)
 
-  package     Package      @relation(fields: [packageId], references: [id], onDelete: Restrict)
-  review      Review?
-  chat        Chat?
-  buyer       User         @relation(name: "Buyer", fields: [buyerId], references: [id], onDelete: Restrict)
-  seller      User         @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Restrict)
-  gig         Gig?         @relation(fields: [gigId], references: [id], onDelete: SetNull)
-  transaction Transaction?
+  package             Package      @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  review              Review?
+  chat                Chat?
+  buyer               User         @relation(name: "Buyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller              User         @relation(name: "Seller", fields: [sellerId], references: [id], onDelete: Restrict)
+  gig                 Gig?         @relation(fields: [gigId], references: [id], onDelete: SetNull)
+  transaction         Transaction?
+  stripePaymentIntent String?
 
   packageId String
   buyerId   String

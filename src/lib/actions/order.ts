@@ -3,11 +3,11 @@
 import { MediaFile, Prisma } from "@prisma/client";
 import { Color, KeyValuePair, LucideIconName, Order } from "../types";
 import { prisma } from "../prisma";
-import { me } from "./auth";
 import { differenceInDays, formatDistanceToNow, isAfter } from "date-fns";
 import { createNotification } from "./notifications";
 import { revalidatePath } from "next/cache";
 import { uploadFilesToCloudinary } from "./cloudinary";
+import { auth } from "../auth";
 
 export const getKeyValueOrders = async (
   args: Omit<Prisma.OrderFindFirstArgs, "select">
@@ -39,8 +39,8 @@ export const getKeyValueOrders = async (
 export async function getOrders(
   args: Omit<Prisma.OrderFindManyArgs, "select" | "include">
 ): Promise<Order[]> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -222,9 +222,9 @@ export async function getOrders(
 }
 
 export const createOrder = async (packageId: string) => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -251,14 +251,14 @@ export const createOrder = async (packageId: string) => {
   const order = await prisma.order.create({
     data: {
       status: "PENDING_PAYMENT",
-      buyerId: user.id,
+      buyerId: session.user.id,
       sellerId: pkg.gig.sellerId,
       packageId: pkg.id,
       deadline: new Date(Date.now() + pkg.deliveryTime * 24 * 60 * 60 * 1000),
       gigId: pkg.gig.id,
       chat: {
         create: {
-          buyerId: user.id,
+          buyerId: session.user.id,
           sellerId: pkg.gig.sellerId,
         },
       },
@@ -276,7 +276,7 @@ export const createOrder = async (packageId: string) => {
   );
 
   await createNotification(
-    user.id,
+    session.user.id,
     "Order Created",
     `Your order for ${pkg.gig.title} - ${pkg.title} has been created. Please proceed to payment.`,
     {
@@ -289,9 +289,9 @@ export const createOrder = async (packageId: string) => {
 };
 
 export const expireOrder = async (orderId: string) => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -313,7 +313,7 @@ export const expireOrder = async (orderId: string) => {
     throw new Error("Order is not in pending payment status");
   }
 
-  if (order.buyerId !== user.id && order.sellerId !== user.id) {
+  if (order.buyerId !== session.user.id && order.sellerId !== session.user.id) {
     throw new Error("You can only expire your own orders");
   }
 
@@ -348,9 +348,9 @@ export const confirmPayment = async (
   senderPublicKey: string,
   receiverPublicKey: string
 ) => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -380,7 +380,7 @@ export const confirmPayment = async (
     throw new Error("Order is not in pending payment status");
   }
 
-  if (order.buyerId !== user.id) {
+  if (order.buyerId !== session.user.id) {
     throw new Error("You can only confirm payment for your own orders");
   }
 
@@ -425,9 +425,9 @@ export const confirmPayment = async (
 };
 
 export const cancelOrder = async (orderId: string): Promise<void> => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -444,7 +444,7 @@ export const cancelOrder = async (orderId: string): Promise<void> => {
     throw new Error("Order not found");
   }
 
-  if (order.buyerId === user.id) {
+  if (order.buyerId === session.user.id) {
     if (order.status === "PENDING_PAYMENT") {
       await prisma.$transaction(async (tx) => {
         await tx.order.update({
@@ -467,7 +467,7 @@ export const cancelOrder = async (orderId: string): Promise<void> => {
     } else {
       throw new Error("You can only cancel orders that are pending payment");
     }
-  } else if (order.sellerId === user.id) {
+  } else if (order.sellerId === session.user.id) {
     if (order.status === "PAID") {
       await prisma.$transaction(async (tx) => {
         await tx.order.update({
@@ -504,9 +504,9 @@ export const deliverWork = async ({
   files?: File[];
   explanation: string;
 }) => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -529,7 +529,7 @@ export const deliverWork = async ({
     throw new Error("Order not found");
   }
 
-  if (order.sellerId !== user.id) {
+  if (order.sellerId !== session.user.id) {
     throw new Error("You can only deliver your own orders");
   }
 
@@ -568,7 +568,7 @@ export const deliverWork = async ({
         textContent: {
           create: {
             userMessage: {
-              create: { userId: user.id },
+              create: { userId: session.user.id },
             },
             text: explanation,
           },
@@ -585,7 +585,7 @@ export const deliverWork = async ({
             create: {
               userMessage: {
                 create: {
-                  userId: user.id,
+                  userId: session.user.id,
                 },
               },
               files: {
@@ -612,9 +612,9 @@ export const deliverWork = async ({
 };
 
 export const rejectDelivery = async (orderId: string): Promise<void> => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -631,7 +631,7 @@ export const rejectDelivery = async (orderId: string): Promise<void> => {
     throw new Error("Order not found");
   }
 
-  if (order.buyerId !== user.id) {
+  if (order.buyerId !== session.user.id) {
     throw new Error("You can only reject deliveries for your own orders");
   }
 
@@ -660,9 +660,9 @@ export const rejectDelivery = async (orderId: string): Promise<void> => {
 };
 
 export const acceptDelivery = async (orderId: string): Promise<void> => {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -679,7 +679,7 @@ export const acceptDelivery = async (orderId: string): Promise<void> => {
     throw new Error("Order not found");
   }
 
-  if (order.buyerId !== user.id) {
+  if (order.buyerId !== session.user.id) {
     throw new Error("You can only accept deliveries for your own orders");
   }
 

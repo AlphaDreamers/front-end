@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { Gig } from "@/lib/types";
 import BookmarkToggle from "./bookmark-toggle";
+import CompareToggle from "../compare-toggle";
 
 interface GigCardProps {
   gig: Gig;
@@ -96,6 +97,7 @@ const GigCard = ({ gig }: GigCardProps) => {
         </div>
 
         <div className="flex gap-2 items-center">
+          <CompareToggle gig={gig} />
           <BookmarkToggle gigId={gig.id} isBookmarked={gig.isBookmarked} />
           <Link
             className={buttonVariants({

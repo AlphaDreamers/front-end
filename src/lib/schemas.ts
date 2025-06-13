@@ -67,13 +67,6 @@ export const ForgotPasswordFormSchema = z.object({
   email: z.string().email(),
 });
 
-// Schema for verifying the password reset code
-export const VerifyResetPasswordCodeFormSchema = z.object({
-  email: z.string().email(),
-  code: z
-    .string()
-    .regex(/^\d{6}$/, { message: "Code must be a 6-digit number" }),
-});
 
 // Schema for resetting the password
 export const ResetPasswordFormSchema = z

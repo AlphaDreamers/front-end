@@ -93,6 +93,7 @@ export default function FormPackages({ form, features }: FormPackagesProps) {
                 control={form.control}
                 name={`features.${index}.label`}
                 label=""
+                icon={Plus}
                 placeholder="e.g., Responsive Design"
                 className="flex-1"
               />
@@ -136,6 +137,7 @@ export default function FormPackages({ form, features }: FormPackagesProps) {
                   name={`packages.${pkgIndex}.title`}
                   label="Package Name"
                   placeholder="e.g., Basic"
+                  icon={Plus}
                   required
                 />
                 {packages.length > 1 && (

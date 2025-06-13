@@ -3,14 +3,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface UserDetailsProps {
   user: User;
+  className?: string;
 }
 
-const UserDetails = ({ user }: UserDetailsProps) => {
+const UserDetails = ({ user, className }: UserDetailsProps) => {
   return (
-    <div className="flex items-center gap-3 w-fit">
+    <div className={cn("flex items-center gap-3 w-fit", className)}>
       <div className="flex items-center gap-2">
         <Link href={`/profile/${user.username}`}>
           <Image

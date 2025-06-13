@@ -25,8 +25,8 @@ import {
 } from "@/lib/actions/wallet";
 import { decryptPrivateKey } from "@/lib/utils";
 import { EncryptedWalletData } from "@/lib/types";
-import useSession from "@/hooks/use-session";
 import { confirmPayment } from "@/lib/actions/order";
+import { useSession } from "next-auth/react";
 
 // Types (keeping as requested)
 export interface Wallet {
@@ -59,20 +59,14 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const {
-    session,
-    isLoading: sessionLoading,
-    error: sessionError,
-  } = useSession();
+  const session = useSession();
   const [wallets, setWallets] = useState<WalletWithBalance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const isAuthenticated = !sessionLoading && session?.user?.id && !sessionError;
 
   // Fetch initial wallets
   useEffect(() => {
     const fetchInitialWallets = async () => {
-      if (!isAuthenticated || !session?.user?.id) {
+      if (session.status !== "authenticated") {
         setIsLoading(false);
         return;
       }
@@ -90,7 +84,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchInitialWallets();
-  }, [isAuthenticated, session?.user?.id]);
+  }, [session.status]);
 
   const mainWallet = wallets.find((w) => w.isMain) || null;
 
