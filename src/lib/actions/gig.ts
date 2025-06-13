@@ -679,7 +679,7 @@ export const getGigs = async (
       },
       bookmarks: {
         where: {
-          id: session?.user.id,
+          id: session?.user?.id,
         },
       },
       category: {
