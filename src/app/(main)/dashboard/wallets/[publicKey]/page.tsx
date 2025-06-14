@@ -1,8 +1,8 @@
-import { me } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import PageTemplate from "@/components/templates/page-template";
 import { getWalletTransactions } from "@/lib/actions/wallet";
 import TransactionCard from "./wrapper";
+import { auth } from "@/lib/auth";
 
 export default async function Page({
   params,
@@ -10,17 +10,11 @@ export default async function Page({
   params: Promise<{ publicKey: string }>;
 }) {
   const { publicKey } = await params;
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/wallets/${publicKey}`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/wallets/${publicKey}`)}`
     );
   }
 

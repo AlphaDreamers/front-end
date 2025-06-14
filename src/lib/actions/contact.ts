@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { TestimonialContentSchema } from "@/lib/schemas/contact";
-import { me } from "./auth";
+
 import { Resend } from "resend";
+import { auth } from "../auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY as string);
 
@@ -18,21 +19,21 @@ async function createContactMessage(
     | "GENERAL_INQUIRY",
   requiresAuth: boolean = false
 ) {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (requiresAuth && !user) {
+  if (requiresAuth && !session) {
     throw new Error("Please log in to submit this type of message");
   }
 
   const contactMessage = await prisma.contactMessage.create({
     data: {
       type,
-      authorId: user?.id || null,
-      guestEmail: user ? null : undefined, // Will be set by individual functions
+      authorId: session?.user?.id || null,
+      guestEmail: session?.user ? null : undefined, // Will be set by individual functions
     },
   });
 
-  return { contactMessage, user };
+  return { contactMessage, user: session?.user || null };
 }
 
 export async function sendTestimonialMessage(

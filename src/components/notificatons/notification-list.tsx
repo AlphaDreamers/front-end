@@ -9,7 +9,6 @@ import { Bell, Check, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
 import { Notification } from "@/lib/types";
 import { NotificationCard } from "./notification-card";
 import {
@@ -28,17 +26,13 @@ import {
   markNotificationsAsRead,
   markAllNotificationsAsRead,
 } from "@/lib/actions/notifications";
-import { groupNotificationsByDate } from "@/lib/utils";
 
 interface NotificationListProps {
   notifications: Notification[];
   showGrouping?: boolean;
 }
 
-export function NotificationList({
-  notifications,
-  showGrouping = true,
-}: NotificationListProps) {
+export function NotificationList({ notifications }: NotificationListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedNotifications, setSelectedNotifications] = useState<
@@ -76,11 +70,6 @@ export function NotificationList({
     notifications.length > 0 &&
     selectedNotifications.size === notifications.length;
 
-  // Check if some but not all notifications are selected
-  const isSomeSelected =
-    selectedNotifications.size > 0 &&
-    selectedNotifications.size < notifications.length;
-
   // Handle single notification deletion
   const handleDelete = (notificationId: string) => {
     setNotificationToDelete(notificationId);
@@ -106,7 +95,7 @@ export function NotificationList({
         );
         setSelectedNotifications(new Set());
         router.refresh();
-      } catch (error) {
+      } catch {
         toast.error("Failed to delete notifications");
       } finally {
         setShowDeleteDialog(false);
@@ -122,7 +111,7 @@ export function NotificationList({
         await markNotificationsAsRead([notificationId]);
         toast.success("Notification marked as read");
         router.refresh();
-      } catch (error) {
+      } catch {
         toast.error("Failed to mark notification as read");
       }
     });
@@ -145,7 +134,7 @@ export function NotificationList({
         );
         setSelectedNotifications(new Set());
         router.refresh();
-      } catch (error) {
+      } catch {
         toast.error("Failed to mark notifications as read");
       }
     });
@@ -158,7 +147,7 @@ export function NotificationList({
         await markAllNotificationsAsRead();
         toast.success("All notifications marked as read");
         router.refresh();
-      } catch (error) {
+      } catch {
         toast.error("Failed to mark all notifications as read");
       }
     });
@@ -182,17 +171,12 @@ export function NotificationList({
           <Bell className="h-12 w-12 mb-4 text-gray-600" />
           <p className="text-lg font-medium">No notifications found</p>
           <p className="text-sm text-gray-500 mt-1">
-            You're all caught up! Check back later for new updates.
+            You&apos;re all caught up! Check back later for new updates.
           </p>
         </div>
       </Card>
     );
   }
-
-  // Group notifications by date if enabled
-  const notificationGroups = showGrouping
-    ? groupNotificationsByDate(notifications)
-    : [["All", notifications]];
 
   return (
     <div className="space-y-4">
@@ -202,7 +186,6 @@ export function NotificationList({
           <div className="flex items-center gap-3">
             <Checkbox
               checked={isAllSelected}
-              indeterminate={isSomeSelected}
               onCheckedChange={handleSelectAll}
               aria-label="Select all notifications"
               className="border-gray-600 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
@@ -254,28 +237,18 @@ export function NotificationList({
         </div>
       )}
 
-      {/* Notifications grouped by date */}
-      {notificationGroups.map(([groupLabel, groupNotifications]) => (
-        <div key={groupLabel} className="space-y-3">
-          {showGrouping && (
-            <h3 className="text-sm font-medium text-gray-400 px-1">
-              {groupLabel}
-            </h3>
-          )}
-          <div className="space-y-3">
-            {groupNotifications.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                isChecked={selectedNotifications.has(notification.id)}
-                onCheckedChange={handleCheckedChange}
-                onDelete={handleDelete}
-                onMarkAsRead={handleMarkAsRead}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+      <div className="space-y-3">
+        {notifications.map((notification) => (
+          <NotificationCard
+            key={notification.id}
+            notification={notification}
+            isChecked={selectedNotifications.has(notification.id)}
+            onCheckedChange={handleCheckedChange}
+            onDelete={handleDelete}
+            onMarkAsRead={handleMarkAsRead}
+          />
+        ))}
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -310,37 +283,6 @@ export function NotificationList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-// Skeleton loader for notifications
-export function NotificationListSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between p-4 bg-gray-900 rounded-lg border border-gray-700">
-        <Skeleton className="h-5 w-24" />
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-28" />
-          <Skeleton className="h-9 w-20" />
-        </div>
-      </div>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Card key={i} className="p-6 bg-gray-900 border-gray-700">
-          <div className="flex items-start gap-4">
-            <Skeleton className="h-4 w-4 rounded" />
-            <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="flex-1 space-y-3">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-full" />
-              <div className="flex gap-3">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-3 w-32" />
-              </div>
-            </div>
-          </div>
-        </Card>
-      ))}
     </div>
   );
 }

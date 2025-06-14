@@ -20,7 +20,6 @@ import {
   CommandItem,
   CommandList,
 } from "../ui/command";
-import { Badge } from "../ui/badge";
 
 interface FormMultiComboboxProps<T extends FieldValues = FieldValues> {
   control: Control<T>;

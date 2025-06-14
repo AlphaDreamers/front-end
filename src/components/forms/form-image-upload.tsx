@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Control, FieldValues, Path } from "react-hook-form";
-import { Upload, X, Star, AlertCircle } from "lucide-react";
+import { Upload, X, Star } from "lucide-react";
 import {
   FormField,
   FormItem,

@@ -3,17 +3,17 @@
 import { z } from "zod";
 
 import { SettingsFormSchema } from "../schemas/settings";
-import { me } from "./auth";
 import { prisma } from "../prisma";
 import { UserSettings } from "../types";
+import { auth } from "../auth";
 
 export const getSettings = async (): Promise<UserSettings> => {
-  const { user } = await auth();
-  if (!user) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
   return prisma.userPreferences.findUniqueOrThrow({
-    where: { userId: user.id },
+    where: { userId: session.user.id },
     select: {
       timezone: true,
       language: true,
@@ -36,13 +36,13 @@ export const getSettings = async (): Promise<UserSettings> => {
 export const updateSettings = async (
   values: z.infer<typeof SettingsFormSchema>
 ) => {
-  const { user } = await auth();
-  if (!user) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
   await prisma.userPreferences.update({
-    where: { userId: user.id },
+    where: { userId: session.user.id },
     data: values,
   });
 };

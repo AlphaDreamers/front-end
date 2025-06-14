@@ -1,6 +1,10 @@
-import { OrderStatus, SocialLinkType, Tier } from "@prisma/client";
+import {
+  NotificationType,
+  OrderStatus,
+  SocialLinkType,
+  Tier,
+} from "@prisma/client";
 import * as icons from "lucide-react";
-import { NotificationType as PrismaNotificationType } from "@prisma/client";
 
 export type LucideIconName = keyof typeof icons;
 
@@ -78,6 +82,7 @@ export interface GigSearchParams {
   "price-max"?: string;
   rating?: string;
   dateAdded?: string;
+  isVerified?: string;
 }
 
 export interface User {
@@ -213,48 +218,52 @@ export interface Category {
 
 export interface BaseNotification {
   id: string;
-  type: PrismaNotificationType;
+  type: NotificationType;
   title: string;
-  description: string;
   isRead: boolean;
   recipientId: string;
   createdAt: Date;
 }
 
-export interface NotificationMetadata {
-  reviewId?: string;
-  gigId?: string;
-  orderId?: string;
-  paymentId?: string;
-  transactionId?: string;
-  rating?: number;
-  amount?: number;
-  senderId?: string;
-  senderName?: string;
-  senderAvatar?: string;
-  articleId?: string;
-  message?: string;
-}
+// Metadata types for each notification type
+export type NotificationMetadata =
+  | {
+      type: "ORDER_UPDATE";
+      orderId: string;
+      status?: string;
+      message?: string;
+    }
+  | {
+      type: "REVIEW";
+      reviewId: string;
+      gigId: string;
+      rating: number;
+      transactionId: string;
+      message?: string;
+    }
+  | {
+      type: "MESSAGE";
+      senderId: string;
+      senderName: string;
+      senderAvatar?: string;
+      orderId: string;
+      message?: string;
+    }
+  | {
+      type: "PAYMENT";
+      paymentId: string;
+      amount: string;
+      transactionId: string;
+      message?: string;
+    }
+  | {
+      type: "SYSTEM";
+      articleId?: string;
+      message?: string;
+    };
 
 export interface Notification extends BaseNotification {
   metadata: NotificationMetadata;
-}
-
-export interface NotificationFilters {
-  type?: PrismaNotificationType[];
-  isRead?: boolean;
-  dateRange?: {
-    from: Date;
-    to: Date;
-  };
-  search?: string;
-}
-
-export interface NotificationPaginationOptions {
-  page: number;
-  limit: number;
-  orderBy?: "createdAt" | "type";
-  orderDirection?: "asc" | "desc";
 }
 
 export interface UserSettings {
@@ -453,4 +462,5 @@ export interface Order {
   daysUntilDeadline: number;
   formattedDeadline: string;
   reviewId: string | null;
+  completedAt: Date | null;
 }

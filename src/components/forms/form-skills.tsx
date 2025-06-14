@@ -2,7 +2,7 @@
 
 import { UseFormReturn } from "react-hook-form";
 import { useState } from "react";
-import { Plus, X, Star, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, X, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import {
   Popover,

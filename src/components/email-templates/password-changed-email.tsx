@@ -264,7 +264,7 @@ const PasswordChangedEmailTemplate: React.FC<
                   fontWeight: "600",
                 }}
               >
-                🔒 Didn't make this change?
+                🔒 Didn&apos;t make this change?
               </p>
               <p
                 style={{
@@ -274,7 +274,7 @@ const PasswordChangedEmailTemplate: React.FC<
                   lineHeight: "1.5",
                 }}
               >
-                If you didn't change your password, your account may have been
+                If you didn&apos;t change your password, your account may have been
                 compromised. Please contact our support team immediately to
                 secure your account.
               </p>

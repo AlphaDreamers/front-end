@@ -2,98 +2,60 @@
 
 import { prisma } from "@/lib/prisma";
 import { NotificationType, Prisma } from "@prisma/client";
-import {
-  Notification,
-  NotificationMetadata,
-  NotificationFilters,
-  NotificationPaginationOptions,
-} from "@/lib/types";
+import { Notification } from "@/lib/types";
 import { auth } from "../auth";
-
-// Helper function to parse metadata from description field
-function parseNotificationMetadata(description: string): NotificationMetadata {
-  try {
-    return JSON.parse(description);
-  } catch {
-    return {};
-  }
-}
 
 // Get notifications with filtering and pagination
 export async function getNotifications(
-  filters: NotificationFilters = {},
-  pagination: NotificationPaginationOptions = { page: 1, limit: 10 }
-): Promise<{ notifications: Notification[]; total: number }> {
+  args: Omit<Prisma.NotificationFindManyArgs, "select" | "include"> = {}
+): Promise<Notification[]> {
+  const session = await auth();
+  if (!session) {
+    throw new Error("User is not authenticated");
+  }
+  // Get notifications and total count in parallel
+  const notifications = await prisma.notification.findMany({
+    ...args,
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      isRead: true,
+      recipientId: true,
+      createdAt: true,
+      metadata: true,
+    },
+  });
+
+  return notifications.map((notification) => ({
+    id: notification.id,
+    type: notification.type,
+    title: notification.title,
+    isRead: notification.isRead,
+    recipientId: notification.recipientId,
+    createdAt: notification.createdAt,
+    metadata: notification.metadata as Notification["metadata"],
+  }));
+}
+
+export async function getNotificationCnt(
+  args: Omit<Prisma.NotificationCountArgs, "select" | "include"> = {}
+): Promise<number> {
   const session = await auth();
   if (!session) {
     throw new Error("User is not authenticated");
   }
 
-  const where: Prisma.NotificationWhereInput = {
-    recipientId: session.user.id,
-  };
-
-  // Apply filters
-  if (filters.type && filters.type.length > 0) {
-    where.type = { in: filters.type };
-  }
-
-  if (filters.isRead !== undefined) {
-    where.isRead = filters.isRead;
-  }
-
-  if (filters.dateRange) {
-    where.createdAt = {
-      gte: filters.dateRange.from,
-      lte: filters.dateRange.to,
-    };
-  }
-
-  if (filters.search) {
-    where.OR = [
-      { title: { contains: filters.search, mode: "insensitive" } },
-      { description: { contains: filters.search, mode: "insensitive" } },
-    ];
-  }
-
-  // Calculate skip for pagination
-  const skip = (pagination.page - 1) * pagination.limit;
-
-  // Get notifications and total count in parallel
-  const [notifications, total] = await Promise.all([
-    prisma.notification.findMany({
-      where,
-      skip,
-      take: pagination.limit,
-      orderBy: {
-        [pagination.orderBy || "createdAt"]:
-          pagination.orderDirection || "desc",
-      },
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        description: true,
-        isRead: true,
-        recipientId: true,
-        createdAt: true,
-      },
-    }),
-    prisma.notification.count({ where }),
-  ]);
-
-  // Transform notifications to include parsed metadata
-  const transformedNotifications: Notification[] = notifications.map(
-    (notification) => ({
-      ...notification,
-      metadata: parseNotificationMetadata(notification.description),
-    })
-  );
-
-  return { notifications: transformedNotifications, total };
+  const count = await prisma.notification.count({
+    ...args,
+    where: {
+      ...args.where,
+      recipientId: session.user.id,
+    },
+  });
+  return count;
 }
 
-// Mark notifications as read
 export async function markNotificationsAsRead(
   notificationIds: string[]
 ): Promise<void> {
@@ -105,7 +67,7 @@ export async function markNotificationsAsRead(
   await prisma.notification.updateMany({
     where: {
       id: { in: notificationIds },
-      recipientId: session.user.id, // Ensure user owns these notifications
+      recipientId: session.user.id,
     },
     data: {
       isRead: true,
@@ -113,7 +75,6 @@ export async function markNotificationsAsRead(
   });
 }
 
-// Mark all notifications as read
 export async function markAllNotificationsAsRead(): Promise<void> {
   const session = await auth();
   if (!session) {
@@ -143,39 +104,97 @@ export async function deleteNotifications(
   await prisma.notification.deleteMany({
     where: {
       id: { in: notificationIds },
-      recipientId: session.user.id, // Ensure user owns these notifications
+      recipientId: session.user.id,
     },
   });
 }
 
-export const createNotification = async (
+type NotificationParams = {
+  ORDER_UPDATE: { orderId: string; status?: string };
+  REVIEW: {
+    reviewId: string;
+    gigId: string;
+    rating: number;
+    transactionId: string;
+  };
+  MESSAGE: {
+    senderId: string;
+    senderName: string;
+    senderAvatar?: string;
+    orderId: string;
+  };
+  PAYMENT: { paymentId: string; amount: string; transactionId: string };
+};
+
+export async function createNotification<T extends NotificationType>(
   recipientId: string,
-  title: string,
-  description: string,
-  metadata:
-    | {
-        type: "ORDER_UPDATE";
-        orderId: string;
-      }
-    | {
-        type: "PAYMENT";
-        txId: string;
-      }
-) => {
+  type: T,
+  params: NotificationParams[T],
+  message?: string
+) {
+  let title: string;
+  let metadata: Record<string, unknown> = {};
+
+  switch (type) {
+    case "ORDER_UPDATE": {
+      const { orderId, status } = params as NotificationParams["ORDER_UPDATE"];
+      title = status
+        ? `Order #${orderId} updated to ${status}`
+        : `Update for Order #${orderId}`;
+      metadata = { orderId };
+      if (status) metadata.status = status;
+      break;
+    }
+
+    case "REVIEW": {
+      const { reviewId, gigId, rating, transactionId } =
+        params as NotificationParams["REVIEW"];
+      title = `New review received for gig #${gigId}`;
+      metadata = { reviewId, gigId, rating, transactionId };
+      break;
+    }
+
+    case "MESSAGE": {
+      const {
+        senderId,
+        senderName,
+        senderAvatar,
+        orderId: messageOrderId,
+      } = params as NotificationParams["MESSAGE"];
+      title = `New message from ${senderName}`;
+      metadata = {
+        senderId,
+        senderName,
+        senderAvatar,
+        orderId: messageOrderId,
+      };
+      break;
+    }
+
+    case "PAYMENT": {
+      const { paymentId, amount, transactionId } =
+        params as NotificationParams["PAYMENT"];
+      title = `Payment of ${amount} SOL processed`;
+      metadata = { paymentId, amount, transactionId };
+      break;
+    }
+
+    default:
+      throw new Error(`Unsupported notification type: ${type}`);
+  }
+
+  // Add optional message to metadata for description
+  if (message) {
+    metadata.message = message;
+  }
+
   await prisma.notification.create({
     data: {
-      recipientId,
-      type: metadata.type as NotificationType,
+      type,
       title,
-      description,
-      metadata: {
-        toJSON:
-          metadata.type === "ORDER_UPDATE"
-            ? { orderId: metadata.orderId }
-            : metadata.type === "PAYMENT"
-              ? { txId: metadata.txId }
-              : null,
-      },
+      metadata: JSON.stringify(metadata),
+      recipientId,
+      isRead: false,
     },
   });
-};
+}

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { CaptureFace } from "../../../components/kyc/capture-face";
 import { KycFormSchema } from "@/lib/schemas";
 import AuthCard from "@/components/templates/auth-card";
+import { verifyKyc } from "@/lib/actions/auth";
 
 type VerificationFormValues = z.infer<typeof KycFormSchema>;
 
@@ -51,7 +52,11 @@ export default function VerificationPage() {
 
   const onSubmit = async (values: z.infer<typeof KycFormSchema>) => {
     toast.promise(
-      async () => console.log("Form submitted with values:", values),
+      async () =>
+        verifyKyc({
+          id: values.id,
+          selfie: values.selfie,
+        }),
       {
         loading: "Submitting documents...",
         success: "Documents submitted successfully!",

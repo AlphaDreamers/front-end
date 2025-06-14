@@ -39,15 +39,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useWallets, WalletWithBalance } from "./wallet-provider";
 import HiddenField from "@/components/hidden-field";
+import { useWallets } from "@/lib/store/wallet";
+import type { WalletWithBalance } from "@/lib/store/wallet";
 
 interface WalletCardProps {
   wallet: WalletWithBalance;
 }
 
 export default function WalletCard({ wallet }: WalletCardProps) {
-  const { setMainWallet, deleteWallet } = useWallets();
+  const { setMainWallet, deleteWallet, refetchBalances } = useWallets();
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSettingMain, setIsSettingMain] = useState(false);
@@ -68,6 +69,10 @@ export default function WalletCard({ wallet }: WalletCardProps) {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleRetryBalance = () => {
+    refetchBalances();
   };
 
   // Determine card styling based on state
@@ -112,7 +117,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => console.log("Retrying...")}
+                onClick={handleRetryBalance}
                 className="text-xs"
               >
                 <RefreshCw className="h-3 w-3 mr-1" />
@@ -207,9 +212,9 @@ export default function WalletCard({ wallet }: WalletCardProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Wallet</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{wallet.name}&ldquo;?
-                This action cannot be undone. Make sure you have backed up your
-                private keys if needed.
+                Are you sure you want to delete &quot;{wallet.name}&quot;? This action
+                cannot be undone. Make sure you have backed up your private keys
+                if needed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

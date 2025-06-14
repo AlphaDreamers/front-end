@@ -32,7 +32,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -49,7 +48,6 @@ import FormSkills from "@/components/forms/form-skills";
 import FormSocialLinks from "@/components/forms/form-social-links";
 import FormPortfolioItems from "@/components/forms/form-portfolio-items";
 import FormFeaturedBadge from "@/components/forms/form-featured-badge";
-import Image from "next/image";
 
 interface EditProfileFormProps {
   user: {

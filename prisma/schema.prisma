@@ -343,8 +343,9 @@ model Order {
   sellerId  String
   gigId     String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
 
   @@index([buyerId, status])
   @@index([sellerId, status])
@@ -354,11 +355,10 @@ model Order {
 model Notification {
   id String @id @default(uuid())
 
-  type        NotificationType
-  title       String
-  description String
-  isRead      Boolean          @default(false)
-  metadata    Json?
+  type     NotificationType
+  title    String
+  isRead   Boolean          @default(false)
+  metadata Json?
 
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 

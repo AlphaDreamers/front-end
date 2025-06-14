@@ -31,13 +31,13 @@ import { cn } from "@/lib/utils";
 import MobileSidebar from "./mobile-sidebar";
 import NotificationDropdown from "./notification-dropdown";
 import { getMainNavItems, userMenuItems } from "./nav-config";
+import { SearchToggle } from "./search-provider";
 
 export default function NavBar() {
   const session = useSession();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
 
   const isAuthenticated = session.status === "authenticated";
   const user = session.data?.user;
@@ -161,14 +161,11 @@ export default function NavBar() {
             {/* Right Section: Search, Actions, User Menu */}
             <div className="flex items-center gap-2">
               {/* Search Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
+              <SearchToggle>
+                <Button variant="ghost" size="icon" aria-label="Search">
+                  <Search />
+                </Button>
+              </SearchToggle>
 
               {isAuthenticated && user ? (
                 <>

@@ -1,8 +1,7 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
-import { Color, DetailedUser, KeyValuePair, LucideIconName } from "../types";
+import { Color, DetailedUser, LucideIconName } from "../types";
 import { UpdateProfileFormSchema } from "../schemas";
 import { uploadFilesToCloudinary, uploadFileToCloudinary } from "./cloudinary";
 import { z } from "zod";
@@ -296,148 +295,6 @@ export async function getDetailedUser(
       },
     })),
   };
-}
-
-export type ProfileForEdit = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    username: true;
-    firstName: true;
-    lastName: true;
-    headline: true;
-    bio: true;
-    avatar: true;
-    banner: true;
-    skills: {
-      select: {
-        id: true;
-        level: true;
-        skill: {
-          select: {
-            id: true;
-            title: true;
-          };
-        };
-      };
-    };
-    socialLinks: {
-      select: {
-        id: true;
-        type: true;
-        url: true;
-      };
-    };
-    portfolioItems: {
-      select: {
-        id: true;
-        title: true;
-        description: true;
-        url: true;
-        images: {
-          select: {
-            id: true;
-            isPrimary: true;
-            file: {
-              select: {
-                id: true;
-                url: true;
-              };
-            };
-          };
-        };
-      };
-    };
-    badgeProgress: {
-      select: {
-        id: true;
-        isFeatured: true;
-        highestTier: true;
-        badge: {
-          select: {
-            id: true;
-            title: true;
-            description: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
-export async function getProfileForEdit(
-  userId: string
-): Promise<ProfileForEdit | null> {
-  const profile = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      username: true,
-      firstName: true,
-      lastName: true,
-      headline: true,
-      bio: true,
-      avatar: true,
-      banner: true,
-      skills: {
-        select: {
-          id: true,
-          level: true,
-          skill: {
-            select: {
-              id: true,
-              title: true,
-            },
-          },
-        },
-      },
-      socialLinks: {
-        select: {
-          id: true,
-          type: true,
-          url: true,
-        },
-      },
-      portfolioItems: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          url: true,
-          images: {
-            select: {
-              id: true,
-              isPrimary: true,
-              file: {
-                select: {
-                  id: true,
-                  url: true,
-                },
-              },
-            },
-            orderBy: {
-              isPrimary: "desc",
-            },
-          },
-        },
-      },
-      badgeProgress: {
-        select: {
-          id: true,
-          isFeatured: true,
-          highestTier: true,
-          badge: {
-            select: {
-              id: true,
-              title: true,
-              description: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return profile;
 }
 
 export async function updateProfile(
@@ -800,32 +657,39 @@ export async function updateProfile(
   }
 }
 
-export async function getKeyValueSkills(): Promise<KeyValuePair[]> {
-  const skills = await prisma.skill.findMany({
-    select: {
-      id: true,
-      title: true,
-    },
-    orderBy: {
-      title: "asc",
-    },
-  });
-
-  return skills.map((skill) => ({
-    label: skill.title,
-    value: skill.id,
-  }));
-}
-
 export const confirmFullVerification = async () => {
-  const { user: currentUser } = await auth();
-  if (!currentUser) {
+  const session = await auth();
+  if (!session) {
     return { success: false, error: "User not authenticated" };
   }
+  let badge = await prisma.badge.findUnique({
+    where: { id: "profile_verified_badge_id" },
+  });
+  if (!badge) {
+    badge = await prisma.badge.create({
+      data: {
+        id: "profile_verified_badge_id",
+        title: "Profile Verified",
+        description: "Your profile has been fully verified.",
+        icon: "CheckCircle",
+        color: "green",
+        condition:
+          "Complete your profile with all required fields and KYC verification",
+      },
+    });
+  }
+
   await prisma.user.update({
-    where: { id: currentUser.id },
+    where: { id: session.user.id },
     data: {
       isProfileVerified: true,
+      badgeProgress: {
+        create: {
+          badgeId: "profile_verified_badge_id",
+          highestTier: "PLATINUM",
+          currentProgress: 100,
+        },
+      },
     },
   });
 };

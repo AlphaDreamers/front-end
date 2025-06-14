@@ -1,6 +1,5 @@
 "use client";
 
-import * as LucideIcons from "lucide-react";
 import { Award, Info } from "lucide-react";
 
 import {
@@ -67,8 +66,6 @@ export function BadgesCard({ badges }: BadgesCardProps) {
 
           <TableBody>
             {badges.map((badge) => {
-              const IconComponent =
-                LucideIcons[badge.icon] || LucideIcons.Award;
               const tierConfig = getTierConfig(badge.tier);
 
               return (

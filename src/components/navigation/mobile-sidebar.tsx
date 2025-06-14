@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, ChevronRight } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { signOut } from "next-auth/react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
   SheetClose,
@@ -25,12 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
-import {
-  getMobileNavItems,
-  legalNavItems,
-  quickActions,
-  NavItem,
-} from "./nav-config";
+import { getMobileNavItems, legalNavItems, NavItem } from "./nav-config";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -39,7 +31,6 @@ interface MobileSidebarProps {
 
 export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   const session = useSession();
-  const { status } = useSession();
 
   const pathname = usePathname();
 

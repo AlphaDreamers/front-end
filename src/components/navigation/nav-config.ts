@@ -14,8 +14,6 @@ import {
   Mail,
   FileText,
   ShieldCheck,
-  UserPlus,
-  LogIn,
   LucideIcon,
 } from "lucide-react";
 
@@ -162,20 +160,6 @@ export const legalNavItems: NavItem[] = [
   },
 ];
 
-// Auth navigation (for sign in/up pages)
-export const authNavItems: NavItem[] = [
-  {
-    label: "Sign In",
-    href: "/sign-in",
-    icon: LogIn,
-  },
-  {
-    label: "Sign Up",
-    href: "/sign-up",
-    icon: UserPlus,
-  },
-];
-
 // Navigation helpers
 export function getMainNavItems(isAuthenticated: boolean): NavItem[] {
   return [...publicNavItems, ...(isAuthenticated ? authenticatedNavItems : [])];
@@ -204,29 +188,4 @@ export function getMobileNavItems(isAuthenticated: boolean): NavItem[] {
   }
 
   return mainItems;
-}
-
-// Get breadcrumb navigation based on current path
-export function getBreadcrumbs(
-  pathname: string
-): { label: string; href: string }[] {
-  const segments = pathname.split("/").filter(Boolean);
-  const breadcrumbs: { label: string; href: string }[] = [
-    { label: "Home", href: "/" },
-  ];
-
-  let currentPath = "";
-  for (const segment of segments) {
-    currentPath += `/${segment}`;
-
-    // Convert segment to readable label
-    const label = segment
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-
-    breadcrumbs.push({ label, href: currentPath });
-  }
-
-  return breadcrumbs;
 }

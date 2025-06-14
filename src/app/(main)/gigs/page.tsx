@@ -61,6 +61,11 @@ export default async function BrowseGigsPage({
         label: "Date Added",
         type: "date",
       },
+      {
+        id: "isVerified",
+        label: "Verified Sellers Only",
+        type: "toggle",
+      },
     ];
   };
 

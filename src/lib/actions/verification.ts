@@ -1,15 +1,15 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { me } from "./auth";
 import { BadgeWithProgress, Achievement } from "@/lib/types";
 import { calculateProfileCompletion } from "../utils";
 import { Color, LucideIconName } from "../types";
+import { auth } from "../auth";
 
 // Get comprehensive verification status
 export async function getVerificationStatus(userId: string) {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
   const orderCompletionP = () =>
@@ -66,12 +66,19 @@ export async function getVerificationStatus(userId: string) {
         return calculateProfileCompletion(user);
       });
 
+  const isKycVerified = await prisma.user
+    .findUnique({
+      where: { id: userId },
+      select: { isKycVerified: true },
+    })
+    .then((user) => user?.isKycVerified || false);
+
   return await Promise.all([orderCompletionP(), profileCompletionP()]).then(
     ([orderCompletion, profileCompletion]) => {
       return {
         orderCompletion,
         profileCompletion,
-        isKycVerified: user.isKycVerified,
+        isKycVerified,
       };
     }
   );
@@ -79,8 +86,8 @@ export async function getVerificationStatus(userId: string) {
 
 // Get all badges with user progress
 export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
@@ -99,7 +106,7 @@ export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
       },
       userBadges: {
         where: {
-          userId: user.id,
+          userId: session.user.id,
         },
         select: {
           highestTier: true,
@@ -126,14 +133,14 @@ export async function getBadgesProgress(): Promise<BadgeWithProgress[]> {
 }
 
 export async function getAchievements(): Promise<Achievement[]> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   const userBadges = await prisma.userBadgeProgress.findMany({
     where: {
-      userId: user.id,
+      userId: session.user.id,
     },
     select: {
       highestTier: true,
@@ -165,15 +172,15 @@ export async function getAchievements(): Promise<Achievement[]> {
 }
 
 export async function setFeaturedBadge(badgeId: string): Promise<void> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   await prisma.$transaction(async (tx) => {
     const existingFeaturedBadge = await tx.userBadgeProgress.findFirst({
       where: {
-        userId: user.id,
+        userId: session.user.id,
         isFeatured: true,
       },
       select: { id: true, badgeId: true },
@@ -193,7 +200,7 @@ export async function setFeaturedBadge(badgeId: string): Promise<void> {
     await tx.userBadgeProgress.update({
       where: {
         userId_badgeId: {
-          userId: user.id,
+          userId: session.user.id,
           badgeId: badgeId,
         },
       },

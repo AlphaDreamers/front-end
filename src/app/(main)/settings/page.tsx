@@ -1,23 +1,15 @@
 import { redirect } from "next/navigation";
 
-import { me } from "@/lib/actions/auth";
 import PageTemplate from "@/components/templates/page-template";
 import SettingsForm from "@/components/settings/settings-form";
 import { getSettings } from "@/lib/actions/settings";
+import { auth } from "@/lib/auth";
 
 export default async function SettingsPage() {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
-    redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/settings`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
-    );
+  if (!session) {
+    redirect(`/sign-in?callback-url=${encodeURIComponent(`/settings`)}`);
   }
 
   const settings = await getSettings();

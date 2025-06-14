@@ -4,7 +4,10 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-export async function createStripeCheckoutSession(orderId: string) {
+export async function createStripeCheckoutSession(
+  orderId: string,
+  price: number
+) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -48,14 +51,14 @@ export async function createStripeCheckoutSession(orderId: string) {
               name: order.package.gig.title,
               description: order.package.title,
             },
-            unit_amount: Math.round(order.package.price * 100), // Convert to cents
+            unit_amount: Math.round(price * 100), // Convert to cents
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders/${orderId}?payment=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders/${orderId}?payment=cancelled`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders/${orderId}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/orders`,
       metadata: {
         orderId: orderId,
         buyerId: session.user.id,
@@ -107,21 +110,6 @@ export async function handleStripeWebhook(body: string, signature: string) {
           data: {
             status: "PAID",
             updatedAt: new Date(),
-          },
-        });
-
-        // Create notification for seller
-        await prisma.notification.create({
-          data: {
-            type: "ORDER_UPDATE",
-            title: "New Order Received",
-            description:
-              "You have received a new order. Please start working on it.",
-            recipientId: session.metadata.sellerId,
-            metadata: {
-              orderId: orderId,
-              status: "PAID",
-            },
           },
         });
 

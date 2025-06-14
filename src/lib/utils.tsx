@@ -356,6 +356,12 @@ export const buildGigFilters = (
     }
   }
 
+  if (searchParams.isVerified) {
+    where.seller = {
+      isProfileVerified: true,
+    };
+  }
+
   return {
     skip,
     take,
@@ -415,47 +421,6 @@ export function getNotificationBorderColor(type: NotificationType): string {
   };
 
   return borderColorMap[type] || "border-gray-500/50";
-}
-
-// Group notifications by date
-export function groupNotificationsByDate(notifications: any[]) {
-  const groups: Record<string, any[]> = {
-    Today: [],
-    Yesterday: [],
-    "This Week": [],
-    "This Month": [],
-    Older: [],
-  };
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const monthAgo = new Date(today);
-  monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-  notifications.forEach((notification) => {
-    const notificationDate = new Date(notification.createdAt);
-
-    if (notificationDate >= today) {
-      groups.Today.push(notification);
-    } else if (notificationDate >= yesterday) {
-      groups.Yesterday.push(notification);
-    } else if (notificationDate >= weekAgo) {
-      groups["This Week"].push(notification);
-    } else if (notificationDate >= monthAgo) {
-      groups["This Month"].push(notification);
-    } else {
-      groups.Older.push(notification);
-    }
-  });
-
-  // Remove empty groups
-  return Object.entries(groups).filter(
-    ([, notifications]) => notifications.length > 0
-  );
 }
 
 export function getTierConfig(tier: Tier): {

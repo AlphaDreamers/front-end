@@ -129,9 +129,7 @@ export const ImportWalletFormSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  })
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  .transform(({ confirmPassword, ...rest }) => rest);
+  });
 
 // Schema for verifying the mnemonic phrase
 export const MneumonicsVerificationFormSchema = z.object({

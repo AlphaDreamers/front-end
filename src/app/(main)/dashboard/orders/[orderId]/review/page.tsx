@@ -22,6 +22,7 @@ export default async function Page({
           id: true,
         },
       },
+      completedAt: true,
       transaction: {
         select: {
           txId: true,
@@ -37,7 +38,9 @@ export default async function Page({
   if (
     order.status !== "COMPLETED" ||
     !order.transaction?.txId ||
-    order.review
+    order.review ||
+    (order.completedAt &&
+      order.completedAt.getTime() + 7 * 24 * 60 * 60 * 1000 < Date.now())
   ) {
     throw new Error("You cannot leave a review for this order.");
   }

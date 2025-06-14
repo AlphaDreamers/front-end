@@ -1,5 +1,4 @@
 import { redirect, notFound } from "next/navigation";
-import { me } from "@/lib/actions/auth";
 import EditGigForm from "@/components/gig/edit-gig-form";
 import { getUpdateGigFormGig } from "@/lib/actions/gig";
 import { getKeyValueCategories } from "@/lib/actions/category";

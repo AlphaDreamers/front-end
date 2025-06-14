@@ -14,6 +14,7 @@ declare module "next-auth" {
       lastName: string;
       username: string;
       avatar?: string;
+      isVerified: boolean;
     } & DefaultSession["user"];
   }
   interface User {
@@ -24,6 +25,7 @@ declare module "next-auth" {
     lastName: string;
     username: string;
     avatar?: string;
+    isVerified: boolean;
   }
 }
 
@@ -36,6 +38,7 @@ declare module "@auth/core/jwt" {
     lastName: string;
     username: string;
     avatar?: string;
+    isVerified: boolean;
   }
 }
 
@@ -72,6 +75,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.lastName = user.lastName;
         token.username = user.username;
         token.avatar = user.avatar;
+        token.isVerified = user.isVerified;
       }
 
       return token;
@@ -93,6 +97,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.banner) {
           session.user.banner = session.banner;
         }
+        if (session.isVerified) {
+          session.user.isVerified = session.isVerified;
+        }
       } else {
         session.user.id = token.id;
         session.user.email = token.email;
@@ -100,6 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.lastName = token.lastName;
         session.user.username = token.username;
         session.user.avatar = token.avatar;
+        session.user.isVerified = token.isVerified;
       }
 
       session.user.unreadNotifications = await prisma.notification.count({

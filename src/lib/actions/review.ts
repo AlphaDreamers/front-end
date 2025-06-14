@@ -5,7 +5,6 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { me } from "./auth";
 import {
   Review,
   DashboardReview,
@@ -141,9 +140,9 @@ export async function updateReviewResponse({
   reviewId,
   response,
 }: z.infer<typeof SellerResponseSchema>) {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("You must be logged in to respond to reviews");
   }
 
@@ -168,7 +167,7 @@ export async function updateReviewResponse({
     throw new Error("Associated gig not found");
   }
 
-  if (review.gig.sellerId !== user.id) {
+  if (review.gig.sellerId !== session.user.id) {
     throw new Error("You can only respond to reviews on your own gigs");
   }
 
@@ -295,7 +294,7 @@ export async function leaveReview(data: {
   title: string;
   description: string;
   orderId: string;
-}): Promise<Review> {
+}) {
   const session = await auth();
 
   if (!session) {
@@ -307,6 +306,18 @@ export async function leaveReview(data: {
     select: {
       id: true,
       status: true,
+      completedAt: true,
+      package: {
+        select: {
+          title: true,
+          gig: {
+            select: {
+              title: true,
+              sellerId: true,
+            },
+          },
+        },
+      },
       transaction: {
         select: {
           txId: true,
@@ -336,6 +347,15 @@ export async function leaveReview(data: {
     throw new Error("Transaction not found for this order");
   }
 
+  if (
+    order.completedAt &&
+    new Date(order.completedAt).getTime() + 72 * 60 * 60 * 1000 < Date.now()
+  ) {
+    throw new Error(
+      "You can only leave a review within 72 hours of order completion"
+    );
+  }
+
   await prisma.review.create({
     data: {
       rating: data.rating,
@@ -345,6 +365,7 @@ export async function leaveReview(data: {
       orderId: order.id,
     },
   });
+
   revalidatePath("/dashboard/reviews");
   revalidatePath(`/orders/${data.orderId}/review`);
 }

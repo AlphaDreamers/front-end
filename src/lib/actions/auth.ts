@@ -406,6 +406,7 @@ export const validateCredentials = async ({
       emailVerified: true,
       password: true,
       avatar: true,
+      isProfileVerified: true,
     },
   });
 
@@ -448,5 +449,6 @@ export const validateCredentials = async ({
     username: user.username,
     unreadNotifications: user._count.notifications,
     avatar: user.avatar ?? undefined,
+    isVerified:user.isProfileVerified
   };
 };

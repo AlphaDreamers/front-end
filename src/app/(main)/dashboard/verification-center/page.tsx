@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Async from "@/components/async";
-import { me } from "@/lib/actions/auth";
 import {
   getVerificationStatus,
   getBadgesProgress,
@@ -19,19 +18,14 @@ import {
   AchievementsCardsSkeleton,
 } from "@/components/verification/achievements-card";
 import PageTemplate from "@/components/templates/page-template";
+import { auth } from "@/lib/auth";
 
 export default async function VerificationCenterPage() {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/varification-center`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/varification-center`)}`
     );
   }
 
@@ -43,7 +37,7 @@ export default async function VerificationCenterPage() {
       <div className="flex flex-col md:flex-row gap-6">
         <div className="flex-1 space-y-6">
           <Async
-            fetch={() => getVerificationStatus(user.id)}
+            fetch={() => getVerificationStatus(session.user.id)}
             fallback={<VerificationStatusCardSkeleton />}
           >
             {({ orderCompletion, profileCompletion, isKycVerified }) => (
@@ -57,7 +51,7 @@ export default async function VerificationCenterPage() {
                 profileCompletion={profileCompletion}
                 isKycVerified={isKycVerified}
                 orderCompletion={orderCompletion}
-                recievedVerification={user.isProfileVerified}
+                recievedVerification={session.user.isProfileVerified}
               />
             )}
           </Async>

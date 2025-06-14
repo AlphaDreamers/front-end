@@ -98,7 +98,7 @@ export default function CreateWalletPage() {
     // Create wallet in database
     await createWallet(walletData.publicKey, walletData.name);
 
-    router.push("/wallets");
+    router.push("/dashboard/wallets");
   };
 
   const canGoBack = step > 1 && step < 3; // Can't go back from verification

@@ -8,11 +8,14 @@ import GigFaqList from "../../../../components/gig/gig-faq-list";
 import { getDetailedGig } from "@/lib/actions/gig";
 import ReviewsSection from "@/components/reviews/reviews-list";
 import OrderDetailsCard from "@/components/gig/order-details-card";
+import { ReviewFilterParams } from "@/lib/types";
 
 export default async function GigDetailsPage({
   params,
+  searchParams
 }: {
   params: Promise<{ gigId: string }>;
+  searchParams:Promise<ReviewFilterParams>;
 }) {
   const { gigId } = await params;
 
@@ -21,6 +24,8 @@ export default async function GigDetailsPage({
   if (!gig) {
     notFound();
   }
+
+  const sP = await searchParams;
 
   return (
     <div className="flex flex-col xl:flex-row gap-8">
@@ -57,6 +62,7 @@ export default async function GigDetailsPage({
               } as Record<number, number>
             ),
           }}
+          searchParams={sP}
           totalReviews={gig.reviewCount}
         />
 

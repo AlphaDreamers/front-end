@@ -39,7 +39,6 @@ import { Label } from "@/components/ui/label";
 
 import { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import SolanaBuyButton from "@/components/solana-pay-button";
 import {
   deliverWork,
   acceptDelivery,
@@ -48,7 +47,7 @@ import {
 } from "@/lib/actions/order";
 import UserDetails from "../user-details";
 import { OrderStatus } from "@prisma/client";
-import { StripeBuyButton } from "../stripe-buy-button";
+import PayButton from "@/components/pay-button";
 
 interface OrderCardProps {
   order: Order;
@@ -266,7 +265,18 @@ export default function OrderCard({
           <>
             {order.status === "PENDING_PAYMENT" && (
               <>
-                <SolanaBuyButton orderId={order.id} />
+                <PayButton
+                  order={{
+                    id: order.id,
+                    package: {
+                      price: order.package.price,
+                      title: order.package.title,
+                      gig: {
+                        title: order.package.gig.title,
+                      },
+                    },
+                  }}
+                />
                 <Button
                   variant="outline"
                   className="w-full justify-start"
@@ -349,15 +359,25 @@ export default function OrderCard({
               </>
             )}
 
-            {order.status === "COMPLETED" && !order.reviewId && (
-              <Link
-                href={`/dashboard/orders/${order.id}/review`}
-                className={cn(buttonVariants({}), "w-full justify-start")}
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Leave Review
-              </Link>
-            )}
+            {order.status === "COMPLETED" &&
+              !order.reviewId &&
+              order.completedAt &&
+              order.completedAt >
+                new Date(Date.now() - 72 * 60 * 60 * 1000) && (
+                <Link
+                  href={`/dashboard/orders/${order.id}/review`}
+                  className={cn(buttonVariants({}), "w-full justify-start")}
+                >
+                  <CheckCircle />
+                  Leave Review (
+                  {Math.ceil(
+                    (new Date(Date.now() - 72 * 60 * 60 * 1000).getTime() -
+                      new Date(order.completedAt).getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  )}{" "}
+                  days left ) left
+                </Link>
+              )}
 
             {order.status === "EXPIRED" && (
               <Link

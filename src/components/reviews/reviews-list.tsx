@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Review, ReviewStats } from "@/lib/types";
+import { Review, ReviewFilterParams, ReviewStats } from "@/lib/types";
 import { FilterType } from "@/components/filter-card";
 import Filters from "@/components/filter-card";
 import ReviewStatsCard from "@/components/reviews/review-stats-card";
@@ -17,6 +17,7 @@ interface ReviewsSectionProps {
   reviewStats: ReviewStats;
   totalReviews: number;
   className?: string;
+  searchParams:ReviewFilterParams
 }
 
 const REVIEWS_PER_PAGE = 6;

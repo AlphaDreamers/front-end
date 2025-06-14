@@ -2,9 +2,9 @@
 
 import { prisma } from "../prisma";
 import { revalidatePath } from "next/cache";
-import { WalletWithBalance } from "@/components/wallet/wallet-provider";
 import { Transaction } from "../types";
 import { auth } from "../auth";
+import { WalletWithBalance } from "../store/wallet";
 
 export const createWallet = async (publicKey: string, name: string) => {
   const session = await auth();
@@ -25,21 +25,21 @@ export const createWallet = async (publicKey: string, name: string) => {
 
   if (existingWallet) {
     if (existingWallet.publicKey === publicKey) {
-      throw new Error("This wallet is already registered");
+      //throw new Error("This wallet is already registered");
     }
     if (existingWallet.name === name) {
       throw new Error("You already have a wallet with this name");
     }
+  } else {
+    await prisma.wallet.create({
+      data: {
+        publicKey,
+        name,
+        userId: session.user.id,
+        isMain: existingWallets.length === 0,
+      },
+    });
   }
-
-  await prisma.wallet.create({
-    data: {
-      publicKey,
-      name,
-      userId: session.user.id,
-      isMain: existingWallets.length === 0,
-    },
-  });
 };
 
 export async function setMainWallet(walletId: string) {
@@ -213,11 +213,119 @@ export const getOrderForTransaction = async (orderId: string) => {
   if (!order || order.seller.wallets.length === 0) {
     return null;
   }
-  console.log(order.seller.wallets[0].publicKey);
   return {
     recipientPublickey: order.seller.wallets[0].publicKey,
     price: order.package.price,
     sellerId: order.sellerId,
     buyerId: order.buyer.id,
   };
+};
+
+interface PaymentConfirmationParams {
+  orderId: string;
+  txId: string;
+  amount: number;
+  senderPublicKey: string;
+  receiverPublicKey: string;
+}
+export const confirmPayment = async ({
+  orderId,
+  txId,
+  amount,
+  senderPublicKey,
+  receiverPublicKey,
+}: PaymentConfirmationParams) => {
+  const session = await auth();
+  if (!session) {
+    throw new Error("User not authenticated");
+  }
+
+  try {
+    // Fetch order with necessary relations
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        status: true,
+        buyerId: true,
+        sellerId: true,
+        package: {
+          select: {
+            price: true,
+            gig: {
+              select: {
+                sellerId: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Validate order exists
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Validate order status
+    if (order.status !== "PENDING_PAYMENT") {
+      throw new Error(
+        `Invalid order status: ${order.status}. Expected: PENDING_PAYMENT`
+      );
+    }
+
+    // Validate buyer authorization
+    if (order.buyerId !== session.user.id) {
+      throw new Error(
+        "Unauthorized: You can only confirm payment for your own orders"
+      );
+    }
+
+    // Validate payment amount matches order (with small tolerance for fees)
+    const expectedAmount = order.package.price;
+    const tolerance = 0.001; // Allow for small rounding differences
+
+    if (Math.abs(amount - expectedAmount) > tolerance) {
+      console.warn(
+        `Payment amount mismatch for order ${orderId}. Expected: ${expectedAmount}, Received: ${amount}`
+      );
+    }
+
+    // Execute transaction atomically
+    await prisma.$transaction(async (tx) => {
+      // Update order status and create transaction record
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: "PAID",
+          transaction: {
+            create: {
+              txId,
+              amount,
+              senderPublicKey,
+              receiverPublicKey,
+            },
+          },
+        },
+      });
+    });
+
+    // Revalidate relevant paths
+    revalidatePath("/dashboard/orders");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+
+    return {
+      success: true,
+      message: "Payment confirmed successfully",
+      txId,
+    };
+  } catch (error) {
+    console.error("Payment confirmation error:", {
+      orderId,
+      txId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    throw error;
+  }
 };

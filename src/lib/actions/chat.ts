@@ -1,9 +1,7 @@
-// lib/actions/chat.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { ChatData, Message } from "@/lib/types";
-import { me } from "./auth";
 import { auth } from "../auth";
 
 export async function getChatByOrderId(

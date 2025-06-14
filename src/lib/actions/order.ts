@@ -4,7 +4,7 @@ import { MediaFile, Prisma } from "@prisma/client";
 import { Color, KeyValuePair, LucideIconName, Order } from "../types";
 import { prisma } from "../prisma";
 import { differenceInDays, formatDistanceToNow, isAfter } from "date-fns";
-import { createNotification } from "./notifications";
+
 import { revalidatePath } from "next/cache";
 import { uploadFilesToCloudinary } from "./cloudinary";
 import { auth } from "../auth";
@@ -137,6 +137,7 @@ export async function getOrders(
           id: true,
         },
       },
+      completedAt: true,
     },
   });
 
@@ -217,6 +218,7 @@ export async function getOrders(
       formattedDeadline: isOverdue
         ? `Overdue by ${formatDistanceToNow(deadline)}`
         : `Due ${formatDistanceToNow(deadline, { addSuffix: true })}`,
+      completedAt: prismaOrder.completedAt,
     };
   });
 }
@@ -265,26 +267,6 @@ export const createOrder = async (packageId: string) => {
     },
   });
 
-  await createNotification(
-    pkg.gig.sellerId,
-    "New Order Received",
-    `You have a new order for ${pkg.gig.title} - ${pkg.title}.`,
-    {
-      type: "ORDER_UPDATE",
-      orderId: order.id,
-    }
-  );
-
-  await createNotification(
-    session.user.id,
-    "Order Created",
-    `Your order for ${pkg.gig.title} - ${pkg.title} has been created. Please proceed to payment.`,
-    {
-      type: "ORDER_UPDATE",
-      orderId: order.id,
-    }
-  );
-
   return order;
 };
 
@@ -326,99 +308,6 @@ export const expireOrder = async (orderId: string) => {
       where: { id: orderId },
       data: { status: "EXPIRED" },
     });
-
-    await createNotification(
-      order.buyerId,
-      "Order Expired",
-      "Your order has expired due to non-payment. Please create a new order if you still wish to proceed.",
-      {
-        type: "ORDER_UPDATE",
-        orderId,
-      }
-    );
-  });
-
-  revalidatePath("/dashboard/orders");
-};
-
-export const confirmPayment = async (
-  orderId: string,
-  txId: string,
-  amount: number,
-  senderPublicKey: string,
-  receiverPublicKey: string
-) => {
-  const session = await auth();
-
-  if (!session) {
-    throw new Error("User not authenticated");
-  }
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: {
-      status: true,
-      buyerId: true,
-      sellerId: true,
-      package: {
-        select: {
-          gig: {
-            select: {
-              sellerId: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!order) {
-    throw new Error("Order not found");
-  }
-
-  if (order.status !== "PENDING_PAYMENT") {
-    throw new Error("Order is not in pending payment status");
-  }
-
-  if (order.buyerId !== session.user.id) {
-    throw new Error("You can only confirm payment for your own orders");
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: "PAID",
-        transaction: {
-          create: {
-            txId,
-            amount,
-            senderPublicKey,
-            receiverPublicKey,
-          },
-        },
-      },
-    });
-
-    await createNotification(
-      order.sellerId,
-      "Payment Confirmed",
-      "The buyer has confirmed payment. You can now start working on the order.",
-      {
-        type: "ORDER_UPDATE",
-        orderId,
-      }
-    );
-
-    await createNotification(
-      order.buyerId,
-      "Payment Confirmed",
-      `Payment of ${amount} SOL for your order has been confirmed.`,
-      {
-        type: "PAYMENT",
-        txId,
-      }
-    );
   });
 
   revalidatePath("/dashboard/orders");
@@ -451,16 +340,6 @@ export const cancelOrder = async (orderId: string): Promise<void> => {
           where: { id: orderId },
           data: { status: "CANCELLED" },
         });
-
-        await createNotification(
-          order.sellerId,
-          "Order Cancelled",
-          "The buyer has cancelled the order before payment.",
-          {
-            type: "ORDER_UPDATE",
-            orderId,
-          }
-        );
       });
 
       revalidatePath("/dashboard/orders");
@@ -474,16 +353,6 @@ export const cancelOrder = async (orderId: string): Promise<void> => {
           where: { id: orderId },
           data: { status: "CANCELLED" },
         });
-
-        await createNotification(
-          order.buyerId,
-          "Order Cancelled",
-          "The seller has cancelled the order after payment.",
-          {
-            type: "ORDER_UPDATE",
-            orderId,
-          }
-        );
       });
 
       revalidatePath("/dashboard/orders");
@@ -596,16 +465,6 @@ export const deliverWork = async ({
         },
       });
     }
-
-    await createNotification(
-      order.buyerId,
-      "Work Delivered",
-      "The seller has delivered your order. Please review and accept.",
-      {
-        type: "ORDER_UPDATE",
-        orderId,
-      }
-    );
   });
 
   revalidatePath("/dashboard/orders");
@@ -644,16 +503,6 @@ export const rejectDelivery = async (orderId: string): Promise<void> => {
       where: { id: orderId },
       data: { status: "DISPUTE" },
     });
-
-    await createNotification(
-      order.sellerId,
-      "Delivery Rejected",
-      "The buyer has rejected your delivery and opened a dispute. Please resolve the issue.",
-      {
-        type: "ORDER_UPDATE",
-        orderId,
-      }
-    );
   });
 
   revalidatePath("/dashboard/orders");
@@ -690,18 +539,8 @@ export const acceptDelivery = async (orderId: string): Promise<void> => {
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
-      data: { status: "COMPLETED" },
+      data: { status: "COMPLETED", completedAt: new Date() },
     });
-
-    await createNotification(
-      order.sellerId,
-      "Order Completed",
-      "The buyer has accepted your delivery. Order is now complete.",
-      {
-        type: "ORDER_UPDATE",
-        orderId,
-      }
-    );
   });
 
   revalidatePath("/dashboard/orders");

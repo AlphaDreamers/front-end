@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
-import { Calendar, Shield, Star, Award } from "lucide-react";
+import { Calendar, Shield, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { DetailedUser } from "@/lib/types";
