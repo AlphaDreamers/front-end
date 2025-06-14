@@ -56,7 +56,7 @@ export function CategoriesShowcase({ getCategories }: CategoriesShowcaseProps) {
                     >
                       <IconComponent className="size-6" />
                     </div>
-                    <h3 className="text-sm font-medium md:text-base">
+                    <h3 className="text-sm font-medium md:text-base text-wrap">
                       {category.label}
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">

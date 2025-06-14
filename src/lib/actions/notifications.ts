@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { me } from "./auth";
 import { NotificationType, Prisma } from "@prisma/client";
 import {
   Notification,
@@ -9,6 +8,7 @@ import {
   NotificationFilters,
   NotificationPaginationOptions,
 } from "@/lib/types";
+import { auth } from "../auth";
 
 // Helper function to parse metadata from description field
 function parseNotificationMetadata(description: string): NotificationMetadata {
@@ -24,13 +24,13 @@ export async function getNotifications(
   filters: NotificationFilters = {},
   pagination: NotificationPaginationOptions = { page: 1, limit: 10 }
 ): Promise<{ notifications: Notification[]; total: number }> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   const where: Prisma.NotificationWhereInput = {
-    recipientId: user.id,
+    recipientId: session.user.id,
   };
 
   // Apply filters
@@ -97,15 +97,15 @@ export async function getNotifications(
 export async function markNotificationsAsRead(
   notificationIds: string[]
 ): Promise<void> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   await prisma.notification.updateMany({
     where: {
       id: { in: notificationIds },
-      recipientId: user.id, // Ensure user owns these notifications
+      recipientId: session.user.id, // Ensure user owns these notifications
     },
     data: {
       isRead: true,
@@ -115,14 +115,14 @@ export async function markNotificationsAsRead(
 
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(): Promise<void> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   await prisma.notification.updateMany({
     where: {
-      recipientId: user.id,
+      recipientId: session.user.id,
       isRead: false,
     },
     data: {
@@ -135,15 +135,15 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 export async function deleteNotifications(
   notificationIds: string[]
 ): Promise<void> {
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User is not authenticated");
   }
 
   await prisma.notification.deleteMany({
     where: {
       id: { in: notificationIds },
-      recipientId: user.id, // Ensure user owns these notifications
+      recipientId: session.user.id, // Ensure user owns these notifications
     },
   });
 }

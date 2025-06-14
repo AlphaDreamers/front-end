@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { Color, DetailedUser, KeyValuePair, LucideIconName } from "../types";
 import { UpdateProfileFormSchema } from "../schemas";
-import { uploadFileToCloudinary } from "./cloudinary";
+import { uploadFilesToCloudinary, uploadFileToCloudinary } from "./cloudinary";
 import { z } from "zod";
 import { auth } from "../auth";
 
@@ -48,6 +48,30 @@ export async function getDetailedUser(
           packages: {
             select: {
               price: true,
+              orders: {
+                select: {
+                  review: {
+                    select: {
+                      id: true,
+                      rating: true,
+                      orderId: true,
+                      author: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                          username: true,
+                          avatar: true,
+                        },
+                      },
+                      title: true,
+                      description: true,
+                      createdAt: true,
+                      sellerResponse: true,
+                    },
+                  },
+                },
+              },
             },
           },
           title: true,
@@ -62,26 +86,7 @@ export async function getDetailedUser(
               },
             },
           },
-          reviews: {
-            select: {
-              id: true,
-              rating: true,
-              orderId: true,
-              author: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  username: true,
-                  avatar: true,
-                },
-              },
-              title: true,
-              description: true,
-              createdAt: true,
-              sellerResponse: true,
-            },
-          },
+
           tags: {
             select: {
               title: true,
@@ -174,7 +179,11 @@ export async function getDetailedUser(
     return null;
   }
 
-  const allReviews = user.gigs.flatMap((gig) => gig.reviews);
+  const allReviews = user.gigs
+    .flatMap((gig) =>
+      gig.packages.flatMap((pkg) => pkg.orders.flatMap((order) => order.review))
+    )
+    .filter((review) => review !== null);
 
   return {
     isVerified: user.isProfileVerified,
@@ -242,10 +251,31 @@ export async function getDetailedUser(
       ),
       title: gig.title,
       description: gig.description,
-      ratingCount: gig.reviews.length,
+      ratingCount: gig.packages.reduce(
+        (count, pkg) =>
+          count +
+          pkg.orders.reduce((sum, order) => sum + (order.review ? 1 : 0), 0),
+        0
+      ),
       averageRating:
-        gig.reviews.reduce((sum, review) => sum + review.rating, 0) /
-        (gig.reviews.length || 1),
+        gig.packages.reduce(
+          (sum, pkg) =>
+            sum +
+            pkg.orders.reduce(
+              (ratingSum, order) => ratingSum + (order.review?.rating || 0),
+              0
+            ),
+          0
+        ) /
+        (gig.packages.reduce(
+          (count, pkg) =>
+            count +
+            pkg.orders.reduce(
+              (orderCount, order) => orderCount + (order.review ? 1 : 0),
+              0
+            ),
+          0
+        ) || 1),
       tags: gig.tags.map((tag) => ({
         id: tag.id,
         label: tag.title,
@@ -414,9 +444,9 @@ export async function updateProfile(
   values: z.infer<typeof UpdateProfileFormSchema>
 ) {
   try {
-    const { user } = await auth();
-    if (!user) {
-      return { success: false, error: "User not authenticated" };
+    const session = await auth();
+    if (!session) {
+      throw new Error("Unauthorized");
     }
 
     // Process avatar upload if new
@@ -439,31 +469,41 @@ export async function updateProfile(
       );
     }
 
-    // Process portfolio images
-    const portfolioItemsWithUploadedImages = await Promise.all(
+    // Process portfolio images for each item
+    const processedPortfolioItems = await Promise.all(
       values.portfolioItems.map(async (item) => {
-        const uploadedImages = await Promise.all(
-          item.images.map(async (img) => {
-            if (img.type === "new") {
-              const url = await uploadFileToCloudinary(img.file, "gig_images");
-              return {
-                url,
-                isPrimary: img.isPrimary,
-                isNew: true,
-              };
-            }
-            return {
-              id: img.id,
-              url: img.url,
-              isPrimary: img.isPrimary,
-              isNew: false,
-            };
-          })
+        const newImageFiles = item.images
+          .filter((img) => img.type === "new")
+          .map((img) => img.file);
+
+        // Upload new images for this portfolio item
+        let uploadedUrls: string[] = [];
+        if (newImageFiles.length > 0) {
+          uploadedUrls = await uploadFilesToCloudinary(
+            newImageFiles,
+            "chat_media"
+          );
+        }
+
+        // Prepare image data
+        const existingImages = item.images.filter(
+          (img) => img.type === "existing"
         );
+        const newImages = item.images.filter((img) => img.type === "new");
+
+        const processedImages = [
+          ...existingImages,
+          ...newImages.map((img, index) => ({
+            type: "new" as const,
+            url: uploadedUrls[index],
+            isPrimary: img.isPrimary,
+            tempId: img.tempId,
+          })),
+        ];
 
         return {
           ...item,
-          uploadedImages,
+          processedImages,
         };
       })
     );
@@ -471,8 +511,10 @@ export async function updateProfile(
     // Perform database updates in a transaction
     await prisma.$transaction(async (tx) => {
       // Update basic user info
+      console.log("AVATAR:" + avatarUrl);
+
       await tx.user.update({
-        where: { id: user.id },
+        where: { id: session.user.id },
         data: {
           username: values.username,
           firstName: values.firstName,
@@ -485,21 +527,23 @@ export async function updateProfile(
       });
 
       // Handle skills
-      // First, get existing skills
       const existingSkills = await tx.userSkill.findMany({
-        where: { userId: user.id },
+        where: { userId: session.user.id },
       });
 
+      const existingSkillIds = existingSkills.map((s) => s.id);
+      const incomingSkillIds = values.skills
+        .filter((s) => s.id)
+        .map((s) => s.id as string);
+
       // Delete removed skills
-      const skillsToDelete = existingSkills.filter(
-        (es) => !values.skills.some((s) => s.id === es.id)
+      const skillsToDelete = existingSkillIds.filter(
+        (id) => !incomingSkillIds.includes(id)
       );
 
       if (skillsToDelete.length > 0) {
         await tx.userSkill.deleteMany({
-          where: {
-            id: { in: skillsToDelete.map((s) => s.id) },
-          },
+          where: { id: { in: skillsToDelete } },
         });
       }
 
@@ -515,7 +559,7 @@ export async function updateProfile(
           // Create new skill
           await tx.userSkill.create({
             data: {
-              userId: user.id,
+              userId: session.user.id,
               skillId: skill.skillId,
               level: skill.level,
             },
@@ -525,19 +569,22 @@ export async function updateProfile(
 
       // Handle social links
       const existingLinks = await tx.socialLink.findMany({
-        where: { userId: user.id },
+        where: { userId: session.user.id },
       });
 
+      const existingLinkIds = existingLinks.map((l) => l.id);
+      const incomingLinkIds = values.socialLinks
+        .filter((l) => l.id)
+        .map((l) => l.id as string);
+
       // Delete removed links
-      const linksToDelete = existingLinks.filter(
-        (el) => !values.socialLinks.some((l) => l.id === el.id)
+      const linksToDelete = existingLinkIds.filter(
+        (id) => !incomingLinkIds.includes(id)
       );
 
       if (linksToDelete.length > 0) {
         await tx.socialLink.deleteMany({
-          where: {
-            id: { in: linksToDelete.map((l) => l.id) },
-          },
+          where: { id: { in: linksToDelete } },
         });
       }
 
@@ -556,7 +603,7 @@ export async function updateProfile(
           // Create new link
           await tx.socialLink.create({
             data: {
-              userId: user.id,
+              userId: session.user.id,
               type: link.type,
               url: link.url,
             },
@@ -566,33 +613,54 @@ export async function updateProfile(
 
       // Handle portfolio items
       const existingPortfolioItems = await tx.portfolioItem.findMany({
-        where: { userId: user.id },
-        include: { images: true },
+        where: { userId: session.user.id },
+        include: {
+          images: {
+            include: {
+              file: true,
+            },
+          },
+        },
       });
 
+      const existingPortfolioIds = existingPortfolioItems.map((p) => p.id);
+      const incomingPortfolioIds = processedPortfolioItems
+        .filter((p) => p.id)
+        .map((p) => p.id as string);
+
       // Delete removed portfolio items
-      const portfolioItemsToDelete = existingPortfolioItems.filter(
-        (ep) => !portfolioItemsWithUploadedImages.some((p) => p.id === ep.id)
+      const portfolioItemsToDelete = existingPortfolioIds.filter(
+        (id) => !incomingPortfolioIds.includes(id)
       );
 
       if (portfolioItemsToDelete.length > 0) {
-        // Delete associated images first
-        await tx.image.deleteMany({
-          where: {
-            portfolioItemId: { in: portfolioItemsToDelete.map((p) => p.id) },
-          },
+        // Get file IDs for cleanup
+        const imagesToDelete = await tx.image.findMany({
+          where: { portfolioItemId: { in: portfolioItemsToDelete } },
+          select: { fileId: true },
         });
 
-        // Then delete portfolio items
+        // Delete images
+        await tx.image.deleteMany({
+          where: { portfolioItemId: { in: portfolioItemsToDelete } },
+        });
+
+        // Delete media files
+        const fileIdsToDelete = imagesToDelete.map((img) => img.fileId);
+        if (fileIdsToDelete.length > 0) {
+          await tx.mediaFile.deleteMany({
+            where: { id: { in: fileIdsToDelete } },
+          });
+        }
+
+        // Delete portfolio items
         await tx.portfolioItem.deleteMany({
-          where: {
-            id: { in: portfolioItemsToDelete.map((p) => p.id) },
-          },
+          where: { id: { in: portfolioItemsToDelete } },
         });
       }
 
       // Update existing and create new portfolio items
-      for (const item of portfolioItemsWithUploadedImages) {
+      for (const item of processedPortfolioItems) {
         let portfolioItemId: string;
 
         if (item.id) {
@@ -608,25 +676,44 @@ export async function updateProfile(
           portfolioItemId = item.id;
 
           // Handle images for existing item
-          const existingImages =
+          const existingItemImages =
             existingPortfolioItems.find((p) => p.id === item.id)?.images || [];
 
+          const existingImageIds = existingItemImages.map((img) => img.id);
+          const keepImageIds = item.processedImages
+            .filter((img) => img.type === "existing")
+            .map((img) => img.id);
+
           // Delete removed images
-          const imagesToDelete = existingImages.filter(
-            (ei) =>
-              !item.uploadedImages.some((ui) => !ui.isNew && ui.id === ei.id)
+          const imagesToDelete = existingImageIds.filter(
+            (id) => !keepImageIds.includes(id)
           );
 
           if (imagesToDelete.length > 0) {
-            await tx.image.deleteMany({
-              where: {
-                id: { in: imagesToDelete.map((i) => i.id) },
-              },
+            // Get file IDs for cleanup
+            const imagesToDeleteData = await tx.image.findMany({
+              where: { id: { in: imagesToDelete } },
+              select: { fileId: true },
             });
+
+            // Delete images
+            await tx.image.deleteMany({
+              where: { id: { in: imagesToDelete } },
+            });
+
+            // Delete media files
+            const fileIdsToDelete = imagesToDeleteData.map((img) => img.fileId);
+            if (fileIdsToDelete.length > 0) {
+              await tx.mediaFile.deleteMany({
+                where: { id: { in: fileIdsToDelete } },
+              });
+            }
           }
 
-          // Update existing images
-          for (const img of item.uploadedImages.filter((i) => !i.isNew)) {
+          // Update existing images (isPrimary flag)
+          for (const img of item.processedImages.filter(
+            (i) => i.type === "existing"
+          )) {
             await tx.image.update({
               where: { id: img.id },
               data: { isPrimary: img.isPrimary },
@@ -636,7 +723,7 @@ export async function updateProfile(
           // Create new portfolio item
           const newItem = await tx.portfolioItem.create({
             data: {
-              userId: user.id,
+              userId: session.user.id, // Fixed: was user.id
               title: item.title,
               description: item.description || null,
               url: item.url || null,
@@ -646,7 +733,9 @@ export async function updateProfile(
         }
 
         // Create new images
-        for (const img of item.uploadedImages.filter((i) => i.isNew)) {
+        for (const img of item.processedImages.filter(
+          (i) => i.type === "new"
+        )) {
           const mediaFile = await tx.mediaFile.create({
             data: {
               url: img.url,
@@ -669,7 +758,7 @@ export async function updateProfile(
         // First unset all featured badges
         await tx.userBadgeProgress.updateMany({
           where: {
-            userId: user.id,
+            userId: session.user.id,
             isFeatured: true,
           },
           data: { isFeatured: false },
@@ -680,7 +769,7 @@ export async function updateProfile(
           await tx.userBadgeProgress.update({
             where: {
               id: values.featuredBadgeId,
-              userId: user.id,
+              userId: session.user.id,
             },
             data: { isFeatured: true },
           });
@@ -688,7 +777,19 @@ export async function updateProfile(
       }
     });
 
-    return { success: true };
+    console.log("AVATAR:" + avatarUrl);
+    return {
+      success: true,
+      user: {
+        username: values.username,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        headline: values.headline,
+        bio: values.bio,
+        avatar: avatarUrl,
+        banner: bannerUrl,
+      },
+    };
   } catch (error) {
     console.error("Error updating profile:", error);
     return {

@@ -83,7 +83,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
           </div>
         </div>
 
-        <div className="flex gap-6 text-center">
+        <div className="relative z-99 flex gap-6 text-center">
           <div>
             <div className="flex items-center gap-1 text-xl font-bold">
               <Star className="size-5 text-amber-500 fill-amber-500" />

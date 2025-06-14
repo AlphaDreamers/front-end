@@ -31,7 +31,7 @@ const GigCard = ({ gig }: GigCardProps) => {
           width={200}
           height={200}
           alt={gig.title}
-          className="-mt-6 -mx-6 min-w-[calc(100%+48px)] h-48 object-cover"
+          className="-mt-6 -mx-6 min-w-[calc(100%+48px)] h-64 object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">

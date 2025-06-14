@@ -67,7 +67,6 @@ export const ForgotPasswordFormSchema = z.object({
   email: z.string().email(),
 });
 
-
 // Schema for resetting the password
 export const ResetPasswordFormSchema = z
   .object({
@@ -409,8 +408,6 @@ export const EditGigFormSchema = z
 
 // Schema for updating user profile
 import { SocialLinkType } from "@prisma/client";
-
-// Enhanced schema for updating profile that handles both existing and new items
 export const UpdateProfileFormSchema = z.object({
   // Basic information
   username: z
@@ -449,7 +446,7 @@ export const UpdateProfileFormSchema = z.object({
     .discriminatedUnion("type", [
       z.object({
         type: z.literal("existing"),
-        url: z.string().url(),
+        url: z.string().url("Must be a valid URL"),
       }),
       z.object({
         type: z.literal("new"),
@@ -457,13 +454,37 @@ export const UpdateProfileFormSchema = z.object({
         tempId: z.string(),
       }),
     ])
-    .nullable(),
+    .nullable()
+    .refine(
+      (avatar) => {
+        if (avatar?.type === "new") {
+          const validTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp",
+          ];
+          return validTypes.includes(avatar.file.type);
+        }
+        return true;
+      },
+      { message: "Avatar must be a JPEG, PNG, or WebP image" }
+    )
+    .refine(
+      (avatar) => {
+        if (avatar?.type === "new") {
+          return avatar.file.size <= 5 * 1024 * 1024; // 5MB limit
+        }
+        return true;
+      },
+      { message: "Avatar must be less than 5MB" }
+    ),
 
   banner: z
     .discriminatedUnion("type", [
       z.object({
         type: z.literal("existing"),
-        url: z.string().url(),
+        url: z.string().url("Must be a valid URL"),
       }),
       z.object({
         type: z.literal("new"),
@@ -471,18 +492,48 @@ export const UpdateProfileFormSchema = z.object({
         tempId: z.string(),
       }),
     ])
-    .nullable(),
+    .nullable()
+    .refine(
+      (banner) => {
+        if (banner?.type === "new") {
+          const validTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp",
+          ];
+          return validTypes.includes(banner.file.type);
+        }
+        return true;
+      },
+      { message: "Banner must be a JPEG, PNG, or WebP image" }
+    )
+    .refine(
+      (banner) => {
+        if (banner?.type === "new") {
+          return banner.file.size <= 10 * 1024 * 1024; // 10MB limit for banners
+        }
+        return true;
+      },
+      { message: "Banner must be less than 10MB" }
+    ),
 
   // Skills array
-  skills: z.array(
-    z.object({
-      id: z.string().uuid().optional(), // Existing skills have IDs
-      tempId: z.string().optional(), // New skills get temp IDs
-      skillId: z.string().uuid(), // The skill reference
-      label: z.string(), // For display purposes
-      level: z.number().min(1).max(5),
-    })
-  ),
+  skills: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(), // Existing skills have IDs
+        tempId: z.string().optional(), // New skills get temp IDs
+        skillId: z.string().uuid("Invalid skill selection"), // The skill reference
+        label: z.string().min(1, "Skill label is required"), // For display purposes
+        level: z
+          .number()
+          .int("Level must be a whole number")
+          .min(1, "Level must be at least 1")
+          .max(5, "Level must be at most 5"),
+      })
+    )
+    .max(20, "Maximum 20 skills allowed"),
 
   // Social links
   socialLinks: z
@@ -490,10 +541,15 @@ export const UpdateProfileFormSchema = z.object({
       z.object({
         id: z.string().uuid().optional(), // Existing links have IDs
         tempId: z.string().optional(), // New links get temp IDs
-        type: z.nativeEnum(SocialLinkType),
-        url: z.string().min(1, "URL is required"),
+        type: z.nativeEnum(SocialLinkType, {
+          errorMap: () => ({
+            message: "Please select a valid social platform",
+          }),
+        }),
+        url: z.string().min(1, "URL is required").url("Must be a valid URL"),
       })
     )
+    .max(10, "Maximum 10 social links allowed")
     .refine(
       (links) => {
         // Ensure no duplicate social link types
@@ -504,41 +560,80 @@ export const UpdateProfileFormSchema = z.object({
     ),
 
   // Portfolio items
-  portfolioItems: z.array(
-    z.object({
-      id: z.string().uuid().optional(), // Existing items have IDs
-      tempId: z.string().optional(), // New items get temp IDs
-      title: z.string().min(1, "Title is required").max(100),
-      description: z.string().max(500).optional(),
-      url: z.string().url().optional().or(z.literal("")),
-      images: z
-        .array(
-          z.discriminatedUnion("type", [
-            // Existing images
-            z.object({
-              type: z.literal("existing"),
-              id: z.string().uuid(),
-              url: z.string().url(),
-              isPrimary: z.boolean(),
-            }),
-            // New images
-            z.object({
-              type: z.literal("new"),
-              file: z.instanceof(File),
-              isPrimary: z.boolean(),
-              tempId: z.string(),
-            }),
-          ])
-        )
-        .min(1, "At least one image is required")
-        .refine((images) => images.some((img) => img.isPrimary), {
-          message: "One image must be marked as primary",
-        }),
-    })
-  ),
+  portfolioItems: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(), // Existing items have IDs
+        tempId: z.string().optional(), // New items get temp IDs
+        title: z
+          .string()
+          .min(1, "Title is required")
+          .max(100, "Title must be at most 100 characters"),
+        description: z
+          .string()
+          .max(500, "Description must be at most 500 characters")
+          .optional(),
+        url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+        images: z
+          .array(
+            z.discriminatedUnion("type", [
+              // Existing images
+              z.object({
+                type: z.literal("existing"),
+                id: z.string().uuid(),
+                url: z.string().url("Must be a valid URL"),
+                isPrimary: z.boolean(),
+              }),
+              // New images
+              z.object({
+                type: z.literal("new"),
+                file: z.instanceof(File),
+                isPrimary: z.boolean(),
+                tempId: z.string(),
+              }),
+            ])
+          )
+          .min(1, "At least one image is required")
+          .max(8, "Maximum 8 images per portfolio item")
+          .refine((images) => images.some((img) => img.isPrimary), {
+            message: "One image must be marked as primary",
+          })
+          .refine(
+            (images) => {
+              // Validate file types for new images
+              return images.every((img) => {
+                if (img.type === "new") {
+                  const validTypes = [
+                    "image/jpeg",
+                    "image/jpg",
+                    "image/png",
+                    "image/webp",
+                  ];
+                  return validTypes.includes(img.file.type);
+                }
+                return true;
+              });
+            },
+            { message: "Only JPEG, PNG, and WebP images are allowed" }
+          )
+          .refine(
+            (images) => {
+              // Validate file sizes for new images
+              return images.every((img) => {
+                if (img.type === "new") {
+                  return img.file.size <= 5 * 1024 * 1024; // 5MB limit
+                }
+                return true;
+              });
+            },
+            { message: "Each image must be less than 5MB" }
+          ),
+      })
+    )
+    .max(15, "Maximum 15 portfolio items allowed"),
 
   // Featured badge
-  featuredBadgeId: z.string().uuid().nullable(),
+  featuredBadgeId: z.string().uuid("Invalid badge selection").nullable(),
 });
 
 // --- KYC Schema ---

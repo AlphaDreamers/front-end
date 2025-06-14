@@ -387,6 +387,7 @@ model Gig {
   categoryId String
   sellerId   String
 
+  updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
 
@@ -695,4 +696,13 @@ model Transaction {
 
   @@index([txId])
   @@index([orderId])
+}
+
+model FailedLoginAttempt {
+  id String @id @default(uuid())
+
+  email     String
+  ipAddress String
+  reason    String
+  timestamp DateTime @default(now())
 }

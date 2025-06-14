@@ -17,8 +17,9 @@ import { buttonVariants } from "@/components/ui/button";
 import DashboardGigCard, {
   DashboardGigCardSkeleton,
 } from "@/components/gig/dashboard-gig-card";
-import { me } from "@/lib/actions/auth";
+
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -27,10 +28,10 @@ export default async function DashboardGigsPage({
 }: {
   searchParams: Promise<GigSearchParams>;
 }) {
-  const { user } = await auth();
+  const session = await auth();
 
   // This is handled by the middleware, but we check here to avoid unnecessary DB calls
-  if (!user) {
+  if (!session) {
     redirect(`/sign-in?callback-url=/dashboard/gigs`);
   }
   const params = await searchParams;
@@ -39,7 +40,7 @@ export default async function DashboardGigsPage({
 
   filtersArgs.where = {
     ...filtersArgs.where,
-    sellerId: user.id,
+    sellerId: session.user.id,
   };
 
   const getFilters = async (): Promise<FilterType[]> => {

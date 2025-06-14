@@ -14,6 +14,7 @@ import {
 } from "../types";
 import { revalidatePath } from "next/cache";
 import { auth } from "../auth";
+import { uploadFilesToCloudinary } from "./cloudinary";
 
 export const createGig = async (
   values: z.infer<typeof CreateGigFormSchema>
@@ -246,26 +247,7 @@ export const getUpdateGigFormGig = async (
   };
 };
 
-export const updateGig = async ({
-  title,
-  description,
-  images,
-}: {
-  title?: string;
-  description?: string;
-  images?: {
-    metadata: "create" | "update" | "delete";
-  }[];
-}) => {
-  const data: Prisma.GigUpdateInput = {};
-
-  if (title) {
-    data.title = title;
-  }
-  if (description) {
-    data.description = description;
-  }
-
+export const updateGig = async (values: z.infer<typeof EditGigFormSchema>) => {
   try {
     // 1. Authenticate the user
     const session = await auth();
@@ -290,11 +272,15 @@ export const updateGig = async ({
       include: {
         packages: {
           include: {
-            features: true, // Include package-feature relationships
+            features: true,
           },
         },
         features: true,
-        images: true,
+        images: {
+          include: {
+            file: true,
+          },
+        },
         tags: true,
       },
     });
@@ -308,60 +294,32 @@ export const updateGig = async ({
     }
 
     // 3. Process new image uploads OUTSIDE the transaction
-    // This prevents long-running uploads from blocking the database
-    const processedImages = await Promise.all(
-      images.map(async (image) => {
-        if (image.type === "existing") {
-          // Existing images are already processed
-          return {
-            type: "existing" as const,
-            id: image.id,
-            url: image.url,
-            isPrimary: image.isPrimary,
-          };
-        } else {
-          // Upload new images to Cloudinary
-          try {
-            const formData = new FormData();
-            formData.append("file", image.file);
-            formData.append("upload_preset", "gig_images");
-            formData.append("folder", "gigs/images");
+    const newImageFiles = images
+      .filter((img) => img.type === "new")
+      .map((img) => img.file);
 
-            const response = await fetch(
-              `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
+    let uploadedImageUrls: string[] = [];
+    if (newImageFiles.length > 0) {
+      uploadedImageUrls = await uploadFilesToCloudinary(
+        newImageFiles,
+        "gig_images"
+      );
+    }
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(
-                `Upload failed: ${error.error?.message || "Unknown error"}`
-              );
-            }
+    // 4. Prepare image data for database operations
+    const existingImages = images.filter((img) => img.type === "existing");
+    const newImages = images.filter((img) => img.type === "new");
 
-            const result = await response.json();
+    // Map new images to their uploaded URLs
+    const newImageData = newImages.map((img, index) => ({
+      url: uploadedImageUrls[index],
+      isPrimary: img.isPrimary,
+      tempId: img.tempId,
+    }));
 
-            return {
-              type: "new" as const,
-              url: result.secure_url,
-              publicId: result.public_id,
-              isPrimary: image.isPrimary,
-              tempId: image.tempId,
-            };
-          } catch (error) {
-            console.error("Failed to upload image:", error);
-            throw new Error("Failed to upload image");
-          }
-        }
-      })
-    );
-
-    // 4. Perform all database updates in a transaction
+    // 5. Perform all database updates in a transaction
     const updatedGig = await prisma.$transaction(async (tx) => {
-      // 4.1 Update basic gig information
+      // 5.1 Update basic gig information
       await tx.gig.update({
         where: { id },
         data: {
@@ -371,42 +329,40 @@ export const updateGig = async ({
         },
       });
 
-      // 4.2 Handle tags (replace all existing tags with new selection)
+      // 5.2 Handle tags (replace all existing tags with new selection)
       await tx.gig.update({
         where: { id },
         data: {
           tags: {
-            set: [], // First disconnect all existing tags
-            connect: tags.map((tagId) => ({ id: tagId })), // Then connect new ones
+            set: [], // Disconnect all existing tags
+            connect: tags.map((tagId) => ({ id: tagId })), // Connect new ones
           },
         },
       });
 
-      // 4.3 Handle features
-      const existingFeatureIds = new Set(existingGig.features.map((f) => f.id));
-      const incomingFeatureIds = new Set(
-        features.filter((f) => f.id).map((f) => f.id as string)
-      );
+      // 5.3 Handle features
+      const existingFeatureIds = existingGig.features.map((f) => f.id);
+      const incomingFeatureIds = features
+        .filter((f) => f.id)
+        .map((f) => f.id as string);
 
-      // Delete features that exist in DB but not in the update
-      const featuresToDelete = [...existingFeatureIds].filter(
-        (id) => !incomingFeatureIds.has(id)
+      // Delete features that are no longer needed
+      const featuresToDelete = existingFeatureIds.filter(
+        (id) => !incomingFeatureIds.includes(id)
       );
 
       if (featuresToDelete.length > 0) {
-        // First delete package features that reference these gig features
+        // Delete package features first (foreign key constraint)
         await tx.packageFeature.deleteMany({
           where: { featureId: { in: featuresToDelete } },
         });
-
-        // Then delete the gig features themselves
+        // Then delete the gig features
         await tx.gigFeature.deleteMany({
           where: { id: { in: featuresToDelete } },
         });
       }
 
-      // Create a mapping of old feature IDs to new feature IDs
-      // This handles both updates to existing features and creation of new ones
+      // Update existing features and create new ones
       const featureIdMapping = new Map<string, string>();
 
       for (const feature of features) {
@@ -429,23 +385,22 @@ export const updateGig = async ({
         }
       }
 
-      // 4.4 Handle packages
-      const existingPackageIds = new Set(existingGig.packages.map((p) => p.id));
-      const incomingPackageIds = new Set(
-        packages.filter((p) => p.id).map((p) => p.id as string)
-      );
+      // 5.4 Handle packages
+      const existingPackageIds = existingGig.packages.map((p) => p.id);
+      const incomingPackageIds = packages
+        .filter((p) => p.id)
+        .map((p) => p.id as string);
 
-      // Delete packages that exist in DB but not in the update
-      const packagesToDelete = [...existingPackageIds].filter(
-        (id) => !incomingPackageIds.has(id)
+      // Delete packages that are no longer needed
+      const packagesToDelete = existingPackageIds.filter(
+        (id) => !incomingPackageIds.includes(id)
       );
 
       for (const packageId of packagesToDelete) {
-        // Delete package features first (foreign key constraint)
+        // Delete package features first
         await tx.packageFeature.deleteMany({
           where: { gigPackageId: packageId },
         });
-
         // Then delete the package
         await tx.package.delete({
           where: { id: packageId },
@@ -469,8 +424,7 @@ export const updateGig = async ({
           });
           packageId = updatedPackage.id;
 
-          // Delete all existing package features for this package
-          // We'll recreate them below with the current state
+          // Delete existing package features to recreate them
           await tx.packageFeature.deleteMany({
             where: { gigPackageId: packageId },
           });
@@ -488,13 +442,12 @@ export const updateGig = async ({
           packageId = newPackage.id;
         }
 
-        // Create package features based on the current feature inclusions
-        // This recreates the many-to-many relationship for this package
+        // Create package features based on feature inclusions
         for (let index = 0; index < features.length; index++) {
           const feature = features[index];
           const isIncluded = pkg.featureInclusions[index];
 
-          // Get the actual feature ID (could be existing or newly created)
+          // Get the actual feature ID
           const featureId = feature.id
             ? featureIdMapping.get(feature.id)
             : featureIdMapping.get(feature.tempId!);
@@ -511,53 +464,65 @@ export const updateGig = async ({
         }
       }
 
-      // 4.5 Handle images
-      const existingImageIds = new Set(existingGig.images.map((img) => img.id));
-      const incomingImageIds = new Set(
-        processedImages
-          .filter((img) => img.type === "existing")
-          .map((img) => img.id)
-      );
+      // 5.5 Handle images
+      const existingImageIds = existingGig.images.map((img) => img.id);
+      const keepImageIds = existingImages.map((img) => img.id);
 
-      // Delete images that exist in DB but not in the update
-      const imagesToDelete = [...existingImageIds].filter(
-        (id) => !incomingImageIds.has(id)
+      // Delete images that are no longer needed
+      const imagesToDelete = existingImageIds.filter(
+        (id) => !keepImageIds.includes(id)
       );
 
       if (imagesToDelete.length > 0) {
+        // Get the file IDs before deleting images
+        const imagesToDeleteData = await tx.image.findMany({
+          where: { id: { in: imagesToDelete } },
+          select: { fileId: true },
+        });
+
+        // Delete images
         await tx.image.deleteMany({
           where: { id: { in: imagesToDelete } },
         });
-      }
 
-      // Update existing images and create new ones
-      for (const image of processedImages) {
-        if (image.type === "existing") {
-          // Update existing image (mainly the isPrimary flag)
-          await tx.image.update({
-            where: { id: image.id },
-            data: { isPrimary: image.isPrimary },
-          });
-        } else {
-          // Create new image with media file
-          const mediaFile = await tx.mediaFile.create({
-            data: {
-              url: image.url,
-              type: "IMAGE",
-            },
-          });
-
-          await tx.image.create({
-            data: {
-              fileId: mediaFile.id,
-              gigId: id,
-              isPrimary: image.isPrimary,
-            },
+        // Delete associated media files
+        const fileIdsToDelete = imagesToDeleteData.map((img) => img.fileId);
+        if (fileIdsToDelete.length > 0) {
+          await tx.mediaFile.deleteMany({
+            where: { id: { in: fileIdsToDelete } },
           });
         }
       }
 
-      // 4.6 Return the updated gig with all related data
+      // Update existing images (mainly isPrimary flag)
+      for (const image of existingImages) {
+        await tx.image.update({
+          where: { id: image.id },
+          data: { isPrimary: image.isPrimary },
+        });
+      }
+
+      // Create new images
+      for (const newImage of newImageData) {
+        // Create media file first
+        const mediaFile = await tx.mediaFile.create({
+          data: {
+            url: newImage.url,
+            type: "IMAGE",
+          },
+        });
+
+        // Create image record
+        await tx.image.create({
+          data: {
+            fileId: mediaFile.id,
+            gigId: id,
+            isPrimary: newImage.isPrimary,
+          },
+        });
+      }
+
+      // 5.6 Return the updated gig with all related data
       return await tx.gig.findUnique({
         where: { id },
         include: {

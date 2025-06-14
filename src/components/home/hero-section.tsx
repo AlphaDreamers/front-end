@@ -1,3 +1,4 @@
+import { SearchToggle } from "../navigation/search-provider";
 import { Input } from "../ui/input";
 import { Search } from "lucide-react";
 
@@ -24,14 +25,16 @@ const HeroSection = () => {
             the middleman.
           </p>
 
-          <div className="relative mx-auto w-full max-w-2xl">
-            <Search className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-muted-foreground size-6" />
-            <Input
-              type="text"
-              placeholder="Search for services (e.g., logo design, web development)"
-              className="w-full max-w-2xl pointer-events-none rounded-full h-12 pl-12"
-            />
-          </div>
+          <SearchToggle className="cursor-text">
+            <div className="relative mx-auto w-full max-w-2xl">
+              <Search className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-muted-foreground size-6" />
+              <Input
+                type="text"
+                placeholder="Search for services (e.g., logo design, web development)"
+                className="w-full max-w-2xl pointer-events-none rounded-full h-12 pl-12"
+              />
+            </div>
+          </SearchToggle>
         </div>
       </div>
     </section>

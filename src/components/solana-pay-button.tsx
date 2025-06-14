@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Coins, CreditCard } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { useWallets } from "./wallet/wallet-provider";
@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import PasswordInput from "./password-input";
+import { useRouter } from "next/navigation";
+import { createStripeCheckoutSession } from "@/lib/actions/stripe";
 
 interface SolanaBuyButtonProps {
   orderId: string;
@@ -24,15 +26,44 @@ interface SolanaBuyButtonProps {
 const SolanaBuyButton = ({ orderId }: SolanaBuyButtonProps) => {
   const { performTransaction } = useWallets();
   const [password, setPassword] = useState("");
+  const { push } = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleStripePayment = async () => {
+    setIsLoading(true);
+    try {
+      const { checkoutUrl } = await createStripeCheckoutSession(orderId);
+
+      if (checkoutUrl) {
+        push(checkoutUrl);
+      }
+    } catch (error) {
+      console.error("Error processing Stripe payment:", error);
+      // Handle error (show toast, etc.)
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button className="justify-start">
-          <AlertCircle />
-          Pay
+      <div className="flex items-center gap-2 w-full">
+        <DialogTrigger asChild>
+          <Button className="flex-1 justify-start">
+            <Coins />
+            Pay with Solana
+          </Button>
+        </DialogTrigger>
+        <Button
+          variant="secondary"
+          className="flex-1 justify-start"
+          onClick={handleStripePayment}
+          disabled={isLoading}
+        >
+          <CreditCard />
+          Pay with Stripe
         </Button>
-      </DialogTrigger>
+      </div>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Confirm Payment for Order {orderId}</DialogTitle>

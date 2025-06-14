@@ -15,7 +15,7 @@ export const getKeyValueTags = async (): Promise<KeyValuePair[]> => {
   });
 
   return tags.map((tag) => ({
-    key: tag.id,
-    value: tag.title,
+    value: tag.id,
+    label: tag.title,
   }));
 };

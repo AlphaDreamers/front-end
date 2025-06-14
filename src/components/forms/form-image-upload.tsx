@@ -31,6 +31,20 @@ type NewImage = {
 
 type ImageUnion = ExistingImage | NewImage;
 
+// For single image uploads (avatar/banner)
+type ExistingSingleImage = {
+  type: "existing";
+  url: string;
+};
+
+type NewSingleImage = {
+  type: "new";
+  file: File;
+  tempId: string;
+};
+
+type SingleImageUnion = ExistingSingleImage | NewSingleImage;
+
 interface FormImageUploadProps<T extends FieldValues = FieldValues> {
   control: Control<T>;
   name: Path<T>;
@@ -42,6 +56,9 @@ interface FormImageUploadProps<T extends FieldValues = FieldValues> {
   maxSizeMB?: number;
   acceptedTypes?: string[];
   className?: string;
+  // New props for single image mode
+  singleImage?: boolean;
+  aspectRatio?: string; // e.g., "1/1" for square, "3/1" for banner
 }
 
 export default function FormImageUpload<T extends FieldValues = FieldValues>({
@@ -55,6 +72,8 @@ export default function FormImageUpload<T extends FieldValues = FieldValues>({
   maxSizeMB = 5,
   acceptedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"],
   className,
+  singleImage = false,
+  aspectRatio,
 }: FormImageUploadProps<T>) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -67,7 +86,175 @@ export default function FormImageUpload<T extends FieldValues = FieldValues>({
       control={control}
       name={name}
       render={({ field }) => {
-        const images: ImageUnion[] = field.value || [];
+        const fieldValue = field.value;
+
+        // Handle single image mode
+        if (singleImage) {
+          const image: SingleImageUnion | null = fieldValue;
+
+          const handleSingleFileSelect = (files: FileList | null) => {
+            if (!files || files.length === 0) return;
+
+            const file = files[0];
+
+            // Validate file type
+            if (!acceptedTypes.includes(file.type)) {
+              console.error("Invalid file type");
+              return;
+            }
+
+            // Validate file size
+            if (file.size > maxSizeMB * 1024 * 1024) {
+              console.error("File too large");
+              return;
+            }
+
+            const newImage: NewSingleImage = {
+              type: "new",
+              file,
+              tempId: generateTempId(),
+            };
+
+            field.onChange(newImage);
+          };
+
+          const removeSingleImage = () => {
+            field.onChange(null);
+          };
+
+          const getSingleImageUrl = (img: SingleImageUnion): string => {
+            return img.type === "existing"
+              ? img.url
+              : URL.createObjectURL(img.file);
+          };
+
+          const handleSingleDrag = (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (e.type === "dragenter" || e.type === "dragover") {
+              setDragActive(true);
+            } else if (e.type === "dragleave") {
+              setDragActive(false);
+            }
+          };
+
+          const handleSingleDrop = (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragActive(false);
+
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+              handleSingleFileSelect(e.dataTransfer.files);
+            }
+          };
+
+          return (
+            <FormItem className={className}>
+              {label && (
+                <FormLabel>
+                  {label}
+                  {required && <span className="text-destructive ml-1">*</span>}
+                </FormLabel>
+              )}
+
+              <FormControl>
+                <div className="space-y-4">
+                  {image ? (
+                    // Image preview for single image
+                    <div
+                      className={cn(
+                        "relative rounded-lg overflow-hidden border group",
+                        aspectRatio && `aspect-[${aspectRatio}]`,
+                        !aspectRatio && "aspect-square"
+                      )}
+                    >
+                      <img
+                        src={getSingleImageUrl(image)}
+                        alt="Upload preview"
+                        className="w-full h-full object-cover"
+                      />
+
+                      {/* Image type indicator */}
+                      <div className="absolute top-2 right-2">
+                        {image.type === "existing" ? (
+                          <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                            Saved
+                          </div>
+                        ) : (
+                          <div className="bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                            New
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Remove button */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="destructive"
+                          onClick={removeSingleImage}
+                          className="h-8 w-8"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Upload area for single image
+                    <div
+                      className={cn(
+                        "relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                        aspectRatio && `aspect-[${aspectRatio}]`,
+                        !aspectRatio && "aspect-square",
+                        dragActive
+                          ? "border-primary bg-primary/5"
+                          : "border-muted-foreground/25",
+                        disabled && "opacity-50 cursor-not-allowed"
+                      )}
+                      onClick={() => {
+                        if (!disabled) {
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      onDragEnter={handleSingleDrag}
+                      onDragLeave={handleSingleDrag}
+                      onDragOver={handleSingleDrag}
+                      onDrop={handleSingleDrop}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={acceptedTypes.join(",")}
+                        onChange={(e) => handleSingleFileSelect(e.target.files)}
+                        disabled={disabled}
+                        className="hidden"
+                      />
+
+                      <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-sm font-medium">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {acceptedTypes
+                          .map((type) => type.split("/")[1].toUpperCase())
+                          .join(", ")}{" "}
+                        (max {maxSizeMB}MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </FormControl>
+
+              {description && <FormDescription>{description}</FormDescription>}
+              <FormMessage />
+            </FormItem>
+          );
+        }
+
+        // Handle multiple images mode (existing logic)
+        const images: ImageUnion[] = fieldValue || [];
 
         const handleFileSelect = (files: FileList | null) => {
           if (!files || files.length === 0) return;
@@ -84,7 +271,7 @@ export default function FormImageUpload<T extends FieldValues = FieldValues>({
 
             // Validate file size
             if (file.size > maxSizeMB * 1024 * 1024) {
-              errors.push(`Images must be less than 5MB in size`);
+              errors.push(`Images must be less than ${maxSizeMB}MB in size`);
               return;
             }
 
@@ -109,6 +296,7 @@ export default function FormImageUpload<T extends FieldValues = FieldValues>({
             newImages.splice(allowedNew);
           }
 
+          // images is not an iteravble
           field.onChange([...images, ...newImages]);
         };
 

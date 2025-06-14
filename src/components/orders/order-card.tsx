@@ -543,13 +543,6 @@ export default function OrderCard({
           </Link>
         )}
       </CardFooter>
-      <StripeBuyButton
-        packageId={order.package.id}
-        price={order.package.price}
-        title={order.package.title + " - " + order.package.gig.title}
-        deliveryTime={order.package.deliveryTime}
-        revisions={10}
-      />
     </Card>
   );
 }

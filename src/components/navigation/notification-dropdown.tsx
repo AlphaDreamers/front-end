@@ -1,4 +1,3 @@
-// src/components/navigation/notification-dropdown.tsx
 "use client";
 
 import Link from "next/link";

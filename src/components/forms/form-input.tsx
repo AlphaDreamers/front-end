@@ -42,6 +42,7 @@ export default function FormInput<T extends FieldValues = FieldValues>({
   description,
   required = false,
   className,
+  children,
 }: FormInputProps<T>) {
   return (
     <FormField
@@ -53,6 +54,7 @@ export default function FormInput<T extends FieldValues = FieldValues>({
             <Icon className="h-4 w-4" />
             {label}
             {required && <span className="text-xs text-destructive">*</span>}
+            {children}
           </FormLabel>
           <FormControl>
             {type === "password-with-indicator" ? (
@@ -66,6 +68,16 @@ export default function FormInput<T extends FieldValues = FieldValues>({
               <PasswordInput {...field} placeholder={placeholder} />
             ) : type === "password-confirmation" ? (
               <Input type="password" {...field} placeholder={placeholder} />
+            ) : type === "number" ? (
+              <Input
+                type="number"
+                {...field}
+                onChange={(e) => {
+                  field.onChange(e.target.valueAsNumber);
+                }}
+                placeholder={placeholder}
+                className="appearance-none"
+              />
             ) : (
               <Input type={type} {...field} placeholder={placeholder} />
             )}

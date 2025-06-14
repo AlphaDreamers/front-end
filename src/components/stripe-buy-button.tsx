@@ -98,7 +98,6 @@ export function StripeBuyButton({
               variant="outline"
               className="w-full justify-start"
             >
-              <Coins className="mr-2 h-4 w-4" />
               Pay with Solana
               <Badge variant="secondary" className="ml-auto">
                 Crypto

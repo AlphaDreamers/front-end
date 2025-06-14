@@ -44,16 +44,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
+  useSecureCookies: process.env.NODE_ENV === "production",
   providers: [
     Credentials({
       async authorize(credentials) {
-        const user = await validateCredentials(
-          credentials as {
-            email: string;
-            password: string;
-          }
-        );
-        return user;
+        try {
+          const user = await validateCredentials(
+            credentials as {
+              email: string;
+              password: string;
+            }
+          );
+          return user;
+        } catch {
+          return null;
+        }
       },
     }),
   ],
@@ -71,13 +76,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return token;
     },
-    async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.email = token.email;
-      session.user.firstName = token.firstName;
-      session.user.lastName = token.lastName;
-      session.user.username = token.username;
-      session.user.avatar = token.avatar;
+    async session({ session, token, trigger }) {
+      if (trigger === "update") {
+        if (session.username) {
+          session.user.username = session.username;
+        }
+        if (session.firstName) {
+          session.user.firstName = session.firstName;
+        }
+        if (session.lastName) {
+          session.user.lastName = session.lastName;
+        }
+        if (session.avatar) {
+          session.user.avatar = session.avatar;
+        }
+        if (session.banner) {
+          session.user.banner = session.banner;
+        }
+      } else {
+        session.user.id = token.id;
+        session.user.email = token.email;
+        session.user.firstName = token.firstName;
+        session.user.lastName = token.lastName;
+        session.user.username = token.username;
+        session.user.avatar = token.avatar;
+      }
 
       session.user.unreadNotifications = await prisma.notification.count({
         where: {
@@ -88,5 +111,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return session;
     },
+  },
+  pages: {
+    signIn: "/sign-in",
+    error: "/sign-in",
   },
 });

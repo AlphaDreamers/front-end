@@ -160,7 +160,7 @@ const PasswordResetEmailTemplate: React.FC<
                 textAlign: "center",
               }}
             >
-              This link will expire in 24 hours for your security.
+              This link will expire in 1 hours for your security.
             </p>
 
             {/* Alternative access info */}

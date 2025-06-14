@@ -12,8 +12,6 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
-  ChevronsUpDown,
-  Check,
 } from "lucide-react";
 
 import { updateGig } from "@/lib/actions/gig";
@@ -28,35 +26,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 
 // Import our reusable form components
 import FormInput from "@/components/forms/form-input";
 import FormTextarea from "@/components/forms/form-textarea";
-import FormSelect from "@/components/forms/form-select";
-import FormMultiSelect from "@/components/forms/form-multi-select";
 import FormImageUpload from "@/components/forms/form-image-upload";
 import FormPackages from "@/components/forms/form-packages";
 import { KeyValuePair } from "@/lib/types";
 import Link from "next/link";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "../ui/command";
+import FormCombobox from "../forms/form-combobox";
+import FormMultiCombobox from "../forms/form-multicombobox";
 
 interface EditGigFormProps {
   gig: z.infer<typeof EditGigFormSchema>;
@@ -154,6 +135,7 @@ export default function EditGigForm({
             <FormInput
               control={form.control}
               name="title"
+              icon={Package}
               label="Gig Title"
               placeholder="I will design a professional logo for your business"
               description="Create a clear, searchable title that describes your service"
@@ -171,87 +153,30 @@ export default function EditGigForm({
             />
 
             <div className="grid gap-6 md:grid-cols-2">
-              <FormField
+              <FormCombobox
                 control={form.control}
                 name="categoryId"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Category
-                      <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className={cn(
-                              "w-[200px] justify-between",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value
-                              ? categories.find(
-                                  (cat) => cat.value === field.value
-                                )?.label
-                              : "Select category"}
-                            <ChevronsUpDown className="opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search categories..."
-                            className="h-9"
-                          />
-                          <CommandList>
-                            <CommandEmpty>No framework found.</CommandEmpty>
-                            <CommandGroup>
-                              {categories.map((cat) => (
-                                <CommandItem
-                                  value={cat.value}
-                                  key={cat.value}
-                                  onSelect={() => {
-                                    form.setValue("categoryId", cat.value);
-                                  }}
-                                >
-                                  {cat.label}
-                                  <Check
-                                    className={cn(
-                                      "ml-auto",
-                                      cat.value === field.value
-                                        ? "opacity-100"
-                                        : "opacity-0"
-                                    )}
-                                  />
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormDescription>
-                      Choose the most relevant category for your gig
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Category"
+                topic={{
+                  singular: "Category",
+                  plural: "Categories",
+                }}
+                icon={Package}
+                placeholder="Select a framework"
+                values={categories}
+                description="Choose the most relevant category for your gig"
               />
-
-              <FormMultiSelect
+              <FormMultiCombobox
                 control={form.control}
                 name="tags"
                 label="Tags"
-                placeholder="Select tags"
-                options={tags.map((tag) => ({
-                  label: tag.title,
-                  value: tag.id,
-                }))}
-                description="Add keywords to help buyers find you"
+                icon={Package}
+                topic={{
+                  singular: "Tag",
+                  plural: "Tags",
+                }}
+                values={tags}
+                description="Add keywords to help buyers find your gig"
                 required
               />
             </div>

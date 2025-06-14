@@ -29,11 +29,17 @@ export default function SignInPage() {
   });
   const onSubmit = async (values: z.infer<typeof SignInFormSchema>) =>
     toast.promise(
-      async () =>
-        await signIn("credentials", {
+      async () => {
+        const res = await signIn("credentials", {
           email: values.email,
           password: values.password,
-        }),
+          redirect: false,
+        });
+        console.log(JSON.stringify(res, null, 2));
+        if (res?.error) {
+          throw new Error("Invalid email or password");
+        }
+      },
       {
         loading: "Signing in...",
         success: () => {
@@ -117,7 +123,14 @@ export default function SignInPage() {
             control={form.control}
             required
             placeholder="Enter your password"
-          />
+          >
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary hover:underline ml-auto"
+            >
+              Forgot password?
+            </Link>
+          </FormInput>
 
           <Button type="submit" className="w-full mt-4" disabled={isLoading}>
             {isLoading ? (

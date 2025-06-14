@@ -2,23 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  HelpCircle,
-  LogIn,
-  Menu,
-  Search,
-  Settings,
-  User as UserIcon,
-  Wallet,
-  Package,
-  Home,
-  Shield,
-  LogOut,
-  Plus,
-} from "lucide-react";
+import { LogIn, Menu, Search, LogOut, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,21 +18,32 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 
 import MobileSidebar from "./mobile-sidebar";
-import SearchCommand from "./search-command";
 import NotificationDropdown from "./notification-dropdown";
-import { navItems, NavItem } from "./nav-items";
-import { signOut } from "@/lib/actions/auth";
-import { useSession } from "next-auth/react";
+import { getMainNavItems, userMenuItems } from "./nav-config";
 
 export default function NavBar() {
   const session = useSession();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const isAuthenticated = session.status === "authenticated";
+  const user = session.data?.user;
+
+  // Get navigation items based on auth status
+  const navItems = getMainNavItems(isAuthenticated);
 
   // Handle scroll for navbar background
   useEffect(() => {
@@ -60,11 +60,11 @@ export default function NavBar() {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  const isActive = (item: NavItem) => {
-    if (item.href === "/") {
+  const isActive = (href: string) => {
+    if (href === "/") {
       return pathname === "/";
     }
-    return pathname.startsWith(item.href);
+    return pathname.startsWith(href);
   };
 
   return (
@@ -72,7 +72,7 @@ export default function NavBar() {
       {/* Main Navbar */}
       <nav
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 w-screen border-b transition-all duration-200",
+          "fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-200",
           scrolled
             ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
             : "bg-background"
@@ -90,69 +90,91 @@ export default function NavBar() {
                 onClick={() => setIsMobileMenuOpen(true)}
                 aria-label="Open menu"
               >
-                <Menu />
+                <Menu className="h-5 w-5" />
               </Button>
 
               {/* Logo */}
-              <Link href="/" className="font-bold text-2xl">
-                <span>BlueFrog</span>
+
+              <Link href="/" className="font-bold text-3xl">
+                <span className="text-primary">Blue</span>
+                <span>Frog</span>
               </Link>
 
               {/* Desktop Navigation */}
-              <nav className="hidden lg:flex items-center gap-1">
-                {navItems
-                  .filter(
-                    (item) =>
-                      !item.requiresAuth || session.status === "authenticated"
-                  )
-                  .filter((item) => item.showInMainNav)
-                  .map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                        isActive(item)
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  ))}
-              </nav>
+              <NavigationMenu className="hidden lg:flex">
+                <NavigationMenuList>
+                  {navItems.map((item) => {
+                    if (item.children && item.children.length > 0) {
+                      return (
+                        <NavigationMenuItem key={item.href}>
+                          <NavigationMenuTrigger
+                            className={cn(
+                              isActive(item.href) && "text-primary"
+                            )}
+                          >
+                            <Link href={item.href}>{item.label}</Link>
+                          </NavigationMenuTrigger>
+
+                          <NavigationMenuContent>
+                            <ul className="grid w-[300px] gap-1 p-1 md:w-[400px] md:grid-cols-2">
+                              {item.children.map((child) => (
+                                <NavigationMenuLink
+                                  asChild
+                                  key={child.href}
+                                  className="h-14"
+                                >
+                                  <Link
+                                    href={child.href}
+                                    className={cn(
+                                      "flex flex-col items-center gap-2 p-2 text-sm font-medium transition-colors",
+                                      isActive(child.href) && "bg-accent"
+                                    )}
+                                  >
+                                    <child.icon className="h-4 w-4" />
+                                    <div className="text-sm font-medium leading-none">
+                                      {child.label}
+                                    </div>
+                                  </Link>
+                                </NavigationMenuLink>
+                              ))}
+                            </ul>
+                          </NavigationMenuContent>
+                        </NavigationMenuItem>
+                      );
+                    }
+
+                    return (
+                      <NavigationMenuItem key={item.href}>
+                        <NavigationMenuLink
+                          asChild
+                          className={cn(isActive(item.href) && "text-primary")}
+                        >
+                          <Link href={item.href}>{item.label}</Link>
+                        </NavigationMenuLink>
+                      </NavigationMenuItem>
+                    );
+                  })}
+                </NavigationMenuList>
+              </NavigationMenu>
             </div>
 
-            {/* Right Section: Search, Notifications, User Menu */}
+            {/* Right Section: Search, Actions, User Menu */}
             <div className="flex items-center gap-2">
               {/* Search Button */}
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsSearchOpen(true)}
-                className="hidden sm:flex"
+                onClick={() => setSearchOpen(true)}
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
               </Button>
 
-              {session.status === "authenticated" ? (
+              {isAuthenticated && user ? (
                 <>
-                  {/* Create Gig Button - Desktop Only */}
-                  <Link
-                    href="/dashboard/gigs/create"
-                    className="hidden lg:block"
-                  >
-                    <Button size="sm" className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Create Gig
-                    </Button>
-                  </Link>
-
                   {/* Notifications */}
                   <NotificationDropdown
-                    unreadCount={session.data.user.unreadNotifications}
+                    unreadCount={user.unreadNotifications || 0}
                   />
 
                   {/* User Menu */}
@@ -163,13 +185,10 @@ export default function NavBar() {
                         className="relative h-9 w-9 rounded-full"
                       >
                         <Avatar className="h-9 w-9">
-                          <AvatarImage
-                            src={session.data.user.avatar || undefined}
-                            alt={session.data.user.username}
-                          />
+                          <AvatarImage src={user.avatar} alt={user.username} />
                           <AvatarFallback>
-                            {session.data.user.firstName[0]}
-                            {session.data.user.lastName[0]}
+                            {user.firstName?.[0]}
+                            {user.lastName?.[0]}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
@@ -178,88 +197,41 @@ export default function NavBar() {
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none">
-                            {session.data.user.firstName}{" "}
-                            {session.data.user.lastName}
+                            {user.firstName} {user.lastName}
                           </p>
                           <p className="text-xs leading-none text-muted-foreground">
-                            @{session.data.user.username}
+                            @{user.username}
                           </p>
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
 
-                      {/* Quick Links */}
+                      {/* User Menu Items */}
                       <DropdownMenuGroup>
-                        <DropdownMenuItem asChild>
-                          <Link href="/dashboard" className="cursor-pointer">
-                            <Home className="mr-2 h-4 w-4" />
-                            Dashboard
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href={`/profile/${session.data.user.username}`}
-                            className="cursor-pointer"
-                          >
-                            <UserIcon className="mr-2 h-4 w-4" />
-                            Profile
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href="/dashboard/orders"
-                            className="cursor-pointer"
-                          >
-                            <Package className="mr-2 h-4 w-4" />
-                            Orders
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href="/dashboard/wallets"
-                            className="cursor-pointer"
-                          >
-                            <Wallet className="mr-2 h-4 w-4" />
-                            Wallets
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href="/dashboard/verification-center"
-                            className="cursor-pointer"
-                          >
-                            <Shield className="mr-2 h-4 w-4" />
-                            Verification Center
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-
-                      <DropdownMenuSeparator />
-
-                      {/* Settings & Support */}
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem asChild>
-                          <Link href="/settings" className="cursor-pointer">
-                            <Settings className="mr-2 h-4 w-4" />
-                            Settings
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/help" className="cursor-pointer">
-                            <HelpCircle className="mr-2 h-4 w-4" />
-                            Help & Support
-                          </Link>
-                        </DropdownMenuItem>
+                        {userMenuItems.map((item) => (
+                          <DropdownMenuItem key={item.href} asChild>
+                            <Link
+                              href={
+                                item.href === "/profile"
+                                  ? `/profile/${user.username}`
+                                  : item.href
+                              }
+                            >
+                              <item.icon />
+                              {item.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
                       </DropdownMenuGroup>
 
                       <DropdownMenuSeparator />
 
                       {/* Sign Out */}
                       <DropdownMenuItem
-                        className="text-destructive cursor-pointer"
-                        onClick={signOut}
+                        variant="destructive"
+                        onClick={() => signOut()}
                       >
-                        <LogOut className="mr-2 h-4 w-4" />
+                        <LogOut />
                         Sign Out
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -267,15 +239,29 @@ export default function NavBar() {
                 </>
               ) : (
                 <>
-                  {/* Auth Buttons */}
-                  <Link href="/sign-in">
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <LogIn className="h-4 w-4" />
-                      <span className="hidden sm:inline">Sign In</span>
-                    </Button>
+                  <Link
+                    href="/sign-in"
+                    className={cn(
+                      buttonVariants({
+                        variant: "ghost",
+                        size: "sm",
+                      })
+                    )}
+                  >
+                    <LogIn />
+                    <span>Sign In</span>
                   </Link>
-                  <Link href="/sign-up" className="hidden sm:block">
-                    <Button size="sm">Sign Up</Button>
+
+                  <Link
+                    href="/sign-up"
+                    className={cn(
+                      buttonVariants({
+                        size: "sm",
+                      })
+                    )}
+                  >
+                    <Plus />
+                    Sign Up
                   </Link>
                 </>
               )}
@@ -289,9 +275,6 @@ export default function NavBar() {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
       />
-
-      {/* Search Command Palette */}
-      <SearchCommand open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </>
   );
 }

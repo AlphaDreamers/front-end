@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "../prisma";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { KycFormSchema, VerifyEmailFormSchema } from "../schemas";
@@ -13,6 +13,7 @@ import WelcomeEmailTemplate from "@/components/email-templates/welcome-email";
 import PasswordResetEmailTemplate from "@/components/email-templates/password-reset-email";
 import { auth } from "../auth";
 import { User } from "next-auth";
+import PasswordChangedEmailTemplate from "@/components/email-templates/password-changed-email";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -123,6 +124,14 @@ export async function signUp({
       },
     });
 
+    await tx.verificationToken.create({
+      data: {
+        identifier: email,
+        token: verificationCode,
+        expires: new Date(Date.now() + TOKEN_EXPIRY),
+      },
+    });
+
     const { error } = await resend.emails.send({
       from: DEFAULT_FROM_EMAIL,
       to: [email],
@@ -134,7 +143,9 @@ export async function signUp({
     });
 
     if (error) {
-      throw new Error("Failed to send verification email. Please try again.");
+      throw new Error(
+        "We couldn't send a verification email at this time. Please try again later"
+      );
     }
   });
 }
@@ -148,12 +159,15 @@ export async function verifyEmail(
     where: {
       identifier: email,
       token: code,
-      expires: { gt: new Date() }, // Check expiry in the query
     },
   });
 
   if (!token) {
-    throw new Error("Invalid or expired verification code");
+    throw new Error("Invalid verification code");
+  }
+
+  if (token.expires < new Date()) {
+    throw new Error("Verification code has expired");
   }
 
   const [user] = await prisma.$transaction([
@@ -210,7 +224,7 @@ export async function forgotPassword(values: { email: string }) {
     data: {
       identifier: email,
       token: resetCode,
-      expires: new Date(Date.now() + TOKEN_EXPIRY),
+      expires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
     },
   });
 
@@ -248,37 +262,56 @@ export async function resetPassword({
         password: await argon2.hash(newPassword),
       },
     });
-  }
+    return; // No need to handle verification token for authenticated users
+  } else {
+    if (!email || !code) {
+      throw new Error("Authentication required or missing reset credentials");
+    }
 
-  if (!email || !code) {
-    throw new Error("Authentication required or missing reset credentials");
-  }
-
-  // Verify the reset code
-  const token = await prisma.verificationToken.findFirst({
-    where: {
-      identifier: email,
-      token: code,
-      expires: { gt: new Date() },
-    },
-  });
-
-  if (!token) {
-    throw new Error("Invalid or expired reset code");
-  }
-
-  // Update password and clean up verification token
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { email },
-      data: {
-        password: await argon2.hash(newPassword),
+    // Verify the reset code
+    const token = await prisma.verificationToken.findFirst({
+      where: {
+        identifier: email,
+        token: code,
+        expires: { gt: new Date() },
       },
-    }),
-    prisma.verificationToken.delete({
-      where: { identifier_token: { identifier: email, token: code } },
-    }),
-  ]);
+    });
+
+    if (!token) {
+      throw new Error("Invalid or expired reset code");
+    }
+
+    // Update password and clean up verification token
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { email },
+        data: {
+          password: await argon2.hash(newPassword),
+        },
+      }),
+      prisma.verificationToken.delete({
+        where: { identifier_token: { identifier: email, token: code } },
+      }),
+    ]);
+  }
+
+  //send email confirmation
+  resend.emails
+    .send({
+      from: DEFAULT_FROM_EMAIL,
+      to: [email!],
+      subject: "Your password has been reset",
+      react: await PasswordChangedEmailTemplate({
+        email: email!,
+        firstName: email,
+        changeTime: new Date().toLocaleString(),
+        ipAddress: (await headers()).get("x-forwarded-for") || "Unknown",
+        device: (await headers()).get("user-agent") || "Unknown",
+      }),
+    })
+    .catch((error) => {
+      console.error("Failed to send password changed email:", error);
+    });
 }
 
 export async function resendVerificationEmail(email: string) {
@@ -331,12 +364,6 @@ export async function resendVerificationEmail(email: string) {
   }
 }
 
-export async function signOut() {
-  const cookieStore = await cookies();
-
-  cookieStore.delete("token");
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const verifyKyc = async (values: z.infer<typeof KycFormSchema>) => {
   const session = await auth();
@@ -360,7 +387,7 @@ export const validateCredentials = async ({
 }: {
   email: string;
   password: string;
-}): Promise<User> => {
+}): Promise<User | null> => {
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -382,18 +409,35 @@ export const validateCredentials = async ({
     },
   });
 
-  if (!user) {
-    throw new Error("No user found");
-  }
+  try {
+    if (!user) {
+      throw new Error("No user found");
+    }
 
-  if (!user.emailVerified) {
-    throw new Error("Please verify your email before signing in");
-  }
+    if (!user.emailVerified) {
+      throw new Error("Please verify your email before signing in");
+    }
 
-  const valid = await argon2.verify(user.password, password);
+    const valid = await argon2.verify(user.password, password);
 
-  if (!valid) {
-    throw new Error("Incorrect password");
+    if (!valid) {
+      throw new Error("Incorrect password");
+    }
+  } catch (error) {
+    const headersList = await headers();
+    const forwarded = headersList.get("x-forwarded-for");
+    const realIp = headersList.get("x-real-ip");
+    const ipAddress = forwarded?.split(",")[0] || realIp || "unknown";
+
+    await prisma.failedLoginAttempt.create({
+      data: {
+        email: email,
+        ipAddress: ipAddress,
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
+
+    throw error;
   }
 
   return {

@@ -191,7 +191,8 @@ export default function Filters({ filters, className }: FiltersProps) {
   );
 
   const clearFilters = () => {
-    router.push(pathname, { scroll: false });
+    const q = new URLSearchParams(searchParams).get("q");
+    router.push(pathname + q && !q?.trim() ? "?" + q : "", { scroll: false });
   };
 
   const activeCount = Object.keys(activeFilters).length;

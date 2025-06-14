@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getChatByOrderId } from "@/lib/actions/chat";
 import { ChatProvider } from "@/components/chat/chat-provider";
 import { ChatContainer } from "@/components/chat/chat-container";
-import { me } from "@/lib/actions/auth";
+import { auth } from "@/lib/auth";
 
 interface ChatPageProps {
   params: Promise<{
@@ -14,17 +14,11 @@ interface ChatPageProps {
 
 export default async function ChatPage({ params }: ChatPageProps) {
   const { orderId } = await params;
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/orders/${orderId}/chat`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
+      `/sign-in?callback-url=${encodeURIComponent(`/dashboard/orders/${orderId}/chat`)}`
     );
   }
 

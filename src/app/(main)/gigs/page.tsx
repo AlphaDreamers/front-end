@@ -95,9 +95,14 @@ export default async function BrowseGigsPage({
                   {gigs.length > 0 ? (
                     <>
                       <div className="grid xs:grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                        {gigs.map((gig) => (
-                          <GigCard key={gig.id} gig={gig} />
-                        ))}
+                        {gigs
+                          .filter(
+                            (gig) =>
+                              gig.averageRating >= Number(params.rating || 0)
+                          )
+                          .map((gig) => (
+                            <GigCard key={gig.id} gig={gig} />
+                          ))}
                       </div>
                       <Pagination
                         totalPages={Math.ceil(cnt / ITEMS_PER_PAGE)}

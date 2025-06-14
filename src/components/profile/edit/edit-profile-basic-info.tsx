@@ -184,6 +184,7 @@ export default function EditProfileBasicInfo({
           control={form.control}
           name="firstName"
           label="First Name"
+          icon={User}
           placeholder="John"
           required
         />
@@ -191,6 +192,7 @@ export default function EditProfileBasicInfo({
         <FormInput
           control={form.control}
           name="lastName"
+          icon={User}
           label="Last Name"
           placeholder="Doe"
           required
@@ -200,6 +202,7 @@ export default function EditProfileBasicInfo({
       <FormInput
         control={form.control}
         name="username"
+        icon={User}
         label="Username"
         placeholder="johndoe"
         description="Your unique identifier on the platform"
@@ -209,6 +212,7 @@ export default function EditProfileBasicInfo({
       <FormInput
         control={form.control}
         name="headline"
+        icon={User}
         label="Professional Headline"
         placeholder="Senior Full Stack Developer | React & Node.js Expert"
         description="A brief tagline that describes your expertise"

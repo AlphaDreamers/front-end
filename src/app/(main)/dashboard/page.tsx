@@ -2,24 +2,16 @@ import { redirect } from "next/navigation";
 
 import ActiveItemsCard from "@/components/dashboard/active-items-card";
 import RecentActivityCard from "@/components/dashboard/recent-activity-card";
-import { me } from "@/lib/actions/auth";
 import { StatsSummary } from "@/components/dashboard/stats-summary";
 import { EarningsSummary } from "@/components/dashboard/earnings-summary";
 import { PerformanceStats } from "@/components/dashboard/performance-stats";
+import { auth } from "@/lib/auth";
 
 export default async function DashboardPage() {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
-    redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/dashboard`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
-    );
+  if (!session) {
+    redirect(`/sign-in?callback-url=${encodeURIComponent(`/dashboard`)}`);
   }
 
   return (
@@ -27,7 +19,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back {user.firstName} {user.lastName}
+            Welcome back {session.user.firstName} {session.user.lastName}
           </h1>
           <p className="text-muted-foreground">
             Manage your gigs, orders, and earnings all in one place. Whether

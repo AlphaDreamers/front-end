@@ -27,18 +27,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-interface MultiSelectOption {
-  label: string;
-  value: string;
-}
+import { KeyValuePair } from "@/lib/types";
 
 interface FormMultiSelectProps<T extends FieldValues = FieldValues> {
   control: Control<T>;
   name: Path<T>;
   label: string;
   placeholder?: string;
-  options: MultiSelectOption[];
+  options: KeyValuePair[];
   description?: string;
   required?: boolean;
   disabled?: boolean;
@@ -79,19 +75,19 @@ export default function FormMultiSelect<T extends FieldValues = FieldValues>({
               return val === option.value;
             }
             // If it's an object (like for tags), compare the id
-            return val.id === option.value;
+            return val.value === option.value;
           })
         );
 
         // Function to toggle an option on/off
-        const toggleOption = (option: MultiSelectOption) => {
+        const toggleOption = (option: KeyValuePair) => {
           const currentValues = selectedValues;
 
           // Check if this option is already selected
           const isSelected = currentValues.some((val) =>
             typeof val === "string"
               ? val === option.value
-              : val.id === option.value
+              : val.value === option.value
           );
 
           let newValues;
@@ -100,7 +96,7 @@ export default function FormMultiSelect<T extends FieldValues = FieldValues>({
             newValues = currentValues.filter((val) =>
               typeof val === "string"
                 ? val !== option.value
-                : val.id !== option.value
+                : val.value !== option.value
             );
           } else {
             // Add the option if we're under the max limit
@@ -179,7 +175,7 @@ export default function FormMultiSelect<T extends FieldValues = FieldValues>({
                         const isSelected = selectedValues.some((val) =>
                           typeof val === "string"
                             ? val === option.value
-                            : val.id === option.value
+                            : val.value === option.value
                         );
                         // Disable unselected options if we've hit the max
                         const isDisabled =

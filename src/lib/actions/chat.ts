@@ -4,12 +4,13 @@
 import { prisma } from "@/lib/prisma";
 import { ChatData, Message } from "@/lib/types";
 import { me } from "./auth";
+import { auth } from "../auth";
 
 export async function getChatByOrderId(
   orderId: string
 ): Promise<ChatData | null> {
-  const { user: currentUser } = await auth();
-  if (!currentUser) {
+  const session = await auth();
+  if (!session) {
     throw new Error("User not authenticated");
   }
 
@@ -75,12 +76,12 @@ export async function getChatByOrderId(
   }
 
   // Verify user has access to this chat
-  if (chat.buyerId !== currentUser.id && chat.sellerId !== currentUser.id) {
+  if (chat.buyerId !== session.user.id && chat.sellerId !== session.user.id) {
     throw new Error("Access denied to this chat");
   }
 
   // Determine which user is the "other" user
-  const isBuyer = currentUser.id === chat.buyerId;
+  const isBuyer = session.user.id === chat.buyerId;
   const otherUserData = isBuyer ? chat.seller : chat.buyer;
 
   // Transform messages to our simplified format
@@ -99,7 +100,7 @@ export async function getChatByOrderId(
 
   return {
     id: chat.id,
-    currentUserId: currentUser.id,
+    currentUserId: session.user.id,
     otherUser: {
       id: otherUserData.id,
       name: `${otherUserData.firstName} ${otherUserData.lastName}`,

@@ -14,6 +14,7 @@ import {
   ReviewFilterParams,
 } from "@/lib/types";
 import { SellerResponseSchema } from "../schemas/review";
+import { auth } from "../auth";
 
 export async function getDashboardReviews(
   args: Omit<Prisma.ReviewFindManyArgs, "select" | "include">
@@ -295,9 +296,9 @@ export async function leaveReview(data: {
   description: string;
   orderId: string;
 }): Promise<Review> {
-  const { user } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session) {
     throw new Error("You must be logged in to leave a review");
   }
 
@@ -340,7 +341,7 @@ export async function leaveReview(data: {
       rating: data.rating,
       title: data.title,
       description: data.description,
-      authorId: user.id,
+      authorId: session.user.id,
       orderId: order.id,
     },
   });

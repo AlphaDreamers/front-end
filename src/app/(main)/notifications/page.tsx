@@ -6,7 +6,6 @@ import { buttonVariants } from "@/components/ui/button";
 import SearchBar from "@/components/search-bar";
 import Pagination from "@/components/pagination";
 import { cn } from "@/lib/utils";
-import { me } from "@/lib/actions/auth";
 import { getNotifications } from "@/lib/actions/notifications";
 
 import { NotificationType } from "@prisma/client";
@@ -15,6 +14,7 @@ import {
   NotificationListSkeleton,
 } from "@/components/notificatons/notification-list";
 import Filters from "@/components/filter-card";
+import { auth } from "@/lib/auth";
 
 const NOTIFICATIONS_PER_PAGE = 10;
 
@@ -74,18 +74,10 @@ async function NotificationsContent({
 }: {
   searchParams: SearchParams;
 }) {
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
-    redirect(
-      `/sign-in?callback-url=${encodeURIComponent(`/notifications`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
-      )}`
-    );
+  if (!session) {
+    redirect(`/sign-in?callback-url=${encodeURIComponent(`/notifications`)}`);
   }
 
   const { filters, page } = parseSearchParams(searchParams);
@@ -117,8 +109,8 @@ export default async function NotificationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   // Check authentication
-  const { user } = await auth();
-  if (!user?.isVerified) {
+  const session = await auth();
+  if (!session) {
     redirect("/sign-in?callback-url=/notifications");
   }
 

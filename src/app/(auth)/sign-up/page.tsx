@@ -43,7 +43,7 @@ export default function SignUpPage() {
       confirmPassword: "",
     },
   });
-  const onSubmit = async (values: z.infer<typeof SignUpFormSchema>) =>
+  const onSubmit = async (values: z.infer<typeof SignUpFormSchema>) => {
     toast.promise(
       async () =>
         signUp({
@@ -60,7 +60,7 @@ export default function SignUpPage() {
           const params = new URLSearchParams(searchParams);
           params.set("email", values.email);
           push(`/verify-email?${params.toString()}`);
-          return "Account created! Please check your email to verify.";
+          return "Registration successful! Please check your email to verify your account";
         },
         error: (error) => {
           const ms =
@@ -72,6 +72,7 @@ export default function SignUpPage() {
         },
       }
     );
+  };
   const isLoading = form.formState.isSubmitting;
 
   return (
