@@ -10,7 +10,7 @@ import { uploadFilesToCloudinary } from "./cloudinary";
 import { auth } from "../auth";
 
 export const getKeyValueOrders = async (
-  args: Omit<Prisma.OrderFindFirstArgs, "select">
+    args: Omit<Prisma.OrderFindFirstArgs, "select">
 ): Promise<KeyValuePair[]> => {
   const orders = await prisma.order.findMany({
     ...args,
@@ -37,7 +37,7 @@ export const getKeyValueOrders = async (
 };
 
 export async function getOrders(
-  args: Omit<Prisma.OrderFindManyArgs, "select" | "include">
+    args: Omit<Prisma.OrderFindManyArgs, "select" | "include">
 ): Promise<Order[]> {
   const session = await auth();
   if (!session) {
@@ -137,7 +137,6 @@ export async function getOrders(
           id: true,
         },
       },
-      completedAt: true,
     },
   });
 
@@ -154,6 +153,7 @@ export async function getOrders(
       deadline,
       createdAt: prismaOrder.createdAt,
       updatedAt: prismaOrder.updatedAt,
+      completedAt: prismaOrder.status === 'COMPLETED' ? prismaOrder.updatedAt : null,
 
       buyer: {
         id: prismaOrder.buyer.id,
@@ -161,15 +161,15 @@ export async function getOrders(
         lastName: prismaOrder.buyer.lastName,
         username: prismaOrder.buyer.username,
         badge:
-          prismaOrder.buyer.badgeProgress.length > 0
-            ? {
-                title: prismaOrder.buyer.badgeProgress[0].badge.title,
-                tier: prismaOrder.buyer.badgeProgress[0].highestTier,
-                color: prismaOrder.buyer.badgeProgress[0].badge.color as Color,
-                icon: prismaOrder.buyer.badgeProgress[0].badge
-                  .icon as LucideIconName,
-              }
-            : null,
+            prismaOrder.buyer.badgeProgress.length > 0
+                ? {
+                  title: prismaOrder.buyer.badgeProgress[0].badge.title,
+                  tier: prismaOrder.buyer.badgeProgress[0].highestTier,
+                  color: prismaOrder.buyer.badgeProgress[0].badge.color as Color,
+                  icon: prismaOrder.buyer.badgeProgress[0].badge
+                      .icon as LucideIconName,
+                }
+                : null,
         avatar: prismaOrder.buyer.avatar || null,
       },
 
@@ -179,15 +179,15 @@ export async function getOrders(
         lastName: prismaOrder.seller.lastName,
         username: prismaOrder.seller.username,
         badge:
-          prismaOrder.seller.badgeProgress.length > 0
-            ? {
-                title: prismaOrder.seller.badgeProgress[0].badge.title,
-                tier: prismaOrder.seller.badgeProgress[0].highestTier,
-                color: prismaOrder.seller.badgeProgress[0].badge.color as Color,
-                icon: prismaOrder.seller.badgeProgress[0].badge
-                  .icon as LucideIconName,
-              }
-            : null,
+            prismaOrder.seller.badgeProgress.length > 0
+                ? {
+                  title: prismaOrder.seller.badgeProgress[0].badge.title,
+                  tier: prismaOrder.seller.badgeProgress[0].highestTier,
+                  color: prismaOrder.seller.badgeProgress[0].badge.color as Color,
+                  icon: prismaOrder.seller.badgeProgress[0].badge
+                      .icon as LucideIconName,
+                }
+                : null,
         avatar: prismaOrder.seller.avatar || null,
       },
 
@@ -197,28 +197,27 @@ export async function getOrders(
         price: prismaOrder.package.price,
         deliveryTime: prismaOrder.package.deliveryTime,
         gig: {
-          id: prismaOrder.gig?.id || prismaOrder.package.gig.id,
-          title: prismaOrder.gig?.title || prismaOrder.package.gig.title,
+          id: prismaOrder.package.gig.id,
+          title: prismaOrder.package.gig.title,
         },
       },
 
       chat: prismaOrder.chat ? { id: prismaOrder.chat.id } : null,
       transaction: prismaOrder.transaction
-        ? {
+          ? {
             txId: prismaOrder.transaction.txId,
             amount: prismaOrder.transaction.amount,
             date: prismaOrder.transaction.createdAt,
             senderPublicKey: prismaOrder.transaction.senderPublicKey,
             receiverPublicKey: prismaOrder.transaction.receiverPublicKey,
           }
-        : null,
+          : null,
 
       isOverdue,
       daysUntilDeadline,
       formattedDeadline: isOverdue
-        ? `Overdue by ${formatDistanceToNow(deadline)}`
-        : `Due ${formatDistanceToNow(deadline, { addSuffix: true })}`,
-      completedAt: prismaOrder.completedAt,
+          ? `Overdue by ${formatDistanceToNow(deadline)}`
+          : `Due ${formatDistanceToNow(deadline, { addSuffix: true })}`,
     };
   });
 }
@@ -365,10 +364,10 @@ export const cancelOrder = async (orderId: string): Promise<void> => {
 };
 
 export const deliverWork = async ({
-  orderId,
-  files,
-  explanation,
-}: {
+                                    orderId,
+                                    files,
+                                    explanation,
+                                  }: {
   orderId: string;
   files?: File[];
   explanation: string;
@@ -419,14 +418,14 @@ export const deliverWork = async ({
     if (files && files.length > 0) {
       const uploadedFiles = await uploadFilesToCloudinary(files, "chat_media");
       mediaFiles = await Promise.all(
-        uploadedFiles.map((url) =>
-          tx.mediaFile.create({
-            data: {
-              url,
-              type: "DOCUMENT",
-            },
-          })
-        )
+          uploadedFiles.map((url) =>
+              tx.mediaFile.create({
+                data: {
+                  url,
+                  type: "DOCUMENT",
+                },
+              })
+          )
       );
     }
 
@@ -539,7 +538,7 @@ export const acceptDelivery = async (orderId: string): Promise<void> => {
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: { status: "COMPLETED", updatedAt: new Date() },
     });
   });
 

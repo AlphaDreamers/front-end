@@ -51,7 +51,7 @@ export async function createStripeCheckoutSession(
               name: order.package.gig.title,
               description: order.package.title,
             },
-            unit_amount: Math.round(price * 100), // Convert to cents
+            unit_amount: Math.round(price * 100),
           },
           quantity: 1,
         },

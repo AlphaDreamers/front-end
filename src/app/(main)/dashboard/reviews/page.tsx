@@ -17,24 +17,26 @@ import { getDashboardReviewsFilters } from "@/lib/utils";
 
 import Async from "@/components/async";
 import { Prisma } from "@prisma/client";
+import { auth } from "@/lib/auth";
 
 export default async function DashboardReviewsPage({
   searchParams,
 }: {
-  searchParams: Promise<>;
+  searchParams: Promise<never>;
 }) {
   const params = await searchParams;
 
-  const { user, error } = await auth();
+  const session = await auth();
 
-  if (!user?.isVerified) {
+  if (!session?.user) {
     redirect(
       `/sign-in?callback-url=${encodeURIComponent(`/dashboard/reviews`)}&error=${encodeURIComponent(
-        error === "INVALID_TOKEN"
-          ? "Invalid token. Please log in again"
-          : error === "TOKEN_EXPIRED"
-            ? "Your session has expired. Please log in again"
-            : "You must be logged in to access this page"
+        // // error === "INVALID_TOKEN"
+        //   ? "Invalid token. Please log in again"
+        //      
+        //   // : error === "TOKEN_EXPIRED"
+        //     ? "Your session has expired. Please log in again"
+            "You must be logged in to access this page"
       )}`
     );
   }
@@ -46,7 +48,7 @@ export default async function DashboardReviewsPage({
     where: {
       ...filterArgs.where,
       gig: {
-        sellerId: user.id,
+        sellerId: session.user.id,
       },
     },
   };

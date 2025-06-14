@@ -17,7 +17,6 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  // Parallel queries for better performance
   const [
     ordersInProgressCount,
     completedOrdersCount,
@@ -31,7 +30,6 @@ export default async function DashboardPage() {
     activeOrders,
     recentNotifications,
   ] = await Promise.all([
-    // Orders in progress (PAID and DELIVERED)
     prisma.order.count({
       where: {
         sellerId: userId,
@@ -81,7 +79,7 @@ export default async function DashboardPage() {
       where: {
         sellerId: userId,
         status: "COMPLETED",
-        completedAt: {
+        updatedAt: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
           lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         },
@@ -98,7 +96,7 @@ export default async function DashboardPage() {
       where: {
         sellerId: userId,
         status: "COMPLETED",
-        completedAt: {
+        updatedAt: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth() - 2, 1),
           lt: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
         },
