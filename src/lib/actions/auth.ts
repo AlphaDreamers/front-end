@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { KycFormSchema, VerifyEmailFormSchema } from "../schemas";
-import { auth, signOut } from "../auth";
+import { auth } from "../auth";
 import { sendEmail } from "./email";
 import bcrypt from "bcryptjs";
 import { User } from "next-auth";
@@ -264,7 +264,6 @@ export const resetPassword = async ({
         },
       });
 
-      await signOut();
       return { success: true, data: undefined };
     } else {
       if (!email || !code) {

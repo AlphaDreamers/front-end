@@ -202,7 +202,26 @@ export const GigFormSchema = z.object({
     .max(10, "Maximum 10 media files allowed")
     .refine(
       (media) => {
-        return media.some((item) => item.mediaType === MediaType.IMAGE);
+        return (
+          media.some((item) => item.mediaType === MediaType.IMAGE) &&
+          //check size
+          media
+            .filter((item) => item.mediaType === MediaType.IMAGE)
+            .every((item) => {
+              if (item.type === "existing") {
+                // Assume existing images are already validated
+                return true;
+              }
+              // For new images, check file type and size
+              const file = item.file;
+              const isAcceptedType =
+                file.type === "image/png" ||
+                file.type === "image/jpeg" ||
+                file.type === "image/jpg";
+              const isAcceptedSize = file.size <= 5 * 1024 * 1024;
+              return isAcceptedType && isAcceptedSize;
+            })
+        );
       },
       {
         message:

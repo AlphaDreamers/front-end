@@ -6,12 +6,10 @@ interface PasswordResetEmailTemplateProps {
   firstName?: string;
 }
 
-const PasswordResetEmailTemplate: React.FC<Readonly<PasswordResetEmailTemplateProps>> = ({
-  code,
-  email,
-  firstName,
-}) => {
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&code=${code}`;
+const PasswordResetEmailTemplate: React.FC<
+  Readonly<PasswordResetEmailTemplateProps>
+> = ({ code, email, firstName }) => {
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
 
   return (
     <div
@@ -110,7 +108,8 @@ const PasswordResetEmailTemplate: React.FC<Readonly<PasswordResetEmailTemplatePr
                 textAlign: "center",
               }}
             >
-              This link expires in 1 hour. If you didn’t request this, contact support.
+              This link expires in 1 hour. If you didn’t request this, contact
+              support.
             </p>
           </td>
         </tr>

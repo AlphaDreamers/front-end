@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -39,13 +40,18 @@ export default function ResetPasswordPage() {
           previousPassword: values.previousPassword,
           newPassword: values.newPassword,
         });
+        console.log(JSON.stringify(res, null, 2));
         if (res.success === false) {
           throw new Error(res.error || "Failed to reset password");
         }
       },
       {
         loading: "Resetting password...",
-        success: () => {
+        success: async () => {
+          // If user is logged in (changing their own password), sign them out
+          if (!searchParams.get("email") && !searchParams.get("code")) {
+            await signOut({ redirect: false });
+          }
           push("/sign-in");
 
           return "Password reset successful! You can now sign in with your new password.";
