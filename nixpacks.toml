@@ -1,0 +1,17 @@
+# nixpacks.toml
+[variables]
+NODE_VERSION = "20.19.2"
+
+[phases.setup]
+aptPkgs = ["python3", "python3-pip", "build-essential", "libudev-dev", "libusb-1.0-0-dev"]
+
+[phases.install]
+cmds = ["npm ci --legacy-peer-deps"]
+
+[build]
+  builder = "nixpacks"
+
+[deploy]
+  startCommand = "npm start"
+  healthcheckPath = "/"
+  healthcheckTimeout = 300

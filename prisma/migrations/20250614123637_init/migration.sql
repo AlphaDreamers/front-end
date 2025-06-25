@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Gig" ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN     "completedAt" TIMESTAMP(3);

@@ -1,0 +1,653 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageStatus {
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum SocialLinkType {
+  X
+  GITHUB
+  LINKEDIN
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  YOUTUBE
+  DISCORD
+  TELEGRAM
+  WHATSAPP
+  WEBSITE
+  EMAIL
+}
+
+enum Tier {
+  NONE
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT // Waiting for Solana payment
+  PAID // Payment received by platform
+  DELIVERED // Work submitted, in review
+  COMPLETED // Auto-complete or buyer approved
+  DISPUTE // Buyer reported issue
+  REFUNDED // Platform manually refunded
+  EXPIRED // Payment timeout
+  CANCELLED // Seller cancelled before delivery
+  LATE // Delivery past deadline
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  MESSAGE
+  PAYMENT
+  REVIEW
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  OTHER
+}
+
+enum MessageType {
+  TEXT
+  MEDIA
+}
+
+enum ContactMessageType {
+  TESTIMONIAL
+  BUG_REPORT
+  CERTIFICATE_REQUEST
+  SUPPORT_REQUEST
+  FEEDBACK
+}
+
+enum FeedbackType {
+  GENERAL
+  FEATURE_REQUEST
+  UI_UX
+}
+
+enum ContactMessageStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  APPROVED
+  REJECTED
+}
+
+// Main contact message model
+model ContactMessage {
+  id     String               @id @default(uuid())
+  type   ContactMessageType
+  status ContactMessageStatus @default(PENDING)
+
+  author     User?   @relation(fields: [authorId], references: [id])
+  authorId   String?
+  guestEmail String? // For non-registered users
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testimonial    TestimonialMessage?
+  bugReport      BugReportMessage?
+  certificateReq CertificateRequestMessage?
+  supportReq     SupportRequestMessage?
+  feedback       FeedbackMessage?
+}
+
+model TestimonialMessage {
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  rating  Int
+  title   String
+  message String
+}
+
+model BugReportMessage {
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  stepsToReproduce String
+  expectedBehavior String
+  actualBehavior   String
+}
+
+// Certificate request: badge + certificate URL
+model CertificateRequestMessage {
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  applyingForId  String
+  certificateUrl String
+
+  applyingFor Badge @relation(fields: [applyingForId], references: [id])
+}
+
+model SupportRequestMessage {
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  subject     String
+  description String
+}
+
+model FeedbackMessage {
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  contactMessageId String         @unique
+
+  feedbackType FeedbackType @default(GENERAL)
+  message      String?
+}
+
+model PortfolioItem {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  url         String?
+  isFeatured  Boolean     @default(false)
+  order       Int         @default(0)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  files       MediaFile[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId, order])
+  @@index([userId, isFeatured])
+}
+
+model SocialLink {
+  id String @id @default(uuid())
+
+  type SocialLinkType
+  url  String
+
+  user User @relation(fields: [userId], references: [id])
+
+  userId String
+}
+
+model User {
+  id String @id @default(uuid())
+
+  username          String    @unique
+  password          String
+  email             String    @unique
+  emailVerified     DateTime?
+  avatar            String?
+  banner            String?
+  headline          String?
+  bio               String?
+  firstName         String
+  lastName          String
+  isKycVerified     Boolean   @default(false)
+  isProfileVerified Boolean   @default(false)
+
+  gigs            Gig[]               @relation("Seller")
+  bookmarked      Gig[]               @relation("Bookmarked")
+  reviews         Review[]
+  skills          UserSkill[]
+  buyerChats      Chat[]              @relation("BuyerChat")
+  sellerChats     Chat[]              @relation("SellerChat")
+  badgeProgress   UserBadgeProgress[]
+  ordersAsBuyer   Order[]             @relation("Buyer")
+  ordersAsSeller  Order[]             @relation("Seller")
+  notifications   Notification[]
+  socialLinks     SocialLink[]
+  portfolioItems  PortfolioItem[]
+  messages        UserMessage[]
+  readMessages    Message[]           @relation("MessageReadBy")
+  contactMessages ContactMessage[]
+  wallets         Wallet[]
+  preferences     UserPreferences?
+  country         String
+  languages       String[]
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserMessage {
+  id String @id @default(uuid())
+
+  user         User?         @relation(fields: [userId], references: [id])
+  textContent  TextContent?
+  mediaContent MediaContent?
+
+  userId String?
+}
+
+model MediaFile {
+  id             String          @id @default(uuid())
+  url            String
+  type           MediaType
+  order          Int             @default(0)
+  gigs           Gig[]
+  portfolioItems PortfolioItem[]
+  mediaContent   MediaContent[]
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+}
+
+enum PaymentMethod {
+  SOLANA
+  STRIPE
+}
+
+model Order {
+  id String @id @default(uuid())
+
+  deadline      DateTime
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod PaymentMethod @default(SOLANA)
+
+  package             Package      @relation(fields: [packageId], references: [id])
+  review              Review?
+  chat                Chat?
+  buyer               User         @relation(name: "Buyer", fields: [buyerId], references: [id])
+  seller              User         @relation(name: "Seller", fields: [sellerId], references: [id])
+  gig                 Gig?         @relation(fields: [gigId], references: [id])
+  transaction         Transaction?
+  stripePaymentIntent String?
+
+  packageId String
+  buyerId   String
+  sellerId  String
+  gigId     String?
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@index([status, deadline])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  type     NotificationType
+  title    String
+  isRead   Boolean          @default(false)
+  metadata Json?
+
+  recipient User @relation(fields: [recipientId], references: [id])
+
+  recipientId String
+
+  createdAt DateTime @default(now())
+}
+
+model Gig {
+  id String @id @default(uuid())
+
+  title       String
+  description String
+
+  media     MediaFile[]
+  packages  Package[]
+  seller    User         @relation(name: "Seller", fields: [sellerId], references: [id])
+  bookmarks User[]       @relation("Bookmarked")
+  category  Category     @relation(fields: [categoryId], references: [id])
+  tags      Tag[]
+  features  GigFeature[]
+  faqs      GigFaq[]
+  orders    Order[]
+  reviews   Review[]
+
+  categoryId String
+  sellerId   String
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Package {
+  id String @id @default(uuid())
+
+  title        String
+  price        Float
+  revisions    Int
+  deliveryTime Int
+
+  gig      Gig              @relation(fields: [gigId], references: [id])
+  features PackageFeature[]
+  orders   Order[]
+
+  gigId String
+}
+
+model GigFeature {
+  id String @id @default(uuid())
+
+  title String
+
+  gig             Gig              @relation(fields: [gigId], references: [id])
+  packageFeatures PackageFeature[]
+
+  gigId String
+
+  createdAt DateTime @default(now())
+}
+
+model PackageFeature {
+  id String @id @default(uuid())
+
+  isIncluded Boolean
+
+  gigPackage Package    @relation(fields: [gigPackageId], references: [id])
+  feature    GigFeature @relation(fields: [featureId], references: [id])
+
+  gigPackageId String
+  featureId    String
+}
+
+model Tag {
+  id String @id @default(uuid())
+
+  title String @unique
+
+  gigs Gig[]
+}
+
+model Category {
+  id String @id @default(uuid())
+
+  title String @unique
+  depth Int    @default(0)
+  icon  String
+  color String
+
+  gigs     Gig[]
+  children Category[] @relation("CategoryParent")
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+
+  parentId String?
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  rating      Int
+  title       String
+  description String
+
+  sellerResponse    String?
+  sellerRespondedAt DateTime?
+
+  author User  @relation(fields: [authorId], references: [id])
+  order  Order @relation(fields: [orderId], references: [id])
+  gig    Gig   @relation(fields: [gigId], references: [id])
+
+  orderId  String @unique
+  authorId String
+  gigId    String
+
+  createdAt DateTime @default(now())
+
+  // Add indexes for better query performance
+  @@index([sellerResponse])
+}
+
+model Skill {
+  id String @id @default(uuid())
+
+  title String
+
+  userSkills UserSkill[]
+}
+
+model UserSkill {
+  id String @id @default(uuid())
+
+  level Int @default(0)
+
+  user  User  @relation(fields: [userId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  userId  String
+  skillId String
+
+  @@unique([userId, skillId])
+}
+
+model Chat {
+  id String @id @default(uuid())
+
+  buyer    User      @relation(name: "BuyerChat", fields: [buyerId], references: [id])
+  seller   User      @relation(name: "SellerChat", fields: [sellerId], references: [id])
+  messages Message[]
+  order    Order?    @relation(fields: [orderId], references: [id])
+
+  sellerId String
+  buyerId  String
+  orderId  String? @unique
+}
+
+model Message {
+  id String @id @default(uuid())
+
+  type   MessageType
+  status MessageStatus @default(SENT)
+
+  chat         Chat          @relation(fields: [chatId], references: [id])
+  readBy       User[]        @relation("MessageReadBy")
+  textContent  TextContent?
+  mediaContent MediaContent?
+
+  chatId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([chatId, createdAt])
+}
+
+model TextContent {
+  id String @id @default(uuid())
+
+  text String
+
+  message     Message     @relation(fields: [messageId], references: [id])
+  userMessage UserMessage @relation(fields: [userMessageId], references: [id])
+
+  messageId     String @unique
+  userMessageId String @unique
+}
+
+model MediaContent {
+  id String @id @default(uuid())
+
+  files       MediaFile[]
+  message     Message     @relation(fields: [messageId], references: [id])
+  userMessage UserMessage @relation(fields: [userMessageId], references: [id])
+
+  messageId     String @unique
+  userMessageId String @unique
+}
+
+model Badge {
+  id String @id @default(uuid())
+
+  title       String
+  description String
+  condition   String
+  icon        String
+  color       String
+
+  userBadges  UserBadgeProgress[]
+  milestones  BadgeMilestone[]
+  submissions CertificateRequestMessage[]
+}
+
+model BadgeMilestone {
+  id String @id @default(uuid())
+
+  threshold Int
+  tier      Tier
+
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  badgeId String
+}
+
+model UserBadgeProgress {
+  id String @id @default(uuid())
+
+  isFeatured      Boolean @default(false)
+  highestTier     Tier    @default(NONE)
+  currentProgress Int     @default(0)
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  userId  String
+  badgeId String
+
+  @@unique([userId, badgeId])
+}
+
+model GigFaq {
+  id String @id @default(uuid())
+
+  question String
+  answer   String
+
+  gig Gig @relation(fields: [gigId], references: [id])
+
+  gigId String
+}
+
+model Wallet {
+  publicKey String @id
+
+  user                 User          @relation(fields: [userId], references: [id])
+  userId               String
+  isMain               Boolean       @default(false)
+  transactionsSender   Transaction[] @relation("Sender")
+  transactionsReceiver Transaction[] @relation("Receiver")
+
+  name String
+
+  createdAt DateTime @default(now())
+}
+
+model FAQ {
+  id        String   @id @default(uuid())
+  question  String // e.g., "How do I connect my Solana wallet?"
+  answer    String // e.g., "Go to /dashboard, click 'Connect Wallet', and follow Phantom prompts."
+  createdAt DateTime @default(now())
+}
+
+model UserPreferences {
+  id       String @id @default(uuid())
+  userId   String @unique // 1:1 with User
+  user     User   @relation(fields: [userId], references: [id])
+  timezone String @default("UTC") // e.g., "America/New_York"
+  language String @default("en_US") // e.g., "en_US", "fr_FR"
+
+  // Notification preferences
+  ordersEnabled   Boolean @default(true)
+  ordersEmail     Boolean @default(true)
+  ordersInApp     Boolean @default(true)
+  messagesEnabled Boolean @default(true)
+  messagesEmail   Boolean @default(true)
+  messagesInApp   Boolean @default(true)
+  reviewsEnabled  Boolean @default(true)
+  reviewsEmail    Boolean @default(false)
+  reviewsInApp    Boolean @default(true)
+
+  // Quiet hours
+  quietHoursEnabled   Boolean @default(false)
+  quietHoursStartTime String? // e.g., "22:00" (HH:MM)
+  quietHoursEndTime   String? // e.g., "08:00" (HH:MM)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  txId              String   @id
+  amount            Float // Amount in SOL 
+  sender            Wallet   @relation("Sender", fields: [senderPublicKey], references: [publicKey], onDelete: Cascade)
+  receiver          Wallet   @relation("Receiver", fields: [receiverPublicKey], references: [publicKey], onDelete: Cascade)
+  order             Order?   @relation(fields: [orderId], references: [id])
+  createdAt         DateTime @default(now())
+  senderPublicKey   String
+  receiverPublicKey String
+  orderId           String?  @unique
+}
+
+model FailedLoginAttempt {
+  id String @id @default(uuid())
+
+  email     String
+  ipAddress String
+  reason    String
+  timestamp DateTime @default(now())
+}
