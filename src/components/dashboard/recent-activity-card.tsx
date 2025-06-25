@@ -91,7 +91,7 @@ export default function RecentActivityCard({
                     {/* Icon */}
                     <div
                       className={cn(
-                        "rounded-full p-2 shrink-0",
+                        "rounded-full p-2 shrink-0 aspect-square max-w-8 max-h-8",
                         config?.bgColor || "bg-muted"
                       )}
                     >

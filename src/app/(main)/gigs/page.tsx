@@ -31,7 +31,11 @@ export default async function BrowseGigsPage({
             fallback={<FilterCardSkeleton />}
           >
             {(filters) => (
-              <Filters filters={filters} className="lg:w-72 h-fit" />
+              <Filters
+                filters={filters}
+                className="lg:w-72 h-fit"
+                mobileBreakpoint={1024}
+              />
             )}
           </Async>
 

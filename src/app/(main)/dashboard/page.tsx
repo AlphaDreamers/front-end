@@ -31,7 +31,6 @@ export default async function DashboardPage() {
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
   const sixMonthsAgo = subMonths(now, 6);
 
-  // Parallel queries for better performance
   const [
     orderStatusCounts,
     monthlyEarnings,
@@ -42,14 +41,12 @@ export default async function DashboardPage() {
     currentMonthOrders,
     lastMonthOrders,
   ] = await Promise.all([
-    // Order status distribution
     prisma.order.groupBy({
       by: ["status"],
       where: { sellerId: userId },
       _count: { status: true },
     }),
 
-    // Monthly earnings for the last 6 months
     prisma.order.findMany({
       where: {
         sellerId: userId,
@@ -62,7 +59,6 @@ export default async function DashboardPage() {
       orderBy: { completedAt: "asc" },
     }),
 
-    // Reviews with rating distribution
     prisma.review.findMany({
       where: {
         gig: { sellerId: userId },
@@ -73,7 +69,6 @@ export default async function DashboardPage() {
       },
     }),
 
-    // Revenue by gig
     prisma.gig.findMany({
       where: { sellerId: userId },
       select: {
@@ -88,7 +83,6 @@ export default async function DashboardPage() {
       },
     }),
 
-    // Active orders
     getOrders({
       where: {
         sellerId: userId,
@@ -98,14 +92,12 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
     }),
 
-    // Recent notifications
     getNotifications({
       where: { recipientId: userId },
       take: 8,
       orderBy: { createdAt: "desc" },
     }),
 
-    // Current month orders
     prisma.order.count({
       where: {
         sellerId: userId,
@@ -113,7 +105,6 @@ export default async function DashboardPage() {
       },
     }),
 
-    // Last month orders
     prisma.order.count({
       where: {
         sellerId: userId,
@@ -122,13 +113,11 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  // Process data for charts
   const orderStatusData = orderStatusCounts.map((item) => ({
     status: item.status.replace(/_/g, " ").toLowerCase(),
     count: item._count.status,
   }));
 
-  // Process monthly earnings
   const monthlyEarningsMap = new Map<string, number>();
   monthlyEarnings.forEach((order) => {
     if (order.completedAt) {
@@ -150,7 +139,6 @@ export default async function DashboardPage() {
     }))
     .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
-  // Calculate rating distribution
   const ratingDistribution = [1, 2, 3, 4, 5].map((rating) => ({
     rating: rating.toString(),
     count: userReviews.filter((r) => r.rating === rating).length,

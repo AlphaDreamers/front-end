@@ -26,6 +26,7 @@ const GigDeleteButton = ({ gigId }: GigDeleteButtonProps) => {
     toast.promise(
       async () => {
         const res = await deleteGig(gigId);
+        console.log("Delete response:", JSON.stringify(res));
         if (res.success === false) {
           throw new Error(res.error || "Failed to delete gig");
         }

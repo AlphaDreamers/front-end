@@ -14,7 +14,7 @@ export const ContactSupportCard = () => {
           to help you with any questions or issues you might have.
         </p>
         <Link
-          href="/contact"
+          href="/contact-us"
           className={cn(
             buttonVariants({
               size: "lg",

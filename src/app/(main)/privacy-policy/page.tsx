@@ -1,4 +1,3 @@
-import { ContactSupportCard } from "@/components/contact/contact-support-card";
 import PageTemplate from "@/components/templates/page-template";
 
 export default function PrivacyPolicy() {
@@ -113,8 +112,6 @@ export default function PrivacyPolicy() {
           </p>
         </section>
       </main>
-
-      <ContactSupportCard />
     </PageTemplate>
   );
 }

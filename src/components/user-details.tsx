@@ -24,7 +24,7 @@ const UserDetails = ({ user, className }: UserDetailsProps) => {
             alt={user.username}
             width={32}
             height={32}
-            className="min-w-10 min-h-10 rounded-full border-1 border-primary"
+            className="min-w-10 min-h-10 rounded-full border-1 border-primary aspect-square"
           />
         </Link>
         <Link href={`/profile/${user.username}`}>

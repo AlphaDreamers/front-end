@@ -67,6 +67,7 @@ export default function ForgotPasswordPage() {
             label="Email"
             control={form.control}
             required
+            placeholder="Enter your email address"
           />
 
           <Button type="submit" className="w-full mt-4" disabled={isLoading}>

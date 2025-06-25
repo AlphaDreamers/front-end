@@ -24,6 +24,7 @@ export default function ComparisonTable() {
 
   return (
     <Table
+      className="table-fixed"
       style={
         {
           "--table-items-count": gigs.length.toString(),
@@ -36,7 +37,7 @@ export default function ComparisonTable() {
           {gigs.map((gig) => (
             <TableHead
               key={gig.id}
-              className="w-[calc(100%_-_150px/var(--table-items-count))] relative group h-40 min-w-40"
+              className="w-[calc((100%_-_150px)/var(--table-items-count))] relative group h-40 min-w-40"
             >
               <Button
                 variant="ghost"
@@ -49,7 +50,9 @@ export default function ComparisonTable() {
               </Button>
 
               <Image
-                src={gig.primaryImage || "/placeholder.svg?height=150&width=200"}
+                src={
+                  gig.primaryImage || "/placeholder.svg?height=150&width=200"
+                }
                 alt={gig.title}
                 width={200}
                 height={150}
@@ -134,8 +137,10 @@ export default function ComparisonTable() {
         <TableRow>
           <TableCell className="p-2">Description</TableCell>
           {gigs.map((gig) => (
-            <TableCell key={gig.id} className="text-center p-2">
-              {gig.description}
+            <TableCell key={gig.id} className="p-2">
+              <div className="line-clamp-3">
+                {gig.description}
+              </div>
             </TableCell>
           ))}
         </TableRow>

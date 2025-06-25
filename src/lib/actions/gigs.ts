@@ -599,6 +599,20 @@ export const deleteGig = async (gigId: string): Promise<ActionResult<void>> => {
       };
     }
 
+    await prisma.packageFeature.deleteMany({
+      where: { 
+        gigPackage: { gigId } 
+      },
+    });
+
+    await prisma.package.deleteMany({
+      where: { gigId },
+    });
+
+    await prisma.gigFeature.deleteMany({
+      where: { gigId },
+    });
+
     await prisma.gig.delete({
       where: { id: gigId },
     });

@@ -1,5 +1,4 @@
 import PageTemplate from "@/components/templates/page-template";
-import Link from "next/link";
 
 export default function TermsOfService() {
   return (
@@ -133,36 +132,6 @@ export default function TermsOfService() {
           </p>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="mt-16 pt-8 border-t border-gray-700">
-        <nav
-          className="flex justify-center space-x-8"
-          aria-label="Footer navigation"
-        >
-          <Link
-            href="/"
-            className="text-violet-400 hover:underline transition-colors"
-            aria-label="Go to home page"
-          >
-            Home
-          </Link>
-          <Link
-            href="/privacy-policy"
-            className="text-violet-400 hover:underline transition-colors"
-            aria-label="View privacy policy"
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            href="/contact-us"
-            className="text-violet-400 hover:underline transition-colors"
-            aria-label="Contact us"
-          >
-            Contact
-          </Link>
-        </nav>
-      </footer>
     </PageTemplate>
   );
 }
