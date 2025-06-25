@@ -204,6 +204,9 @@ export const GigFormSchema = z.object({
       (media) => {
         return media.some((item) => item.mediaType === MediaType.IMAGE);
       },
-      { message: "At least one image is required for the gig" }
+      {
+        message:
+          "At least one image is required for the gig in PNG or JPG format and no more then 5 mb size",
+      }
     ),
 });
