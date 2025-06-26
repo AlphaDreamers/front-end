@@ -1,266 +1,253 @@
 "use client";
 
+import React, { useState } from "react";
+import { Upload, CheckCircle, Camera, FileText, Loader2 } from "lucide-react";
+import PageTemplate from "@/components/templates/page-template";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import Image from "next/image";
-import {
-  FileText,
-  User,
-  ArrowRight,
-  CheckCircle2,
-  Loader2,
-  Upload,
-  RefreshCw,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { CaptureDocument } from "../../../components/kyc/capture-document";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CaptureFace } from "../../../components/kyc/capture-face";
-import { KycFormSchema } from "@/lib/schemas";
-import AuthCard from "@/components/templates/auth-card";
-import { verifyKyc } from "@/lib/actions/auth";
+import { Form, FormMessage } from "@/components/ui/form";
+import { useRouter } from "next/navigation";
 
-type VerificationFormValues = z.infer<typeof KycFormSchema>;
+interface KYCResponse {
+  success: boolean;
+  verified?: boolean;
+  similarity?: number;
+  message?: string;
+  error?: string;
+}
 
-export default function VerificationPage() {
-  const form = useForm<VerificationFormValues>({
-    resolver: zodResolver(KycFormSchema),
+const formSchema = z.object({
+  idImage: z
+    .instanceof(File)
+    .refine(
+      (file) => file.type.startsWith("image/"),
+      "ID image must be an image file"
+    ),
+  selfie: z
+    .instanceof(File)
+    .refine(
+      (file) => file.type.startsWith("image/"),
+      "Selfie must be an image file"
+    ),
+});
+
+export default function KycVerificationPage() {
+  const router = useRouter();
+
+  const session = useSession();
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      id: undefined,
+      idImage: undefined,
       selfie: undefined,
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof KycFormSchema>) => {
+  const isLoading = form.formState.isSubmitting;
+
+  const [dragActive, setDragActive] = useState({
+    idImage: false,
+    selfie: false,
+  });
+
+  const API_BASE_URL = "https://aws-kyc-verification.onrender.com";
+
+  const handleFileChange = (type: "idImage" | "selfie", file: File) => {
+    form.setValue(type, file);
+  };
+
+  const handleDrag = (e: React.DragEvent, type: "idImage" | "selfie") => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive({ ...dragActive, [type]: true });
+    } else if (e.type === "dragleave") {
+      setDragActive({ ...dragActive, [type]: false });
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, type: "idImage" | "selfie") => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive({ ...dragActive, [type]: false });
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(type, e.dataTransfer.files[0]);
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     toast.promise(
       async () => {
-        const res = await verifyKyc({
-          id: values.id,
-          selfie: values.selfie,
+        if (!session.data?.user?.email) {
+          throw new Error("User email is required for KYC verification");
+        }
+
+        const formDataToSend = new FormData();
+        formDataToSend.append("email", session.data.user.email);
+        formDataToSend.append("id_image", values.idImage);
+        formDataToSend.append("selfie", values.selfie);
+
+        const response = await fetch(`${API_BASE_URL}/kyc`, {
+          method: "POST",
+          body: formDataToSend,
         });
-        if (res.success === false) {
-          throw new Error(res.error || "Failed to submit documents");
+
+        const res = (await response.json()) as KYCResponse;
+
+        if (!response.ok) {
+          throw new Error(
+            res.error || res.similarity === undefined
+              ? "Failed to submit KYC data"
+              : `KYC verification failed with similarity score: ${res.similarity}`
+          );
         }
       },
       {
-        loading: "Submitting documents...",
-        success: "Documents submitted successfully!",
-        error: (error) => {
-          const ms =
-            error instanceof Error
-              ? error.message
-              : "An unexpected error occurred";
-          form.setError("root", { message: ms });
-          return ms;
+        loading: "Submitting KYC data...",
+        success: () => {
+          router.push("/dashboard/verification-center");
+          return "KYC verification submitted successfully!";
         },
+        error: (error) =>
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       }
     );
   };
 
-  const isLoading = form.formState.isSubmitting;
+  const FileUploadZone = ({
+    type,
+    icon: Icon,
+    title,
+    description,
+  }: {
+    type: "idImage" | "selfie";
+    icon: React.ElementType;
+    title: string;
+    description: string;
+  }) => (
+    <div
+      className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 hover:border-primary hover:bg-primary/5 ${
+        dragActive[type]
+          ? "border-primary bg-primary/10"
+          : form.getValues(type)
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25 bg-muted/50"
+      }`}
+      onDragEnter={(e) => handleDrag(e, type)}
+      onDragLeave={(e) => handleDrag(e, type)}
+      onDragOver={(e) => handleDrag(e, type)}
+      onDrop={(e) => handleDrop(e, type)}
+    >
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) =>
+          e.target.files?.[0] && handleFileChange(type, e.target.files[0])
+        }
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+
+      <div className="flex flex-col items-center space-y-4">
+        <div
+          className={`p-4 rounded-full ${form.getValues(type) ? "bg-primary/10" : "bg-muted"}`}
+        >
+          <Icon
+            className={`w-8 h-8 ${form.getValues(type) ? "text-primary" : "text-muted-foreground"}`}
+          />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+
+          {form.getValues(type) && (
+            <div className="mt-3 flex items-center justify-center space-x-2 text-primary">
+              <CheckCircle className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {form.getValues(type)?.name}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Drag & drop or click to select • JPG, PNG supported
+        </div>
+
+        <FormMessage>{form.formState.errors[type]?.message}</FormMessage>
+      </div>
+    </div>
+  );
 
   return (
-    <AuthCard
-      title="Identity Verification"
-      description="Complete your verification to unlock all features."
-      cardFooter="Your documents are encrypted and securely stored. We use
-              industry-standard security measures to protect your personal
-              information."
+    <PageTemplate
+      title="KYC Verification"
+      description="Verify your identity by uploading your ID document and a selfie. Our system will match"
+      centered
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* ID Document Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Government-Issued ID
-              </CardTitle>
-              <CardDescription>
-                Capture or upload a clear photo of your passport, driver&apos;s
-                license, or national ID card
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">ID Document</FormLabel>
-                    <FormControl>
-                      {field.value ? (
-                        <div className="relative">
-                          <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border bg-muted">
-                            <Image
-                              src={URL.createObjectURL(field.value)}
-                              alt="ID document"
-                              fill
-                              className="object-contain"
-                            />
-                          </div>
-                          <div className="absolute top-2 right-2 flex gap-2">
-                            <Badge
-                              variant="secondary"
-                              className="backdrop-blur-sm"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Captured
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="icon"
-                              className="h-8 w-8 backdrop-blur-sm"
-                              onClick={() => field.onChange(null)}
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <CaptureDocument
-                            onCapture={(file) => field.onChange(file)}
-                            className="w-full"
-                          />
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <Separator />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                              <span className="bg-background px-2 text-muted-foreground">
-                                Or upload manually
-                              </span>
-                            </div>
-                          </div>
-                          <label className="block">
-                            <input
-                              type="file"
-                              className="sr-only"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) field.onChange(file);
-                              }}
-                            />
-                            <div className="cursor-pointer rounded-lg border-2 border-dashed border-muted-foreground/25 px-6 py-8 text-center hover:border-muted-foreground/50 transition-colors">
-                              <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                              <p className="mt-2 text-sm text-muted-foreground">
-                                Click to upload or drag and drop
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                PNG, JPG up to 10MB
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card className="max-w-4xl mx-auto">
+            <CardContent className="space-y-8">
+              {/* File Uploads */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <div className="flex items-center space-x-3 mb-4">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-semibold text-card-foreground">
+                      ID Document
+                    </h2>
+                  </div>
+                  <FileUploadZone
+                    type="idImage"
+                    icon={FileText}
+                    title="Upload ID Image"
+                    description="Driver's license, passport, or national ID"
+                  />
+                </div>
 
-          {/* Selfie Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Selfie Verification
-              </CardTitle>
-              <CardDescription>
-                Take a clear selfie to verify your identity matches your ID
-                document
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="selfie"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">Selfie</FormLabel>
-                    <FormControl>
-                      {field.value ? (
-                        <div className="relative">
-                          <div className="relative aspect-[4/5] max-w-sm mx-auto overflow-hidden rounded-lg border bg-muted">
-                            <Image
-                              src={URL.createObjectURL(field.value)}
-                              alt="Selfie"
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="absolute top-2 right-2 flex gap-2">
-                            <Badge
-                              variant="secondary"
-                              className="backdrop-blur-sm"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Captured
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="icon"
-                              className="h-8 w-8 backdrop-blur-sm"
-                              onClick={() => field.onChange(null)}
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="max-w-sm mx-auto">
-                          <CaptureFace
-                            onCapture={(file) => field.onChange(file)}
-                            className="w-full"
-                          />
-                        </div>
-                      )}
-                    </FormControl>
-                    <FormDescription className="text-center mt-4">
-                      Ensure good lighting and that your face is clearly visible
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div>
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Camera className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-semibold text-card-foreground">
+                      Selfie Photo
+                    </h2>
+                  </div>
+                  <FileUploadZone
+                    type="selfie"
+                    icon={Camera}
+                    title="Upload Selfie"
+                    description="Clear photo of your face"
+                  />
+                </div>
+              </div>
             </CardContent>
+
             <CardFooter>
-              <Button type="submit" disabled={isLoading} className="w-full">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                size="lg"
+                className="mx-auto"
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="animate-spin" />
-                    Processing verification...
+                    <span>Verifying...</span>
                   </>
                 ) : (
                   <>
-                    Submit for Verification
-                    <ArrowRight />
+                    <Upload />
+                    <span>Start Verification</span>
                   </>
                 )}
               </Button>
@@ -268,6 +255,13 @@ export default function VerificationPage() {
           </Card>
         </form>
       </Form>
-    </AuthCard>
+
+      <div className="text-center mt-16 text-muted-foreground">
+        <p className="text-sm">
+          Your data is processed securely and in compliance with privacy
+          regulations.
+        </p>
+      </div>
+    </PageTemplate>
   );
 }
