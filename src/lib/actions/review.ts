@@ -318,7 +318,7 @@ export const getReviewsStats = async (
   return {
     total,
     average: parseFloat(average.toFixed(2)),
-    distribution: getDistribution(stats, { min: 0, max: 5 }, "rating"),
+    distribution: getDistribution(stats, { min: 1, max: 5 }, "rating"),
   };
 };
 

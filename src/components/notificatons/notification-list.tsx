@@ -12,6 +12,7 @@ import {
   markNotificationsAsRead,
   markAllNotificationsAsRead,
 } from "@/lib/actions/notifications";
+import { Card, CardContent, CardHeader } from "../ui/card";
 
 interface NotificationListProps {
   notifications: Notification[];
@@ -100,22 +101,21 @@ export function NotificationList({ notifications }: NotificationListProps) {
     <div className="space-y-4">
       {/* Bulk action bar */}
       {notifications.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-gray-900 rounded-lg border border-gray-700">
-          <div className="flex items-center gap-3">
+        <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4">
+          <CardHeader className="flex items-center gap-3">
             <Checkbox
               checked={isAllSelected}
               onCheckedChange={handleSelectAll}
               aria-label="Select all notifications"
-              className="border-gray-600 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
             />
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-muted-foreground text-nowrap">
               {selectedNotifications.size > 0
                 ? `${selectedNotifications.size} selected`
                 : "Select all"}
             </span>
-          </div>
+          </CardHeader>
 
-          <div className="flex items-center gap-2">
+          <CardContent className="flex items-center gap-2 px-4">
             {selectedNotifications.size > 0 ? (
               <>
                 <Button
@@ -123,19 +123,17 @@ export function NotificationList({ notifications }: NotificationListProps) {
                   variant="outline"
                   onClick={handleBulkMarkAsRead}
                   disabled={isPending}
-                  className="border-gray-600 hover:bg-gray-800"
                 >
-                  <Check className="size-4 mr-1" />
+                  <Check />
                   Mark as read
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="destructive"
                   onClick={handleBulkDelete}
                   disabled={isPending}
-                  className="border-red-600 text-red-500 hover:bg-red-500/10"
                 >
-                  <Trash2 className="size-4 mr-1" />
+                  <Trash2 />
                   Delete
                 </Button>
               </>
@@ -145,14 +143,13 @@ export function NotificationList({ notifications }: NotificationListProps) {
                 variant="outline"
                 onClick={handleMarkAllAsRead}
                 disabled={isPending}
-                className="border-gray-600 hover:bg-gray-800"
               >
-                <Check className="size-4 mr-1" />
+                <Check />
                 Mark all as read
               </Button>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="space-y-3">

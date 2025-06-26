@@ -26,39 +26,44 @@ const HiddenField = ({
 
   const variantStyles = {
     1: {
-      gradient: "from-blue-500/20 via-cyan-400/20 to-blue-600/20",
-      border: "border-blue-500/30",
-      iconColor: "text-blue-400",
-      textColor: "text-blue-300",
-      glow: "shadow-blue-500/25",
+      gradient: "from-blue-500/20 via-cyan-400/20 to-blue-600/20 dark:from-blue-500/20 dark:via-cyan-400/20 dark:to-blue-600/20",
+      border: "border-blue-500/50 dark:border-blue-500/30",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      textColor: "text-blue-700 dark:text-blue-300",
+      glow: "shadow-blue-500/10 dark:shadow-blue-500/25",
+      dotGradient: "from-blue-400/60 to-blue-600/60 dark:from-blue-500/40 dark:to-blue-600/40",
     },
     2: {
-      gradient: "from-purple-500/20 via-pink-400/20 to-purple-600/20",
-      border: "border-purple-500/30",
-      iconColor: "text-purple-400",
-      textColor: "text-purple-300",
-      glow: "shadow-purple-500/25",
+      gradient: "from-purple-500/20 via-pink-400/20 to-purple-600/20 dark:from-purple-500/20 dark:via-pink-400/20 dark:to-purple-600/20",
+      border: "border-purple-500/50 dark:border-purple-500/30",
+      iconColor: "text-purple-600 dark:text-purple-400",
+      textColor: "text-purple-700 dark:text-purple-300",
+      glow: "shadow-purple-500/10 dark:shadow-purple-500/25",
+      dotGradient: "from-purple-400/60 to-purple-600/60 dark:from-purple-500/40 dark:to-purple-600/40",
     },
     3: {
-      gradient: "from-emerald-500/20 via-green-400/20 to-emerald-600/20",
-      border: "border-emerald-500/30",
-      iconColor: "text-emerald-400",
-      textColor: "text-emerald-300",
-      glow: "shadow-emerald-500/25",
+      gradient: "from-emerald-500/20 via-green-400/20 to-emerald-600/20 dark:from-emerald-500/20 dark:via-green-400/20 dark:to-emerald-600/20",
+      border: "border-emerald-500/50 dark:border-emerald-500/30",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      textColor: "text-emerald-700 dark:text-emerald-300",
+      glow: "shadow-emerald-500/10 dark:shadow-emerald-500/25",
+      dotGradient: "from-emerald-400/60 to-emerald-600/60 dark:from-emerald-500/40 dark:to-emerald-600/40",
     },
     4: {
-      gradient: "from-amber-500/20 via-yellow-400/20 to-orange-500/20",
-      border: "border-amber-500/30",
-      iconColor: "text-amber-400",
-      textColor: "text-amber-300",
-      glow: "shadow-amber-500/25",
+      gradient: "from-amber-500/20 via-yellow-400/20 to-orange-500/20 dark:from-amber-500/20 dark:via-yellow-400/20 dark:to-orange-500/20",
+      border: "border-amber-500/50 dark:border-amber-500/30",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      textColor: "text-amber-700 dark:text-amber-300",
+      glow: "shadow-amber-500/10 dark:shadow-amber-500/25",
+      dotGradient: "from-amber-400/60 to-orange-500/60 dark:from-amber-500/40 dark:to-orange-500/40",
     },
     5: {
-      gradient: "from-red-500/20 via-rose-400/20 to-red-600/20",
-      border: "border-red-500/30",
-      iconColor: "text-red-400",
-      textColor: "text-red-300",
-      glow: "shadow-red-500/25",
+      gradient: "from-red-500/20 via-rose-400/20 to-red-600/20 dark:from-red-500/20 dark:via-rose-400/20 dark:to-red-600/20",
+      border: "border-red-500/50 dark:border-red-500/30",
+      iconColor: "text-red-600 dark:text-red-400",
+      textColor: "text-red-700 dark:text-red-300",
+      glow: "shadow-red-500/10 dark:shadow-red-500/25",
+      dotGradient: "from-red-400/60 to-red-600/60 dark:from-red-500/40 dark:to-red-600/40",
     },
   };
 
@@ -140,7 +145,7 @@ const HiddenField = ({
                     className={cn(
                       "size-2 rounded-full transition-all duration-200",
                       "bg-gradient-to-r",
-                      currentVariant.gradient
+                      currentVariant.dotGradient
                     )}
                     style={{
                       animationDelay: `${i * 50}ms`,

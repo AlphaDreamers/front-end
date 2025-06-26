@@ -31,7 +31,7 @@ export default function TransactionCard({
         </span>
 
         <Link
-          href={`https://explorer.solana.com/tx/${transaction.txId}`}
+          href={`https://explorer.solana.com/tx/${transaction.txId}?cluster=devnet`}
           className={cn(
             buttonVariants({
               variant: "outline",

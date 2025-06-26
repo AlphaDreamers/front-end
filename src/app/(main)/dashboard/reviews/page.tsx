@@ -16,6 +16,7 @@ import Async from "@/components/async";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { ReviewSearchParams } from "@/lib/types";
+import PageTemplate from "@/components/templates/page-template";
 
 export default async function DashboardReviewsPage({
   searchParams,
@@ -64,14 +65,10 @@ export default async function DashboardReviewsPage({
   ]);
 
   return (
-    <div>
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Reviews Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage your reputation and respond to client feedback
-        </p>
-      </header>
-
+    <PageTemplate
+      title="Reviews Dashboard"
+      description="Manage your reviews and client feedback"
+    >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Stats Card */}
         <Async fetch={() => getReviewsStats(prismaArgs)}>
@@ -90,6 +87,6 @@ export default async function DashboardReviewsPage({
       <DashboardReviewsList reviews={reviews} />
 
       <Pagination totalPages={totalPages} />
-    </div>
+    </PageTemplate>
   );
 }

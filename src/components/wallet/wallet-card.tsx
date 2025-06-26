@@ -148,7 +148,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
 
         {/* Public Key */}
         <HiddenField
-          variant={4}
+          variant={3}
           value={wallet.publicKey}
           label="Public Key"
           icon={Key}
@@ -212,9 +212,9 @@ export default function WalletCard({ wallet }: WalletCardProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Wallet</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &quot;{wallet.name}&quot;? This action
-                cannot be undone. Make sure you have backed up your private keys
-                if needed.
+                Are you sure you want to delete &quot;{wallet.name}&quot;? This
+                action cannot be undone. Make sure you have backed up your
+                private keys if needed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

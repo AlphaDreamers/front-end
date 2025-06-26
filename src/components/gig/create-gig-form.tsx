@@ -129,13 +129,6 @@ export default function UnifiedCreateGigForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {/* Header with Progress */}
         <div className="space-y-4">
-          <div>
-            <h1 className="text-3xl font-bold">Create New Gig</h1>
-            <p className="text-muted-foreground mt-2">
-              Fill in the details below to create your service offering
-            </p>
-          </div>
-
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Progress</span>

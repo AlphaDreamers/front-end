@@ -14,6 +14,7 @@ import RatingDistributionChart from "@/components/dashboard/rating-distribution-
 import RevenueByGigChart from "@/components/dashboard/revenue-by-gig-chart";
 import ActiveOrdersCard from "@/components/dashboard/active-orders-card";
 import RecentActivityCard from "@/components/dashboard/recent-activity-card";
+import PageTemplate from "@/components/templates/page-template";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -167,33 +168,37 @@ export default async function DashboardPage() {
       : 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <DashboardHeader
-        userName={`${session.user.firstName} ${session.user.lastName}`}
-        totalEarnings={totalEarnings}
-        averageRating={averageRating}
-        totalReviews={userReviews.length}
-      />
-
-      {/* Charts Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <EarningsChart data={earningsData} className="lg:col-span-2" />
-        <OrderStatusChart data={orderStatusData} />
-        <MonthlyComparisonChart
-          currentMonth={currentMonthOrders}
-          lastMonth={lastMonthOrders}
+    <PageTemplate
+      title={`Welcome back, ${session.user.firstName} ${session.user.lastName}`}
+      description="Here's an overview of your performance and earnings"
+    >
+      <div className="flex flex-col gap-6">
+        <DashboardHeader
+          totalEarnings={totalEarnings}
+          averageRating={averageRating}
+          totalReviews={userReviews.length}
         />
-        <RatingDistributionChart data={ratingDistribution} />
-        <RevenueByGigChart data={revenueByGigData} />
-      </div>
 
-      {/* Activity Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <ActiveOrdersCard orders={activeOrders || []} />
+        {/* Charts Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <EarningsChart data={earningsData} className="lg:col-span-2" />
+          <OrderStatusChart data={orderStatusData} />
+          <MonthlyComparisonChart
+            currentMonth={currentMonthOrders}
+            lastMonth={lastMonthOrders}
+          />
+          <RatingDistributionChart data={ratingDistribution} />
+          <RevenueByGigChart data={revenueByGigData} />
         </div>
-        <RecentActivityCard notifications={recentNotifications} />
+
+        {/* Activity Section */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ActiveOrdersCard orders={activeOrders || []} />
+          </div>
+          <RecentActivityCard notifications={recentNotifications} />
+        </div>
       </div>
-    </div>
+    </PageTemplate>
   );
 }

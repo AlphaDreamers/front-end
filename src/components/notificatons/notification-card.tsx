@@ -63,7 +63,7 @@ export function NotificationCard({
   const borderColor = getNotificationBorderColor(notification.type);
 
   const handleDelete = async () => {
-    toast.promise(async () => deleteNotifications([notification.id]), {
+    toast.promise(async () => await deleteNotifications([notification.id]), {
       loading: "Deleting notification...",
       success: () => {
         refresh();
@@ -78,18 +78,21 @@ export function NotificationCard({
   };
 
   const handleMarkAsRead = () => {
-    toast.promise(async () => markNotificationsAsRead([notification.id]), {
-      loading: "Marking notification as read...",
-      success: () => {
-        refresh();
-        return "Notification marked as read!";
-      },
-      error: (err) => {
-        const message =
-          err instanceof Error ? err.message : "An error occurred";
-        return message;
-      },
-    });
+    toast.promise(
+      async () => await markNotificationsAsRead([notification.id]),
+      {
+        loading: "Marking notification as read...",
+        success: () => {
+          refresh();
+          return "Notification marked as read!";
+        },
+        error: (err) => {
+          const message =
+            err instanceof Error ? err.message : "An error occurred";
+          return message;
+        },
+      }
+    );
   };
 
   // Get action buttons based on notification type
@@ -104,7 +107,7 @@ export function NotificationCard({
             {reviewMetadata.reviewId && (
               <Link href={`/dashboard/reviews`}>
                 <Button size="sm" variant="outline" aria-label="View review">
-                  <Eye className="size-4 mr-1" />
+                  <Eye />
                   View Review
                 </Button>
               </Link>
@@ -112,7 +115,7 @@ export function NotificationCard({
             {reviewMetadata.gigId && (
               <Link href={`/gigs/${reviewMetadata.gigId}`}>
                 <Button size="sm" variant="ghost" aria-label="View gig">
-                  <Eye className="size-4 mr-1" />
+                  <Eye />
                   View Gig
                 </Button>
               </Link>
@@ -126,7 +129,7 @@ export function NotificationCard({
           <div className="mt-3">
             <Link href={`/orders`}>
               <Button size="sm" variant="outline" aria-label="View order">
-                <Eye className="size-4 mr-1" />
+                <Eye />
                 View Order
               </Button>
             </Link>
@@ -139,7 +142,7 @@ export function NotificationCard({
           <div className="mt-3">
             <Link href={`/dashboard/wallets`}>
               <Button size="sm" variant="outline" aria-label="View payment">
-                <Eye className="size-4 mr-1" />
+                <Eye />
                 View Payment
               </Button>
             </Link>
@@ -152,7 +155,7 @@ export function NotificationCard({
           <div className="mt-3">
             <Link href={`/orders/${messageMetadata.orderId}/chat`}>
               <Button size="sm" variant="outline" aria-label="View chat">
-                <MessageSquare className="size-4 mr-1" />
+                <MessageSquare />
                 View Chat
               </Button>
             </Link>
@@ -172,13 +175,13 @@ export function NotificationCard({
       case "REVIEW":
         const reviewMetadata = metadata as NotificationMetadata<"REVIEW">;
         return (
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {typeof reviewMetadata.rating === "number" && (
               <div
                 className="flex items-center gap-1"
                 aria-label={`Rating: ${reviewMetadata.rating} stars`}
               >
-                <Star className="size-3 fill-yellow-400 text-yellow-400" />
+                <Star className="size-3 fill-amber-500 text-amber-500" />
                 <span>{reviewMetadata.rating} stars</span>
               </div>
             )}
@@ -189,7 +192,7 @@ export function NotificationCard({
                 rel="noopener noreferrer"
                 className={cn(
                   buttonVariants({ variant: "link" }),
-                  "text-xs text-gray-400 hover:no-underline hover:text-violet-400 w-fit h-fit p-0 m-0"
+                  "text-xs text-muted-foreground hover:no-underline hover:text-primary w-fit h-fit p-0 m-0"
                 )}
                 aria-label="View transaction on Solana Explorer"
               >
@@ -204,7 +207,7 @@ export function NotificationCard({
         const orderUpdateMetadata =
           metadata as NotificationMetadata<"ORDER_UPDATE">;
         return orderUpdateMetadata.orderId ? (
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-muted-foreground">
             <span>Order ID: {orderUpdateMetadata.orderId}</span>
             {orderUpdateMetadata.status && (
               <span className="ml-2">Status: {orderUpdateMetadata.status}</span>
@@ -215,7 +218,7 @@ export function NotificationCard({
       case "PAYMENT":
         const paymentMetadata = metadata as NotificationMetadata<"PAYMENT">;
         return (
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {paymentMetadata.amount && (
               <span>Amount: {paymentMetadata.amount} SOL</span>
             )}
@@ -224,7 +227,7 @@ export function NotificationCard({
                 href={`/dashboard/orders/${paymentMetadata.transactionId}`}
                 className={cn(
                   buttonVariants({ variant: "link" }),
-                  "text-xs text-gray-400 hover:no-underline hover:text-violet-400 w-fit h-fit p-0 m-0"
+                  "text-xs text-muted-foreground hover:no-underline hover:text-primary w-fit h-fit p-0 m-0"
                 )}
                 aria-label="View transaction details"
               >
@@ -238,7 +241,7 @@ export function NotificationCard({
       case "MESSAGE":
         const messageMetadata = metadata as NotificationMetadata<"MESSAGE">;
         return messageMetadata.senderId ? (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {messageMetadata.senderAvatar && (
               <Image
                 src={messageMetadata.senderAvatar}
@@ -264,13 +267,13 @@ export function NotificationCard({
   return (
     <Card
       className={cn(
-        "relative group bg-gray-900 border-gray-700 transition-all duration-200 hover:bg-gray-900/80",
-        !notification.isRead && cn(borderColor, "bg-violet-500/5")
+        "relative group transition-all duration-200",
+        !notification.isRead && cn(borderColor, "bg-primary/5")
       )}
     >
       {!notification.isRead && (
         <Badge
-          className="absolute top-0 left-0 translate-x-1/3 -translate-y-1/2 bg-violet-500 text-white border-violet-400"
+          className="absolute top-0 left-0 translate-x-1/3 -translate-y-1/2 bg-primary text-primary-foreground border-primary"
           aria-label="Unread"
         >
           Unread
@@ -291,17 +294,17 @@ export function NotificationCard({
         </div>
 
         <div className="flex-1 space-y-2">
-          <CardTitle className="text-lg font-bold text-white">
+          <CardTitle className="text-lg font-bold text-foreground">
             {notification.title}
           </CardTitle>
 
           {notification.metadata.message && (
-            <CardDescription className="text-gray-300 line-clamp-2 leading-relaxed">
+            <CardDescription className="text-muted-foreground line-clamp-2 leading-relaxed">
               {notification.metadata.message}
             </CardDescription>
           )}
 
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <time dateTime={notification.createdAt.toISOString()}>
               {formatDistanceToNow(notification.createdAt, {
                 addSuffix: true,
@@ -332,7 +335,10 @@ export function NotificationCard({
 
         <DropdownMenuContent align="end" className="w-24">
           {!notification.isRead && (
-            <DropdownMenuItem onClick={handleMarkAsRead}>
+            <DropdownMenuItem
+              onClick={handleMarkAsRead}
+              className="text-nowrap"
+            >
               <Check />
               Mark as read
             </DropdownMenuItem>

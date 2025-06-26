@@ -260,24 +260,29 @@ export default function OrderCard({
         <UserDetails user={contact} />
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock
-              className={cn(
-                "h-4 w-4",
-                order.isOverdue ? "text-red-500" : "text-muted-foreground"
-              )}
-            />
-            <span
-              className={cn(
-                "text-sm",
-                order.isOverdue
-                  ? "text-red-500 font-medium"
-                  : "text-muted-foreground"
-              )}
-            >
-              {order.formattedDeadline}
-            </span>
-          </div>
+          {/* Only show deadline/overdue info for active orders */}
+          {!["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"].includes(
+            order.status
+          ) && (
+            <div className="flex items-center gap-2">
+              <Clock
+                className={cn(
+                  "h-4 w-4",
+                  order.isOverdue ? "text-red-500" : "text-muted-foreground"
+                )}
+              />
+              <span
+                className={cn(
+                  "text-sm",
+                  order.isOverdue
+                    ? "text-red-500 font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                {order.formattedDeadline}
+              </span>
+            </div>
+          )}
 
           <span className="text-xl font-semibold text-primary mt-2">
             {order.package.price} SOL

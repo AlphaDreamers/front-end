@@ -117,7 +117,7 @@ export default function CreateWalletPage() {
                 Already have a wallet?{" "}
               </span>
               <Link
-                href="/dahsboard/wallets/import"
+                href="/dashboard/wallets/import"
                 className={cn(
                   buttonVariants({
                     variant: "link",

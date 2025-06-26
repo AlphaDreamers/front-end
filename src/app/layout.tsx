@@ -16,6 +16,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 export const metadata: Metadata = {
   title: "Blue frog - Solana Services Marketplace",
   description: "A Solana services marketplace for developers and creators",
+  // add favicon
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 const ubuntuSans = Ubuntu_Sans({

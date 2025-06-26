@@ -108,7 +108,7 @@ export default function ImportWalletPage() {
               </span>
               <Button
                 variant="link"
-                onClick={() => router.push("/create-wallet")}
+                onClick={() => router.push("/dashboard/wallets/create")}
                 className="text-sm font-medium p-0 h-auto"
               >
                 Create new wallet

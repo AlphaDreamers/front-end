@@ -548,7 +548,7 @@ const FilterItem = ({
 const Filters = ({
   filters,
   className,
-  mobileBreakpoint = 768,
+  mobileBreakpoint = 1024,
   showClearAll = true,
   title = "Filters",
   preserveParams = [],

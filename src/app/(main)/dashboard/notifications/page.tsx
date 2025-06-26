@@ -89,7 +89,7 @@ export default async function NotificationsPage({
                   ) : (
                     <Card>
                       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                        <Bell className="h-12 w-12 mb-4 text-gray-600" />
+                        <Bell className="h-12 w-12 mb-4 text-muted-foreground" />
                         <p className="text-lg font-medium">
                           No notifications found
                         </p>

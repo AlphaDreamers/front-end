@@ -82,10 +82,6 @@ export default function PayButton({ order }: PayButtonProps) {
     toast.promise(
       async () => {
         await performTransaction(password, order.id);
-        //const res = await performTransaction(password, order.id);
-        //if (res.success === false) {
-        //  throw new Error(res.error || "Transaction failed");
-        //}
       },
       {
         loading: "Processing Solana payment...",

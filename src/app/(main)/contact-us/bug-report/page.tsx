@@ -8,8 +8,8 @@ export default async function ContactPage() {
 
   return (
     <ContactPageTemplate
-      title="File a Complaint"
-      description="If you have a complaint regarding a transaction or user behavior, please fill out the form below. Our team will review your complaint and take appropriate action."
+      title="Bug Report"
+      description="Report bugs or issues with the BlueFrog marketplace to help us improve"
     >
       <BugReportForm isAuth={isAuth} email={session?.user.email} />
     </ContactPageTemplate>
