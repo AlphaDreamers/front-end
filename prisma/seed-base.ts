@@ -13,6 +13,12 @@ async function clearDatabase() {
   await prisma.userSkill.deleteMany({});
   await prisma.skill.deleteMany({});
   await prisma.tag.deleteMany({});
+  await prisma.review.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.gigFeature.deleteMany({});
+  await prisma.gigFaq.deleteMany({});
+  await prisma.packageFeature.deleteMany({});
+  await prisma.package.deleteMany({});
   await prisma.gig.deleteMany({});
   await prisma.category.deleteMany({});
 

@@ -474,7 +474,7 @@ async function seed() {
       });
     }
 
-    // 14. Seed Gigs - Each seller has 3-5 gigs
+    // 14. Seed Gigs - Each seller has 9 gigs (45 total)
     console.log("🛍️ Seeding gigs...");
     const gigs = [];
 
@@ -532,6 +532,186 @@ async function seed() {
             },
           ],
         },
+        {
+          title: "I Will Develop a Custom E-commerce Platform",
+          description:
+            "Complete e-commerce solution with React frontend, Node.js backend, payment processing, and inventory management.",
+          category: "Web Development",
+          tags: ["React", "Node.js", "TypeScript", "PostgreSQL"],
+          features: [
+            "Product Catalog",
+            "Shopping Cart",
+            "Payment Gateway",
+            "Order Management",
+            "Inventory Tracking",
+            "Admin Panel",
+          ],
+          faqs: [
+            {
+              question: "Which payment gateways do you support?",
+              answer: "Stripe, PayPal, and custom payment solutions.",
+            },
+            {
+              question: "Can you integrate with existing systems?",
+              answer:
+                "Yes, I can integrate with most third-party APIs and systems.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a Progressive Web App (PWA)",
+          description:
+            "Modern PWA with offline capabilities, push notifications, and native app-like experience using React and service workers.",
+          category: "Web Development",
+          tags: ["React", "PWA", "TypeScript", "Service Workers"],
+          features: [
+            "Offline Functionality",
+            "Push Notifications",
+            "App-like Experience",
+            "Fast Performance",
+            "Cross-platform",
+            "Auto Updates",
+          ],
+          faqs: [
+            {
+              question: "Will it work on all devices?",
+              answer: "Yes, PWAs work on desktop, mobile, and tablet devices.",
+            },
+            {
+              question: "Can users install it like a native app?",
+              answer: "Yes, users can install it from their browser.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create a React Dashboard with Data Visualization",
+          description:
+            "Professional dashboard with charts, graphs, and real-time data visualization using React, D3.js, and modern UI libraries.",
+          category: "Web Development",
+          tags: ["React", "D3.js", "TypeScript", "Dashboard"],
+          features: [
+            "Interactive Charts",
+            "Real-time Updates",
+            "Custom Components",
+            "Responsive Layout",
+            "Data Export",
+            "Theme Support",
+          ],
+          faqs: [
+            {
+              question: "What chart types can you create?",
+              answer:
+                "Bar, line, pie, scatter, heatmaps, and custom visualizations.",
+            },
+            {
+              question: "Can you integrate with APIs?",
+              answer:
+                "Yes, I can connect to REST APIs, GraphQL, or any data source.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a Multi-tenant SaaS Application",
+          description:
+            "Scalable multi-tenant SaaS platform with user management, billing integration, and tenant isolation using React and Node.js.",
+          category: "Web Development",
+          tags: ["React", "Node.js", "SaaS", "Multi-tenant"],
+          features: [
+            "Tenant Isolation",
+            "User Management",
+            "Subscription Billing",
+            "Role-based Access",
+            "API Rate Limiting",
+            "Usage Analytics",
+          ],
+          faqs: [
+            {
+              question: "How do you handle tenant data separation?",
+              answer:
+                "I implement row-level security and database schema isolation.",
+            },
+            {
+              question: "What billing systems do you integrate?",
+              answer: "Stripe, Paddle, or custom billing solutions.",
+            },
+          ],
+        },
+        {
+          title: "I Will Develop a Real-time Chat Application",
+          description:
+            "Feature-rich chat application with real-time messaging, file sharing, and video calls using React, Socket.io, and WebRTC.",
+          category: "Web Development",
+          tags: ["React", "Socket.io", "WebRTC", "Real-time"],
+          features: [
+            "Real-time Messaging",
+            "File Sharing",
+            "Video/Audio Calls",
+            "Group Chats",
+            "Message History",
+            "Push Notifications",
+          ],
+          faqs: [
+            {
+              question: "Does it support mobile devices?",
+              answer: "Yes, fully responsive design that works on all devices.",
+            },
+            {
+              question: "Can you add custom features?",
+              answer: "Absolutely, I can customize based on your requirements.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create a Headless CMS with React Admin Panel",
+          description:
+            "Custom headless CMS with React-based admin panel, content management, and API endpoints for your applications.",
+          category: "Web Development",
+          tags: ["React", "Headless CMS", "API", "Content Management"],
+          features: [
+            "Content Management",
+            "RESTful API",
+            "Admin Dashboard",
+            "Media Library",
+            "User Roles",
+            "Version Control",
+          ],
+          faqs: [
+            {
+              question: "What content types can it manage?",
+              answer: "Articles, pages, media files, and custom content types.",
+            },
+            {
+              question: "Is it SEO-friendly?",
+              answer: "Yes, includes SEO fields and meta tag management.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a React Native Mobile App",
+          description:
+            "Cross-platform mobile application using React Native with native performance and platform-specific optimizations.",
+          category: "Web Development",
+          tags: ["React Native", "Mobile", "iOS", "Android"],
+          features: [
+            "Cross-platform",
+            "Native Performance",
+            "Push Notifications",
+            "Offline Support",
+            "App Store Ready",
+            "Custom UI Components",
+          ],
+          faqs: [
+            {
+              question: "Will it work on both iOS and Android?",
+              answer:
+                "Yes, single codebase for both platforms with native optimizations.",
+            },
+            {
+              question: "Can you help with app store submission?",
+              answer: "Yes, I can guide you through the submission process.",
+            },
+          ],
+        },
       ],
       sarah_blockchain: [
         {
@@ -581,6 +761,188 @@ async function seed() {
               question: "Can you help with the art generation?",
               answer:
                 "I focus on the technical side but can recommend artists.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create a DeFi Protocol on Solana",
+          description:
+            "Build decentralized finance protocols with lending, staking, and yield farming capabilities on Solana blockchain.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "DeFi", "Rust", "Smart Contracts", "Web3"],
+          features: [
+            "Lending Protocol",
+            "Staking Mechanism",
+            "Yield Farming",
+            "Governance Token",
+            "Security Auditing",
+            "Frontend Integration",
+          ],
+          faqs: [
+            {
+              question: "What DeFi features can you implement?",
+              answer: "Lending, borrowing, staking, AMM, governance, and more.",
+            },
+            {
+              question: "Do you handle tokenomics design?",
+              answer: "Yes, I can help design sustainable tokenomics models.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a Solana Token Launch Platform",
+          description:
+            "Complete token launch platform with fair launch mechanics, liquidity pools, and anti-bot protection on Solana.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "Token Launch", "Web3", "Smart Contracts"],
+          features: [
+            "Token Creation",
+            "Fair Launch Mechanics",
+            "Liquidity Pool Setup",
+            "Anti-bot Protection",
+            "Vesting Schedules",
+            "Launch Dashboard",
+          ],
+          faqs: [
+            {
+              question: "What anti-bot measures do you implement?",
+              answer:
+                "Whitelist, transaction limits, and custom protection logic.",
+            },
+            {
+              question: "Can you help with market making?",
+              answer: "I can set up initial liquidity and provide guidance.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create a Solana Governance DAO Platform",
+          description:
+            "Build a complete DAO governance platform with proposal creation, voting mechanisms, and treasury management on Solana.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "DAO", "Governance", "Web3"],
+          features: [
+            "Proposal System",
+            "Voting Mechanisms",
+            "Treasury Management",
+            "Token Gating",
+            "Multi-signature Support",
+            "Analytics Dashboard",
+          ],
+          faqs: [
+            {
+              question: "What voting mechanisms do you support?",
+              answer:
+                "Token-weighted voting, quadratic voting, and custom mechanisms.",
+            },
+            {
+              question: "Can you integrate with existing tokens?",
+              answer: "Yes, I can work with any SPL token for governance.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a Solana DEX and AMM Protocol",
+          description:
+            "Decentralized exchange with automated market maker functionality, liquidity pools, and yield farming on Solana.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "DEX", "AMM", "DeFi"],
+          features: [
+            "Token Swapping",
+            "Liquidity Pools",
+            "Yield Farming",
+            "Price Oracles",
+            "Fee Distribution",
+            "Trading Interface",
+          ],
+          faqs: [
+            {
+              question: "What trading pairs can be supported?",
+              answer: "Any SPL token pairs with customizable fee structures.",
+            },
+            {
+              question: "How do you handle slippage protection?",
+              answer:
+                "Built-in slippage protection with user-configurable limits.",
+            },
+          ],
+        },
+        {
+          title: "I Will Develop a Solana Gaming NFT Platform",
+          description:
+            "Gaming-focused NFT platform with in-game asset trading, crafting mechanics, and play-to-earn tokenomics on Solana.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "Gaming", "NFT", "Play-to-Earn"],
+          features: [
+            "Gaming NFTs",
+            "Asset Trading",
+            "Crafting System",
+            "Play-to-Earn",
+            "Leaderboards",
+            "Tournament System",
+          ],
+          faqs: [
+            {
+              question: "Can you integrate with existing games?",
+              answer:
+                "Yes, I can create SDKs for Unity, Unreal, and web games.",
+            },
+            {
+              question: "What gaming mechanics do you support?",
+              answer:
+                "Crafting, breeding, upgrading, and custom game mechanics.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create a Solana Prediction Market Platform",
+          description:
+            "Decentralized prediction market with binary outcomes, liquidity pools, and automated settlement on Solana blockchain.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "Prediction Market", "DeFi", "Oracle"],
+          features: [
+            "Market Creation",
+            "Binary Outcomes",
+            "Liquidity Pools",
+            "Oracle Integration",
+            "Automated Settlement",
+            "Market Analytics",
+          ],
+          faqs: [
+            {
+              question: "What oracles do you integrate with?",
+              answer: "Chainlink, Pyth, and custom oracle solutions.",
+            },
+            {
+              question: "How do you handle dispute resolution?",
+              answer: "Multi-tiered dispute system with community governance.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build a Solana Social Token Platform",
+          description:
+            "Creator economy platform with social tokens, fan engagement features, and monetization tools on Solana.",
+          category: "Blockchain & Crypto",
+          tags: ["Solana", "Social Token", "Creator Economy", "Web3"],
+          features: [
+            "Social Token Creation",
+            "Fan Engagement",
+            "Content Monetization",
+            "Subscription Models",
+            "Community Features",
+            "Analytics Dashboard",
+          ],
+          faqs: [
+            {
+              question: "What engagement features are included?",
+              answer:
+                "Token-gated content, polls, exclusive access, and rewards.",
+            },
+            {
+              question: "Can creators cash out their tokens?",
+              answer:
+                "Yes, with built-in liquidity pools and exchange integration.",
             },
           ],
         },
@@ -637,6 +999,189 @@ async function seed() {
             },
           ],
         },
+        {
+          title: "I Will Design Your Mobile App Interface",
+          description:
+            "Beautiful, intuitive mobile app design for iOS and Android. Focus on user experience and modern design trends.",
+          category: "Design & UI/UX",
+          tags: ["UI Design", "UX Design", "Mobile Design", "Figma"],
+          features: [
+            "iOS & Android Design",
+            "User Flow Mapping",
+            "Interactive Prototypes",
+            "Design System",
+            "Icon Design",
+            "App Store Assets",
+          ],
+          faqs: [
+            {
+              question: "Do you design for both iOS and Android?",
+              answer:
+                "Yes, I create platform-specific designs following guidelines.",
+            },
+            {
+              question: "Can you create animated prototypes?",
+              answer: "Yes, I create interactive prototypes with animations.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Landing Page Design",
+          description:
+            "High-converting landing page design optimized for conversions. Modern, clean design that drives results.",
+          category: "Design & UI/UX",
+          tags: ["UI Design", "Landing Page", "Conversion", "Figma"],
+          features: [
+            "Conversion Optimization",
+            "A/B Test Variants",
+            "Mobile Responsive",
+            "CTA Optimization",
+            "Visual Hierarchy",
+            "Performance Focused",
+          ],
+          faqs: [
+            {
+              question: "Do you provide multiple versions for A/B testing?",
+              answer: "Yes, I can create 2-3 variants for testing.",
+            },
+            {
+              question: "Can you help with copywriting?",
+              answer: "I focus on design but can recommend copywriters.",
+            },
+          ],
+        },
+        {
+          title: "I Will Design Your E-commerce Store Interface",
+          description:
+            "Complete e-commerce design with product pages, checkout flow, and admin dashboard. Optimized for sales and user experience.",
+          category: "Design & UI/UX",
+          tags: ["UI Design", "UX Design", "E-commerce", "Figma"],
+          features: [
+            "Product Catalog Design",
+            "Checkout Flow",
+            "Shopping Cart UI",
+            "Admin Dashboard",
+            "Payment Integration",
+            "Mobile Commerce",
+          ],
+          faqs: [
+            {
+              question: "Do you design the admin interface too?",
+              answer:
+                "Yes, complete admin dashboard for managing products and orders.",
+            },
+            {
+              question: "Can you optimize for mobile shopping?",
+              answer:
+                "Absolutely, mobile-first approach for optimal conversions.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your SaaS Dashboard Design",
+          description:
+            "Professional SaaS dashboard with data visualization, user management, and analytics. Clean, modern interface design.",
+          category: "Design & UI/UX",
+          tags: ["UI Design", "Dashboard", "SaaS", "Data Visualization"],
+          features: [
+            "Dashboard Layout",
+            "Data Visualization",
+            "User Management UI",
+            "Settings Panels",
+            "Responsive Tables",
+            "Interactive Charts",
+          ],
+          faqs: [
+            {
+              question: "What chart types can you design?",
+              answer:
+                "Line charts, bar charts, pie charts, and custom visualizations.",
+            },
+            {
+              question: "Do you handle complex data layouts?",
+              answer:
+                "Yes, I specialize in making complex data easy to understand.",
+            },
+          ],
+        },
+        {
+          title: "I Will Design Your Portfolio Website",
+          description:
+            "Stunning portfolio website design that showcases your work beautifully. Perfect for designers, developers, and creatives.",
+          category: "Design & UI/UX",
+          tags: ["UI Design", "Portfolio", "Web Design", "Creative"],
+          features: [
+            "Portfolio Showcase",
+            "Project Gallery",
+            "About Page Design",
+            "Contact Forms",
+            "Blog Layout",
+            "Resume Section",
+          ],
+          faqs: [
+            {
+              question: "Can you create animated galleries?",
+              answer: "Yes, I design smooth animations and hover effects.",
+            },
+            {
+              question: "Do you include blog design?",
+              answer: "Yes, complete blog layout with post templates.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Startup Pitch Deck Design",
+          description:
+            "Professional pitch deck design for startups and investors. Compelling visual storytelling that gets results.",
+          category: "Design & UI/UX",
+          tags: ["Pitch Deck", "Presentation", "Startup", "Visual Design"],
+          features: [
+            "Slide Templates",
+            "Data Visualization",
+            "Icon Design",
+            "Chart Creation",
+            "Brand Consistency",
+            "Print-Ready Files",
+          ],
+          faqs: [
+            {
+              question: "How many slides do you typically design?",
+              answer:
+                "15-20 slides covering all essential pitch deck sections.",
+            },
+            {
+              question: "Can you animate the presentation?",
+              answer:
+                "Yes, I can create animated versions for digital presentations.",
+            },
+          ],
+        },
+        {
+          title: "I Will Design Your Social Media Brand Kit",
+          description:
+            "Complete social media design package with templates, posts, stories, and brand assets for all major platforms.",
+          category: "Design & UI/UX",
+          tags: ["Social Media", "Brand Design", "Templates", "Marketing"],
+          features: [
+            "Post Templates",
+            "Story Templates",
+            "Profile Design",
+            "Highlight Covers",
+            "Brand Guidelines",
+            "Multi-Platform",
+          ],
+          faqs: [
+            {
+              question: "Which platforms do you design for?",
+              answer: "Instagram, Facebook, Twitter, LinkedIn, and TikTok.",
+            },
+            {
+              question: "Do you provide editable templates?",
+              answer:
+                "Yes, fully editable templates in Figma and Canva formats.",
+            },
+          ],
+        },
       ],
       john_content: [
         {
@@ -687,6 +1232,187 @@ async function seed() {
               question: "Do you include images?",
               answer:
                 "I can source royalty-free images or work with your provided images.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Product Release Notes",
+          description:
+            "Professional release notes and changelog documentation that keeps your users informed about new features and updates.",
+          category: "Content Writing",
+          tags: ["Technical Writing", "Documentation", "Product"],
+          features: [
+            "Feature Descriptions",
+            "Bug Fix Documentation",
+            "User Impact Analysis",
+            "Version Management",
+            "Change Classification",
+            "User-friendly Language",
+          ],
+          faqs: [
+            {
+              question: "Do you work with development teams?",
+              answer:
+                "Yes, I collaborate with devs to understand technical changes.",
+            },
+            {
+              question: "Can you maintain ongoing release notes?",
+              answer: "Yes, I offer ongoing maintenance packages.",
+            },
+          ],
+        },
+        {
+          title: "I Will Write Your Whitepaper or Technical Report",
+          description:
+            "Professional whitepaper writing for blockchain projects, tech startups, and research papers. Research-backed and authoritative.",
+          category: "Content Writing",
+          tags: ["Technical Writing", "Research", "Whitepaper"],
+          features: [
+            "Market Research",
+            "Technical Analysis",
+            "Competitive Analysis",
+            "Visual Elements",
+            "Executive Summary",
+            "Citations & References",
+          ],
+          faqs: [
+            {
+              question: "How long are typical whitepapers?",
+              answer: "Usually 15-30 pages depending on project complexity.",
+            },
+            {
+              question: "Do you handle the design layout?",
+              answer: "I focus on content but can recommend designers.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Software User Manual",
+          description:
+            "Comprehensive user manual for your software product. Step-by-step guides with screenshots and troubleshooting sections.",
+          category: "Content Writing",
+          tags: ["Technical Writing", "User Manual", "Documentation"],
+          features: [
+            "Step-by-step Guides",
+            "Screenshot Integration",
+            "Troubleshooting Section",
+            "FAQ Section",
+            "Video Tutorials",
+            "Multi-format Delivery",
+          ],
+          faqs: [
+            {
+              question: "Do you create video tutorials too?",
+              answer:
+                "I focus on written content but can collaborate with video creators.",
+            },
+            {
+              question: "Can you update existing manuals?",
+              answer: "Yes, I can revise and update existing documentation.",
+            },
+          ],
+        },
+        {
+          title: "I Will Write Your Startup's Content Strategy",
+          description:
+            "Complete content strategy with editorial calendar, topic research, and content pillars for your startup's marketing efforts.",
+          category: "Content Writing",
+          tags: ["Content Marketing", "Strategy", "Startup"],
+          features: [
+            "Content Audit",
+            "Editorial Calendar",
+            "Topic Research",
+            "Content Pillars",
+            "Distribution Strategy",
+            "Performance Metrics",
+          ],
+          faqs: [
+            {
+              question: "How far in advance do you plan content?",
+              answer:
+                "Typically 3-6 months with quarterly reviews and updates.",
+            },
+            {
+              question: "Do you write the actual content too?",
+              answer:
+                "This covers strategy. Content creation is available separately.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Email Newsletter Content",
+          description:
+            "Engaging email newsletter content that builds relationships with your audience. Industry insights and valuable information.",
+          category: "Content Writing",
+          tags: ["Email Marketing", "Newsletter", "Content Marketing"],
+          features: [
+            "Newsletter Templates",
+            "Content Curation",
+            "Subject Lines",
+            "Call-to-Actions",
+            "Personalization",
+            "A/B Testing Copy",
+          ],
+          faqs: [
+            {
+              question: "How often do you recommend sending newsletters?",
+              answer:
+                "Weekly or bi-weekly depending on your audience and content volume.",
+            },
+            {
+              question: "Do you help with email automation?",
+              answer: "Yes, I can create welcome series and drip campaigns.",
+            },
+          ],
+        },
+        {
+          title: "I Will Write Your Case Studies and Success Stories",
+          description:
+            "Compelling case studies that showcase your successes and build credibility with potential clients. Data-driven storytelling.",
+          category: "Content Writing",
+          tags: ["Case Studies", "Storytelling", "Marketing"],
+          features: [
+            "Client Interviews",
+            "Data Analysis",
+            "Success Metrics",
+            "Before/After Scenarios",
+            "Visual Storytelling",
+            "ROI Calculations",
+          ],
+          faqs: [
+            {
+              question: "Do you interview clients directly?",
+              answer: "Yes, I conduct interviews to gather authentic insights.",
+            },
+            {
+              question: "How do you handle confidential information?",
+              answer: "I work with NDAs and can anonymize sensitive details.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Grant Proposal Content",
+          description:
+            "Professional grant proposal writing for non-profits, startups, and research projects. Persuasive content that wins funding.",
+          category: "Content Writing",
+          tags: ["Grant Writing", "Proposals", "Fundraising"],
+          features: [
+            "Needs Assessment",
+            "Project Description",
+            "Budget Justification",
+            "Impact Statements",
+            "Evaluation Plans",
+            "Compliance Review",
+          ],
+          faqs: [
+            {
+              question: "What types of grants do you write for?",
+              answer:
+                "Research grants, non-profit funding, startup competitions, and more.",
+            },
+            {
+              question: "Do you help with budget planning?",
+              answer: "I can help structure and justify budgets in proposals.",
             },
           ],
         },
@@ -744,6 +1470,192 @@ async function seed() {
             },
           ],
         },
+        {
+          title: "I Will Set Up Your Social Media Marketing Campaign",
+          description:
+            "Complete social media marketing setup with content strategy, posting schedule, and engagement tactics across platforms.",
+          category: "Digital Marketing",
+          tags: ["Digital Marketing", "Social Media", "Content Marketing"],
+          features: [
+            "Platform Setup",
+            "Content Strategy",
+            "Posting Schedule",
+            "Hashtag Research",
+            "Engagement Strategy",
+            "Analytics Setup",
+          ],
+          faqs: [
+            {
+              question: "Which platforms do you cover?",
+              answer: "Instagram, Twitter, LinkedIn, Facebook, and TikTok.",
+            },
+            {
+              question: "Do you create the content?",
+              answer:
+                "I create the strategy and templates. Content creation available separately.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Email Marketing Campaign",
+          description:
+            "Professional email marketing campaigns with automation, segmentation, and conversion optimization for maximum ROI.",
+          category: "Digital Marketing",
+          tags: ["Digital Marketing", "Email Marketing", "Automation"],
+          features: [
+            "Email Automation",
+            "List Segmentation",
+            "Template Design",
+            "A/B Testing",
+            "Performance Tracking",
+            "Conversion Optimization",
+          ],
+          faqs: [
+            {
+              question: "Which email platforms do you work with?",
+              answer:
+                "Mailchimp, ConvertKit, Klaviyo, and most major platforms.",
+            },
+            {
+              question: "Do you write the email copy?",
+              answer: "Yes, I provide complete email sequences and copy.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Google Ads Campaign",
+          description:
+            "Professional Google Ads setup and optimization for maximum ROI. Search, display, and shopping campaigns included.",
+          category: "Digital Marketing",
+          tags: ["Google Ads", "PPC", "Digital Marketing"],
+          features: [
+            "Campaign Setup",
+            "Keyword Research",
+            "Ad Copy Creation",
+            "Landing Page Optimization",
+            "Bid Management",
+            "Performance Tracking",
+          ],
+          faqs: [
+            {
+              question: "What's your typical ROI improvement?",
+              answer:
+                "Most clients see 200-400% improvement in ROI within 3 months.",
+            },
+            {
+              question: "Do you manage ongoing campaigns?",
+              answer:
+                "Yes, I offer ongoing management and optimization services.",
+            },
+          ],
+        },
+        {
+          title: "I Will Develop Your Influencer Marketing Strategy",
+          description:
+            "Complete influencer marketing strategy with influencer identification, outreach templates, and campaign management.",
+          category: "Digital Marketing",
+          tags: ["Influencer Marketing", "Social Media", "Strategy"],
+          features: [
+            "Influencer Research",
+            "Outreach Templates",
+            "Campaign Strategy",
+            "Contract Templates",
+            "Performance Metrics",
+            "ROI Tracking",
+          ],
+          faqs: [
+            {
+              question: "How do you find the right influencers?",
+              answer:
+                "I use advanced tools and manual research to find authentic influencers in your niche.",
+            },
+            {
+              question: "Do you handle negotiations?",
+              answer:
+                "I provide templates and guidance, but direct negotiations are handled by you.",
+            },
+          ],
+        },
+        {
+          title: "I Will Create Your Content Marketing Funnel",
+          description:
+            "Strategic content marketing funnel with lead magnets, nurture sequences, and conversion optimization.",
+          category: "Digital Marketing",
+          tags: ["Content Marketing", "Lead Generation", "Conversion"],
+          features: [
+            "Lead Magnet Strategy",
+            "Content Funnel Design",
+            "Nurture Sequences",
+            "Landing Pages",
+            "Email Automation",
+            "Conversion Tracking",
+          ],
+          faqs: [
+            {
+              question: "What types of lead magnets work best?",
+              answer:
+                "eBooks, checklists, templates, and webinars typically perform well.",
+            },
+            {
+              question: "How long until I see results?",
+              answer:
+                "Initial leads within 2-4 weeks, with optimization ongoing.",
+            },
+          ],
+        },
+        {
+          title: "I Will Build Your Marketing Analytics Dashboard",
+          description:
+            "Custom marketing analytics dashboard with KPI tracking, ROI measurement, and automated reporting.",
+          category: "Digital Marketing",
+          tags: ["Analytics", "Data Visualization", "Marketing"],
+          features: [
+            "Custom Dashboard",
+            "KPI Tracking",
+            "ROI Measurement",
+            "Automated Reports",
+            "Data Integration",
+            "Performance Insights",
+          ],
+          faqs: [
+            {
+              question: "Which platforms can you integrate?",
+              answer:
+                "Google Analytics, Facebook Ads, Google Ads, email platforms, and more.",
+            },
+            {
+              question: "How often are reports generated?",
+              answer: "Daily, weekly, or monthly reports based on your needs.",
+            },
+          ],
+        },
+        {
+          title: "I Will Optimize Your Conversion Rate",
+          description:
+            "Comprehensive conversion rate optimization with A/B testing, user experience analysis, and performance improvements.",
+          category: "Digital Marketing",
+          tags: ["Conversion Optimization", "A/B Testing", "UX"],
+          features: [
+            "Conversion Audit",
+            "A/B Testing Setup",
+            "User Experience Analysis",
+            "Landing Page Optimization",
+            "Checkout Optimization",
+            "Performance Tracking",
+          ],
+          faqs: [
+            {
+              question: "What conversion improvements can I expect?",
+              answer:
+                "Most clients see 20-50% improvement in conversion rates.",
+            },
+            {
+              question: "How long does testing take?",
+              answer:
+                "Significant results typically seen within 4-8 weeks of testing.",
+            },
+          ],
+        },
       ],
     };
 
@@ -779,19 +1691,31 @@ async function seed() {
               create: [
                 {
                   title: "Basic",
-                  price: 0.1,
+                  price: faker.number.float({
+                    min: 0.1,
+                    max: 0.3,
+                    fractionDigits: 2,
+                  }),
                   revisions: 1,
                   deliveryTime: 3,
                 },
                 {
                   title: "Standard",
-                  price: 0.3,
+                  price: faker.number.float({
+                    min: 0.3,
+                    max: 0.5,
+                    fractionDigits: 2,
+                  }),
                   revisions: 3,
                   deliveryTime: 5,
                 },
                 {
                   title: "Premium",
-                  price: 0.8,
+                  price: faker.number.float({
+                    min: 0.5,
+                    max: 1,
+                    fractionDigits: 2,
+                  }),
                   revisions: 5,
                   deliveryTime: 7,
                 },
@@ -838,6 +1762,7 @@ async function seed() {
       "COMPLETED",
       "DELIVERED",
       "PAID",
+      "LATE",
     ];
 
     // Each buyer makes 2-5 orders
