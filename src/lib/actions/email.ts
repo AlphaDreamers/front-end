@@ -35,8 +35,7 @@ const emailSubjects: Record<keyof typeof emailTemplates, string> = {
 };
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const DEFAULT_FROM_EMAIL =
-  "Acme <noreply@solana-marketplace-school-project.pl>";
+const DEFAULT_FROM_EMAIL = process.env.FROM_EMAIL as string;
 
 export async function sendEmail<T extends keyof typeof emailTemplates>(
   email: string,
