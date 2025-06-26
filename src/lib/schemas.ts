@@ -210,8 +210,3 @@ export const ImportWalletFormSchema = z
 export const MneumonicsVerificationFormSchema = z.object({
   mnemonic: z.array(z.string()),
 });
-
-export const KycFormSchema = z.object({
-  id: z.instanceof(File),
-  selfie: z.instanceof(File),
-});

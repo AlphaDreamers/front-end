@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "../prisma";
-import { KycFormSchema, VerifyEmailFormSchema } from "../schemas";
+import { VerifyEmailFormSchema } from "../schemas";
 import { auth } from "../auth";
 import { sendEmail } from "./email";
 import bcrypt from "bcryptjs";
