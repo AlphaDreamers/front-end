@@ -103,12 +103,20 @@ export default function KycVerificationPage() {
         const res = (await response.json()) as KYCResponse;
 
         if (!response.ok) {
+          throw new Error(res.error || "Failed to submit KYC data");
+        }
+
+        if (!res.success) {
+          throw new Error(res.message || "KYC verification failed");
+        }
+
+        if (!res.verified) {
           throw new Error(
-            res.error || res.similarity === undefined
-              ? "Failed to submit KYC data"
-              : `KYC verification failed with similarity score: ${res.similarity}`
+            `KYC verification failed with similarity: ${res.similarity}. Please try again.`
           );
         }
+
+        return res;
       },
       {
         loading: "Submitting KYC data...",
