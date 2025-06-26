@@ -379,21 +379,16 @@ export const resendVerificationEmail = async (
   }
 };
 
-export const verifyKyc = async (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  values: z.infer<typeof KycFormSchema>
-): Promise<ActionResult<void>> => {
+export const verifyKyc = async (): Promise<ActionResult<void>> => {
   try {
     const session = await auth();
+
     if (!session) {
       return {
         success: false,
         error: "You must be logged in to complete KYC verification.",
       };
     }
-
-    // Simulate KYC processing
-    await new Promise((resolve) => setTimeout(resolve, 15000));
 
     await prisma.user.update({
       where: { id: session.user.id },

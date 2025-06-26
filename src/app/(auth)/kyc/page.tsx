@@ -12,6 +12,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Form, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
+import { verifyKyc } from "@/lib/actions/auth";
 
 interface KYCResponse {
   success: boolean;
@@ -111,7 +112,8 @@ export default function KycVerificationPage() {
       },
       {
         loading: "Submitting KYC data...",
-        success: () => {
+        success: async () => {
+          await verifyKyc();
           router.push("/dashboard/verification-center");
           return "KYC verification submitted successfully!";
         },
