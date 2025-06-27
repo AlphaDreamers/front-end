@@ -379,6 +379,14 @@ export const deliverWork = async ({
   links?: string[];
   explanation: string;
 }): Promise<ActionResult<void>> => {
+  if (files?.some((f) => f.size > 1024 * 1024)) {
+    return {
+      success: false,
+      error:
+        "File size exceeds the 1MB limit. Please reduce file size and try again.",
+    };
+  }
+
   try {
     const session = await auth();
     if (!session) {

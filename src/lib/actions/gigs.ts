@@ -600,8 +600,8 @@ export const deleteGig = async (gigId: string): Promise<ActionResult<void>> => {
     }
 
     await prisma.packageFeature.deleteMany({
-      where: { 
-        gigPackage: { gigId } 
+      where: {
+        gigPackage: { gigId },
       },
     });
 
@@ -728,7 +728,10 @@ export const fetchGigsWithFilters = async (
       const lowestPrice = Math.min(...gig.packages.map((pkg) => pkg.price));
 
       // Early return if doesn't meet price requirement
-      if (priceRange && (lowestPrice < priceRange.min || lowestPrice > priceRange.max)) {
+      if (
+        priceRange &&
+        (lowestPrice < priceRange.min || lowestPrice > priceRange.max)
+      ) {
         return null;
       }
 
@@ -772,9 +775,8 @@ export const fetchGigsWithFilters = async (
 
   // Adjust count for filtered gigs
   // When filtering by rating or price at application level, use actual filtered count
-  const filteredCount = (minRating || priceRange)
-    ? transformedGigs.length
-    : totalCount;
+  const filteredCount =
+    minRating || priceRange ? transformedGigs.length : totalCount;
 
   return {
     gigs: transformedGigs,
@@ -783,7 +785,6 @@ export const fetchGigsWithFilters = async (
     totalCount: filteredCount,
   };
 };
-
 
 export const toggleGigBookmark = async (
   gigId: string
@@ -1109,7 +1110,10 @@ export const fetchDashboardGigs = async (
       const startsAtPrice = Math.min(...gig.packages.map((pkg) => pkg.price));
 
       // Filter by price if needed
-      if (priceRange && (startsAtPrice < priceRange.min || startsAtPrice > priceRange.max)) {
+      if (
+        priceRange &&
+        (startsAtPrice < priceRange.min || startsAtPrice > priceRange.max)
+      ) {
         return null;
       }
 
@@ -1140,9 +1144,10 @@ export const fetchDashboardGigs = async (
     .filter((g) => g !== null);
 
   // Adjust count if filtering by rating or price
-  const filteredCount = (minRating || priceRange)
-    ? transformedGigs.length // Already filtered above
-    : totalCount;
+  const filteredCount =
+    minRating || priceRange
+      ? transformedGigs.length // Already filtered above
+      : totalCount;
 
   return {
     gigs: transformedGigs,
@@ -1277,7 +1282,7 @@ export const getGigFilters = async (options: GetGigFiltersOptions) => {
       paramKey: "price",
       min: minPrice,
       max: maxPrice,
-      step: 1,
+      step: 0.01,
       suffix: "SOL",
       formatDisplay: "currency",
       // Show current selected range if any

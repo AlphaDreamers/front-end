@@ -52,21 +52,15 @@ Category | Technologies/Tools
 Framework | Next.js (SSR/SSG)
 Form Handling | React Hook Form + Zod Validation
 UI Components | ShadCN/UI, Radix UI (Primitives)
-Animations | Framer Motion
-Authentication | Auth.js (Session Management, OAuth)
-State Management | React Context API / Zustand (Implicit via Next.js & Auth.js)
-Styling | Tailwind CSS (Implied by ShadCN/UI)
-Component Documentation | Storybook.js
-Testing | Component Tests (Jest/React Testing Library), Accessibility (Axe)
-Design Collaboration | Figma (Final UI Design Pending)
+Authentication | Auth.js (Session Management)
+State Management | React Context API / Zustand
+Styling | Tailwind CSS
 
 Key Features
 - Performance & SEO: SSR/SSG via Next.js.
 - Validation: Client-side validation with Zod + React Hook Form.
-- Dynamic UI: Modular components (ShadCN/UI) + animations (Framer Motion).
+- Dynamic UI: Modular components (ShadCN/UI)
 - Authentication: Secure session management with Auth.js.
-- Documentation: Component library in Storybook.js.
-- Testing: Focus on accessibility and visual consistency.
 
 ### Backend Tech Stack
 Category | Technologies/Tools
@@ -290,7 +284,7 @@ Acceptance Criteria:
 1.
 Given a seller has received a new order\
    When they access their dashboard (via the "Seller Dashboard" link in the account menu)\
-   Then they see the new order with status "Pending" highlighted at the top of their orders list with a notification badge, including order ID, buyer username, purchase date/time, and amount
+   Then they see the new order with status "In Progress" highlighted at the top of their orders list including order ID, buyer username, purchase date/time, and amount
 2. Given a seller wants to deliver a digital product\
    When they navigate to the order details page by clicking on the specific order\
    Then they can upload the deliverable files (up to 1GB total size, supporting .zip, .pdf, .jpg, .png and other common formats) or provide access links in a dedicated text field
