@@ -38,18 +38,6 @@ This guide explains how to build and run the Next.js application using Docker.
 - Press `Ctrl+C` in the terminal where the container is running
 - Or run `docker stop <container-id>` in another terminal
 
-## Troubleshooting
-
-### Port Already in Use
-If you get "port is already allocated" error:
-- Use a different port: `docker run -p 3001:3000 my-nextjs-app`
-- Or stop the service using port 3000
-
-### Build Issues
-If the build fails:
-- Make sure Docker has enough memory allocated (at least 4GB recommended)
-- Try clearing Docker cache: `docker system prune`
-
 ### Application Not Loading
 - Wait a few seconds after "Ready on http://localhost:3000" appears
 - Check if there are any error messages in the terminal

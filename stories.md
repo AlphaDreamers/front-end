@@ -206,8 +206,8 @@ So that: Buyers receive their purchases efficiently
 Acceptance Criteria:
 
 1. Given a seller has received a new order\
-    When they access their dashboard (via the "Seller Dashboard" link in the account menu)\
-    Then they see the new order with status "In Progress" highlighted at the top of their orders list including order ID, buyer username, purchase date/time, and amount
+   When they access their dashboard (via the "Seller Dashboard" link in the account menu)\
+   Then they see the new order with status "In Progress" highlighted at the top of their orders list including order ID, buyer username, purchase date/time, and amount
 2. Given a seller wants to deliver a digital product\
    When they navigate to the order details page by clicking on the specific order\
    Then they can upload the deliverable files (up to 1GB total size, supporting .zip, .pdf, .jpg, .png and other common formats) or provide access links in a dedicated text field
