@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Upload, CheckCircle, Camera, FileText, Loader2 } from "lucide-react";
-import PageTemplate from "@/components/templates/page-template";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Form, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Form, FormMessage } from "@/components/ui/form";
+
+import PageTemplate from "@/components/templates/page-template";
 import { verifyKyc } from "@/lib/actions/auth";
 
 interface KYCResponse {
@@ -28,13 +30,15 @@ const formSchema = z.object({
     .refine(
       (file) => file.type.startsWith("image/"),
       "ID image must be an image file"
-    ),
+    )
+    .refine((f) => f.size <= 5 * 1024 * 1024, "ID image must be less than 5MB"),
   selfie: z
     .instanceof(File)
     .refine(
       (file) => file.type.startsWith("image/"),
       "Selfie must be an image file"
-    ),
+    )
+    .refine((f) => f.size <= 5 * 1024 * 1024, "Selfie must be less than 5MB"),
 });
 
 export default function KycVerificationPage() {
